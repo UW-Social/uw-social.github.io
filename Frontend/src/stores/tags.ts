@@ -41,6 +41,7 @@ export const academicTags = [
   "Statistics",
   "UI/UX",
 ];
+
 export const engineeringTags = [
   // 细分专业：
   "Bioengineering",
@@ -52,6 +53,17 @@ export const engineeringTags = [
 ];
 export const csTags = [
   "Artificial Intelligence",
+  "Computer Vision",
+  "Data Science",
+  "Machine Learning",
+  "Deep Learning",
+  "Natural Language Processing",
+  "Software Development",
+  "Web Development",
+  "Mobile Development",
+  "Cloud Computing",
+  "Hackathon",
+  "Open Source",
   "Cybersecurity",
   "Data Analytics",
   "Game Development",

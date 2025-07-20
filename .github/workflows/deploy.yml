@@ -28,12 +28,15 @@ jobs:
           echo VITE_FIREBASE_MESSAGING_SENDER_ID="${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
           echo VITE_FIREBASE_APP_ID="${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
           echo VITE_FIREBASE_MEASUREMENT_ID="${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}" >> .env
-          if [ "${{ github.ref_name }}" = "main" ]; then
+          if [ "${{ github.repository }}" = "UW-Social/uw-social.github.io" ]; then
             echo VITE_URL="uw-social.com" >> .env
             echo VITE_BASE_PATH="/" >> .env
-          elif [ "${{ github.ref_name }}" = "alpha" ]; then
-            echo VITE_URL="uw-social.com/alpha/api" >> .env
+          elif [ "${{ github.repository }}" = "UW-Social/alpha" ]; then
+            echo VITE_URL="uw-social.com/alpha" >> .env
             echo VITE_BASE_PATH="/alpha/" >> .env
+          elif [ "${{ github.repository }}" = "UW-Social/demo" ]; then
+            echo VITE_URL="uw-social.com/demo" >> .env
+            echo VITE_BASE_PATH="/demo/" >> .env
           fi
 
       - name: Setup Node.js
