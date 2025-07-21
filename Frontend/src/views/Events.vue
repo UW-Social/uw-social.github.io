@@ -76,14 +76,6 @@ onMounted(() => {
 
 const eventDialogStore = useEventDialogStore();
 
-watch(
-  () => userStore.userProfile,
-  (newVal) => {
-    console.log('[Debug] userProfile loaded:', newVal);
-  },
-  { immediate: true }
-);
-
 
 const route = useRoute();
 const selectedEvent = computed(() => eventDialogStore.selectedEvent);
@@ -95,13 +87,6 @@ const getCategoryString = (val: unknown): string => {
 };
 
 const categoryFilter = ref(getCategoryString(route.query.category));
-
-watch(
-  () => route.query.category,
-  (val) => {
-    categoryFilter.value = getCategoryString(val);
-  }
-);
 
 const openCard = (event: any) => {
   if (!userStore.userProfile || !userStore.userProfile.uid) {

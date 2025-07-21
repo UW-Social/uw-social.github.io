@@ -1,24 +1,11 @@
-<template>
-  <div class="app-container">
-    <MobileNav v-if="isMobile" />
-    <Navbar v-else />
-    <div class="content">
-      <router-view></router-view>
-    </div>
-
-    <!-- 全局弹窗 -->
-    <ElDialog v-model="eventDialogStore.isDialogOpen" title="Event Details" class="custom-dialog">
-      <DetailCard v-if="eventDialogStore.selectedEvent" :event="eventDialogStore.selectedEvent" />
-    </ElDialog>
-  </div>
-</template>
-
 <script setup lang="ts">
 import Navbar from './components/Navbar.vue';
 import MobileNav from '@/components/mobile/MobileNav.vue';
 import { useEventDialogStore } from './stores/eventDialog.ts';
 import DetailCard from '@/components/DetailCard.vue';
 import { onMounted, ref, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 
 const isMobile = ref(window.innerWidth <= 576);
 
@@ -45,11 +32,33 @@ onUnmounted(() => {
 });
 
 const eventDialogStore = useEventDialogStore();
+
+const route = useRoute()
+const hasQuery = computed(() => !!route.query.q)
 </script>
 
-function ref(arg0: boolean) {
-  throw new Error('Function not implemented.');
-}
+<template>
+  <div class="app-container">
+    <MobileNav v-if="isMobile" />
+    <Navbar v-else />
+    <div class="content">
+      <router-view></router-view>
+    </div>
+
+    <!-- 全局弹窗 -->
+    <ElDialog
+    v-if="!hasQuery"
+    v-model="eventDialogStore.isDialogOpen"
+    title="Event Details"
+    class="custom-dialog"
+  >
+    <DetailCard
+      v-if="eventDialogStore.selectedEvent"
+      :event="eventDialogStore.selectedEvent"
+    />
+  </ElDialog>
+  </div>
+</template>
 
 <style scoped>
 .custom-dialog {
