@@ -1,3 +1,4 @@
+
 <template>
   <div
     class="app-container"
@@ -52,6 +53,36 @@ onUnmounted(() => {
 });
 
 </script>
+
+=======
+const eventDialogStore = useEventDialogStore();
+
+const route = useRoute()
+const hasQuery = computed(() => !!route.query.q)
+</script>
+
+<template>
+  <div class="app-container">
+    <MobileNav v-if="isMobile" />
+    <Navbar v-else />
+    <div class="content">
+      <router-view></router-view>
+    </div>
+
+    <!-- 全局弹窗 -->
+    <ElDialog
+    v-if="!hasQuery"
+    v-model="eventDialogStore.isDialogOpen"
+    title="Event Details"
+    class="custom-dialog"
+  >
+    <DetailCard
+      v-if="eventDialogStore.selectedEvent"
+      :event="eventDialogStore.selectedEvent"
+    />
+  </ElDialog>
+  </div>
+</template>
 
 <style scoped>
 .custom-dialog {
