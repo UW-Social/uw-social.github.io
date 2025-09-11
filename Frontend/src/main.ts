@@ -11,6 +11,29 @@ import './assets/form.css';
 
 import { useUserStore } from './stores/user';
 
+async function loadGoogleMapsApi() {
+  const apiKey = import.meta.env.VITE_GOOGLE_API_KEY; // 从 .env 文件中获取 API Key
+  if (!apiKey) {
+    console.error('Google API Key is missing!');
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+  script.async = true;
+  script.defer = true;
+
+  document.head.appendChild(script);
+
+  script.onload = () => {
+    console.log('Google Maps API loaded successfully');
+  };
+
+  script.onerror = () => {
+    console.error('Failed to load Google Maps API');
+  };
+}
+
 async function bootstrap() {
   const app = createApp(App);
 
@@ -32,6 +55,8 @@ async function bootstrap() {
     }
     next();
   });
+
+  await loadGoogleMapsApi(); // 动态加载 Google Maps API
 
   app.mount('#app');
 }
