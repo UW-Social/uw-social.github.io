@@ -41,37 +41,21 @@ import EventList from '../components/EventList.vue';
 import DetailCard from '../components/DetailCard.vue';
 import '../assets/sidebar.css';
 import { useUserStore } from '../stores/user';
+import { setSelectedEvent, clearSelectedEvent, useSelectedEvent, mountKeyDownListener, unmountKeyDownListener } from '../utils/eventUtils';
 
 const userStore = useUserStore();
 const currentUserId = computed(() => userStore.userProfile?.uid);
 
-// 单个选中的活动
-const selectedEvent = ref(null);
-
-// 方法：设置选中的活动
-const setSelectedEvent = (event: any) => {
-  selectedEvent.value = event;
-};
-
-// 方法：清空选中的活动
-const clearSelectedEvent = () => {
-  selectedEvent.value = null;
-};
-
-// 方法：监听键盘事件
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
-    clearSelectedEvent(); // 按下 Esc 键时清空选中的活动
-  }
-};
+// 获取选中的活动的 ref
+const selectedEvent = useSelectedEvent();
 
 // 挂载和卸载事件监听器
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
+  mountKeyDownListener();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
+  unmountKeyDownListener();
 });
 
 const categoryFilter = ref('');

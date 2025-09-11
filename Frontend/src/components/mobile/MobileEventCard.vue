@@ -34,11 +34,11 @@
 
     <!-- Right Side - Event Info Section -->
     <div class="info-section">
-      <!-- Event Title (full display) -->
+      <!-- Event Title (2 lines) -->
       <h3 class="event-title">{{ event.title }}</h3>
       
-      <!-- Event Description (shorter) -->
-      <p class="event-description">{{ truncatedDescription }}</p>
+      <!-- Event Description (3 lines) -->
+      <p class="event-description">{{ event.description }}</p>
       
       <!-- Time and Location at bottom right -->
       <div class="event-meta">
@@ -80,15 +80,6 @@ const handleImageError = (event: any) => {
   target.src = '/images/wavingdog.jpg';
 };
 
-// Truncate description to fit card
-const truncatedDescription = computed(() => {
-  if (!props.event.description) return '';
-  const maxLength = 150; // Increased for larger cards
-  return props.event.description.length > maxLength 
-    ? props.event.description.substring(0, maxLength) + '...'
-    : props.event.description;
-});
-
 // Display limited number of tags with fade effect
 const displayTags = computed(() => {
   if (!props.event.tags || props.event.tags.length === 0) return [];
@@ -127,7 +118,7 @@ const truncatedLocation = computed(() => {
 
 <style scoped>
 .mobile-event-card {
-  background: white;
+  background: #F5F5F5;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -135,6 +126,8 @@ const truncatedLocation = computed(() => {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   margin-bottom: 4px;
+  border: 1px solid #E0E0E0; /* 添加边框 */
+  border-color: black;
 }
 
 .mobile-event-card:hover {
@@ -221,6 +214,10 @@ const truncatedLocation = computed(() => {
   line-height: 1.3;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 限制标题最多显示 2 行 */
+  -webkit-box-orient: vertical;
 }
 
 .event-description {

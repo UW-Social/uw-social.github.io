@@ -182,7 +182,7 @@ watch(
   display: flex;
   align-items: center;
   background-color: white;
-  border-radius: 25px;
+  border-radius: 30px;
   padding: 8px 16px;
   gap: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -256,7 +256,7 @@ watch(
   }
   
   .event-list-container {
-    padding: 12px;
+    padding: 12px 20px;
   }
 }
 </style>

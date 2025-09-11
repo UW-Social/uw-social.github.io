@@ -38,7 +38,7 @@
                 </el-popover>
               </li>
             </div>
-            <div :class="{ active: $route.path === '/publish' }">
+            <div v-if="isWeb" :class="{ active: $route.path === '/publish' }">
               <li><router-link to="/publish">PUBLISH</router-link></li>
             </div>
             <div v-if="isWeb && userStore.isLoggedIn && userStore.userProfile?.displayName" :class="{ active: $route.path === '/profile' }">

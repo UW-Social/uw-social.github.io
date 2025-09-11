@@ -15,7 +15,7 @@
     <!-- 第二部分：Google Map 和描述 -->
     <div class="map-and-description">
       <el-card class="detail-card-map">
-        <div class="google-map">
+        <div class="google-map" ref="mapContainer">
           <p>Google Map</p>
           <!-- 嵌入 Google Map 的 API -->
         </div>
@@ -29,13 +29,6 @@
             <a :href="event.link" target="_blank" rel="noopener noreferrer">{{ event.link }}</a>
           </p>
         </div>
-        <!-- 滚动提示 -->
-        <div v-if="showScrollHint" class="scroll-hint">
-          <div class="scroll-indicator">
-            <span>Scroll down for more</span>
-            <div class="scroll-arrow">↓</div>
-          </div>
-        </div>
         <!-- 底部渐变遮罩 -->
         <div v-if="showScrollHint" class="scroll-gradient"></div>
       </el-card>
@@ -44,16 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, onMounted, ref, nextTick } from 'vue';
 import { formatEventSchedule, type Event } from '../types/event';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useEventStore } from '../stores/event';
-
-// onMounted(() => {
-//   console.log('[DetailCard.vue] currentUserId prop:', props.currentUserId);
-// });
-
 
 const props = defineProps<{
   event: Event;
@@ -61,6 +49,9 @@ const props = defineProps<{
 }>();
 
 const eventStore = useEventStore();
+
+// 地图容器
+const mapContainer = ref<HTMLElement | null>(null);
 
 // 滚动相关状态
 const scrollableContent = ref<HTMLElement>();
@@ -98,6 +89,27 @@ const onScroll = (event: Event) => {
 // 组件挂载后检查是否需要显示滚动提示
 onMounted(() => {
   checkScrollable();
+
+  if (mapContainer.value) {
+    const location = props.event.location || 'University of Washington';
+    const geocoder = new google.maps.Geocoder();
+
+    geocoder.geocode({ address: location }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const map = new google.maps.Map(mapContainer.value, {
+          center: results[0].geometry.location,
+          zoom: 15,
+        });
+
+        new google.maps.Marker({
+          position: results[0].geometry.location,
+          map: map,
+        });
+      } else {
+        console.error('Geocode was not successful for the following reason:', status);
+      }
+    });
+  }
 });
 
 const formatDescription = (desc: string) => {

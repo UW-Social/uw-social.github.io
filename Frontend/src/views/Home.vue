@@ -22,12 +22,17 @@
     <div class="events-section">
       <h2>Recommend for you</h2>
       <EventList @open-card="setSelectedEvent" />
+      <div v-if="selectedEvent" class="detail-card-overlay" @click.self="clearSelectedEvent">
+        <DetailCard :event="selectedEvent" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import EventList from '@/components/EventList.vue';
+import EventList from '../components/EventList.vue';
+import DetailCard from '../components/DetailCard.vue';
+import { setSelectedEvent, clearSelectedEvent, useSelectedEvent, mountKeyDownListener, unmountKeyDownListener } from '../utils/eventUtils';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
@@ -38,6 +43,8 @@ const backgroundOpacity = ref(1); // 背景透明度
 const eventStore = useEventStore();
 
 const isMobile = ref(window.innerWidth <= 576);
+
+const selectedEvent = useSelectedEvent();
 
 function handleHomeSearch() {
   if (homeSearch.value.trim()) {
@@ -59,19 +66,14 @@ function handleScroll() {
   backgroundOpacity.value = Math.max(1 - scrollTop / maxScroll, 0.1);
 }
 
-const selectedEvent = ref(null);
-
-const setSelectedEvent = (event: any) => {
-  console.log('Selected Event:', event);
-  selectedEvent.value = event; // 设置选中的事件
-};
-
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
+  mountKeyDownListener();
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  unmountKeyDownListener();
 });
 </script>
 
@@ -167,6 +169,26 @@ onUnmounted(() => {
   width: 2.5rem;
   height: 2.5rem;
   vertical-align: middle;
+}
+
+.detail-card-container {
+  margin-top: 100px;
+  border: none;
+}
+
+.detail-card-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 20px 0;
 }
 
 @media (max-width: 576px) {
