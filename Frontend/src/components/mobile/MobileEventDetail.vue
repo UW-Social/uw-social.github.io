@@ -67,6 +67,12 @@
       </div>
     </div>
 
+    <!-- Map under description -->
+    <div v-if="event?.location" class="map-card">
+      <h2 class="section-title">Location Map</h2>
+      <div ref="mapEl" class="google-map"></div>
+    </div>
+
     <!-- Event Link -->
     <div class="link-card" v-if="event?.link">
       <h2 class="section-title">Event Link</h2>
@@ -93,16 +99,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEventStore } from '../../stores/event';
 import { formatEventSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
+import { loadGoogleMaps } from '../../utils/googleMaps';
 
 const route = useRoute();
 const eventStore = useEventStore();
 const event = ref<Event | null>(null);
 const isLoading = ref(true);
+const mapEl = ref<HTMLElement | null>(null);
 
 // Load event data when component mounts
 onMounted(async () => {

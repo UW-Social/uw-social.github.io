@@ -14,12 +14,9 @@
 
     <!-- 第二部分：Google Map 和描述 -->
     <div class="map-and-description">
-      <el-card class="detail-card-map">
-        <div class="google-map" ref="mapContainer">
-          <p>Google Map</p>
-          <!-- 嵌入 Google Map 的 API -->
-           <!-- to be implemented -->
-        </div>
+      <el-card v-if="!isMobile()" class="detail-card-map">
+        <!-- 地图容器：不要放文字，占满容器 -->
+        <div class="google-map" ref="mapContainer"></div>
       </el-card>
 
       <el-card class="detail-card-description">
@@ -33,16 +30,23 @@
         <!-- 底部渐变遮罩 -->
         <div v-if="showScrollHint" class="scroll-gradient"></div>
       </el-card>
+
+      <el-card v-if="isMobile()" class="detail-card-map-mobile">
+        <!-- 地图容器：不要放文字，占满容器 -->
+        <div class="google-map" ref="mapContainer"></div>
+      </el-card>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick } from 'vue';
+import { loadGoogleMaps } from '../utils/googleMaps';
 import { formatEventSchedule, type Event } from '../types/event';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useEventStore } from '../stores/event';
+import { isMobile } from '../router';
 
 const props = defineProps<{
   event: Event;
@@ -74,42 +78,50 @@ const checkScrollable = () => {
   });
 };
 
-// 滚动事件处理
-const onScroll = (event: Event) => {
-  const element = event.target as HTMLElement;
+// 滚动事件处理：使用 UIEvent，避免与自定义 Event 类型冲突
+const onScroll = (e: UIEvent) => {
+  const element = e.target as HTMLElement;
   const scrollTop = element.scrollTop;
   const scrollHeight = element.scrollHeight;
   const clientHeight = element.clientHeight;
-  
-  // 如果滚动超过20px或接近底部，隐藏提示
   if (scrollTop > 20 || scrollTop + clientHeight >= scrollHeight - 10) {
     showScrollHint.value = false;
   }
 };
 
-// 组件挂载后检查是否需要显示滚动提示
-onMounted(() => {
+// 组件挂载后初始化地图
+onMounted(async () => {
   checkScrollable();
 
-  if (mapContainer.value) {
+  await nextTick(); // 确保卡片和容器已完成布局
+  const el = mapContainer.value;
+  if (!el) return;
+
+  try {
+    const g = await loadGoogleMaps();
+    const fallback = { lat: 47.6553, lng: -122.3035 }; // UW
+
+    const map = new g.maps.Map(el, {
+      center: fallback,
+      zoom: 15,
+    });
+
     const location = props.event.location || 'University of Washington';
-    const geocoder = new google.maps.Geocoder();
+    const geocoder = new g.maps.Geocoder();
 
-    geocoder.geocode({ address: location }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const map = new google.maps.Map(mapContainer.value, {
-          center: results[0].geometry.location,
-          zoom: 15,
-        });
-
-        new google.maps.Marker({
-          position: results[0].geometry.location,
-          map: map,
-        });
+    geocoder.geocode({ address: location }, (results: any, status: any) => {
+      if (status === 'OK' && results?.[0]) {
+        const pos = results[0].geometry.location;
+        map.setCenter(pos);
+        new g.maps.Marker({ position: pos, map });
       } else {
-        console.error('Geocode was not successful for the following reason:', status);
+        // 兜底 Marker，便于可视验证
+        new g.maps.Marker({ position: fallback, map });
+        console.warn('Geocode failed:', status, 'using fallback center');
       }
     });
+  } catch (err) {
+    console.error('Failed to load Google Maps:', err);
   }
 });
 
@@ -144,6 +156,20 @@ nextTick(() => {
   max-height: calc(100vh - 40px); /* 最大高度为视口高度减去padding */
   margin: 20px auto;
   overflow-y: auto; /* 允许垂直滚动 */
+
+  /* 只作为兜底，避免页面出现横向滚动条 */
+  overflow-x: hidden;
+}
+
+/* 去掉地图卡片的内边距，避免容器被压缩 */
+.detail-card-map :deep(.el-card__body) {
+  padding: 0;
+}
+
+/* Flex 子项可收缩，避免横向被长内容撑开 */
+.detail-card-map,
+.detail-card-description {
+  min-width: 0;
 }
 
 .detail-card-header {
@@ -170,10 +196,35 @@ nextTick(() => {
   position: relative;
 }
 
+.google-map {
+  width: 100%;          /* 关键：明确宽度 */
+  height: 260px;        /* 关键：明确高度 */
+  background-color: #fff;
+  border-radius: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 只纵向滚动，已 OK */
 .scrollable-content {
-  max-height: 400px; /* 限制描述区域最大高度 */
-  overflow-y: auto; /* 描述内容过长时可滚动 */
-  padding-right: 8px; /* 为滚动条留出空间 */
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 富文本里的图片不超出容器 */
+.event-description img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 链接在窄容器中也能断行 */
+.event-link a {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* 滚动条样式 */
@@ -286,46 +337,5 @@ nextTick(() => {
   font-size: 1rem;
   color: #555;
   margin-bottom: 0.5rem;
-}
-
-.google-map {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.event-details {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.event-description {
-  padding: 0 0.5rem;
-  font-size: 1.1rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  font-weight: 400;
-  color: #374151;
-  line-height: 1.7;
-  letter-spacing: 0.01em;
-  margin-bottom: 1rem;
-}
-
-.event-tags {
-  font-size: 0.9rem;
-  color: #777;
-  margin-bottom: 1rem;
-}
-
-.event-link a {
-  color: #1c6fc1;
-  text-decoration: underline;
-}
-
-.event-link a:hover {
-  color: #0a4fa3;
 }
 </style>

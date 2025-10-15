@@ -120,7 +120,9 @@
     font-weight: bold;
     /* margin: 0; */
     display: -webkit-box;
-    -webkit-line-clamp: 3; /* 限制为 3 行 */
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; /* 限制为 2 行 */
   }
 
   .event-card .description {

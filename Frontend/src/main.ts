@@ -12,7 +12,7 @@ import './assets/form.css';
 import { useUserStore } from './stores/user';
 
 async function loadGoogleMapsApi() {
-  const apiKey = import.meta.env.VITE_GOOGLE_API_KEY; // 从 .env 文件中获取 API Key
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY; // 从 .env 文件中获取 API Key
   if (!apiKey) {
     console.error('Google API Key is missing!');
     return;
