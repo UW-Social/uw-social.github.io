@@ -2,7 +2,7 @@
   <div class="club-page">
     <!-- Background container -->
     <div class="background-container">
-      <img src="/svg/clubsbg.svg" alt="Club Background" class="background-svg" />
+      <img src="/svg/club.svg" alt="Club Background" class="background-svg" />
     </div>
 
     <div class="overlapping-page">
