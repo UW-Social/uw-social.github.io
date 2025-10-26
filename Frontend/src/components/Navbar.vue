@@ -17,26 +17,7 @@
               <li><router-link to="/events">EVENTS</router-link></li>
             </div>
             <div :class="{ active: $route.path === '/clubs' }">
-              <li>
-                <el-popover
-                  width="200"
-                  trigger="click"
-                  v-model="isPopConfirmVisible"
-                  popper-class="custom-popover"
-                >
-                  <template #reference>
-                    <div @click.prevent="showPopover">
-                      <router-link to="#">CLUBS</router-link>
-                    </div>
-                  </template>
-                  <template #default>
-                    <div class="popover-content">
-                      <p class="popover-text">This feature is under development</p>
-                      <button class="popover-button" @click="isPopConfirmVisible = false">OK</button>
-                    </div>
-                  </template>
-                </el-popover>
-              </li>
+              <li><router-link to="/clubs">CLUBS</router-link></li>
             </div>
             <div v-if="isWeb" :class="{ active: $route.path === '/publish' }">
               <li><router-link to="/publish">PUBLISH</router-link></li>
@@ -90,7 +71,6 @@ const userStore = useUserStore()
 const router = useRouter()
 const navbarSearch = ref('');
 const isWeb = ref(window.innerWidth > 576);
-const isPopConfirmVisible = ref(false);
 
 const navigateToProfile = () => {
   router.push('/profile');
@@ -109,20 +89,6 @@ function handleNavbarSearch() {
   if (navbarSearch.value.trim()) {
     router.push({ path: '/events', query: { q: navbarSearch.value.trim() } });
     navbarSearch.value = '';
-  }
-}
-
-function showPopover() {
-  isPopConfirmVisible.value = true;
-   // Google Analytics 事件追踪
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', 'click', {
-      'event_category': 'Navigation',
-      'event_label': 'CLUBS',
-      'value': 1
-    });
-  } else {
-    console.warn('Google Analytics gtag is not defined.');
   }
 }
 </script>
