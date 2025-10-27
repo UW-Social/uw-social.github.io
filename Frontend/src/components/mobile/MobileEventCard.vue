@@ -183,7 +183,7 @@ const truncatedLocation = computed(() => {
   background: #f0f0f0;
   color: #666;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 300;
   padding: 3px 6px;
   border-radius: 10px;
   white-space: nowrap;
@@ -208,7 +208,7 @@ const truncatedLocation = computed(() => {
 
 .event-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 300;
   color: #333;
   margin: 0 0 6px 0;
   line-height: 1.3;

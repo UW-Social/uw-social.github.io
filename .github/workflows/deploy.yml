@@ -32,12 +32,18 @@ jobs:
           if [ "${{ github.repository }}" = "UW-Social/uw-social.github.io" ]; then
             echo VITE_URL="uw-social.com" >> .env
             echo VITE_BASE_PATH="/" >> .env
-          elif [ "${{ github.repository }}" = "UW-Social/alpha" ]; then
-            echo VITE_URL="uw-social.com/alpha" >> .env
-            echo VITE_BASE_PATH="/alpha/" >> .env
-          elif [ "${{ github.repository }}" = "UW-Social/demo" ]; then
-            echo VITE_URL="uw-social.com/demo" >> .env
-            echo VITE_BASE_PATH="/demo/" >> .env
+          elif [ "${{ github.repository }}" = "UW-Social/test" ]; then
+            echo VITE_URL="uw-social.github.io/test" >> .env
+            echo VITE_BASE_PATH="/test/" >> .env
+            echo VITE_API_BASE_URL="https://uw-social.com/api" >> .env
+          elif [ "${{ github.repository }}" = "UW-Social/yjy-test-ui-v1" ]; then
+            echo VITE_URL="uw-social.com/yjy-test-ui-v1" >> .env
+            echo VITE_BASE_PATH="/yjy-test-ui-v1/" >> .env
+            echo VITE_API_BASE_URL="https://uw-social.com/api" >> .env
+          elif [ "${{ github.repository }}" = "UW-Social/test-daniel" ]; then
+            echo VITE_URL="uw-social.com/test-daniel" >> .env
+            echo VITE_BASE_PATH="/test-daniel/" >> .env
+            echo VITE_API_BASE_URL="https://uw-social.com/api" >> .env
           fi
 
       - name: Setup Node.js
@@ -53,6 +59,8 @@ jobs:
       - name: Build project
         run: |
           cd Frontend
+          echo "Contents of .env file:"
+          cat .env
           npm run build
 
       - name: Upload artifact

@@ -6,6 +6,7 @@ import 'element-plus/dist/index.css';
 import App from './App.vue';
 import router from './router';
 import './firebase'; // 确保 Firebase 初始化
+import './assets/design-system.css'; // Design system
 import './assets/form.css';
 
 

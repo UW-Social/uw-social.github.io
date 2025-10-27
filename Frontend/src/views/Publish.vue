@@ -1,85 +1,124 @@
 <template>
   <div class="publish-page">
-    <!-- 背景 SVG -->
-    <div class="background-container">
-      <img src="../../public/svg/background4.svg" class="background-svg" />
-    </div>
-    
     <div class="page-header">
-      <h1>Create Your Event</h1>
-      <p>Bring people together and make connections happen</p>
+      <h1>{{ publishType === 'event' ? 'Create Event' : 'Create Club' }}</h1>
+
+      <!-- Toggle buttons -->
+      <div class="type-selector">
+        <button
+          :class="{ active: publishType === 'event' }"
+          @click="publishType = 'event'"
+        >
+          Event
+        </button>
+        <button
+          :class="{ active: publishType === 'club' }"
+          @click="publishType = 'club'"
+        >
+          Club
+        </button>
+      </div>
     </div>
-    
-    <EventForm />
+
+    <EventForm v-if="publishType === 'event'" />
+    <ClubForm v-else @cancel="handleCancel" @success="handleSuccess" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import EventForm from '../components/EventForm.vue';
+import ClubForm from '../components/ClubForm.vue';
+
+const router = useRouter();
+const publishType = ref<'event' | 'club'>('event');
+
+const handleCancel = () => {
+  router.push('/clubs');
+};
+
+const handleSuccess = () => {
+  router.push('/clubs');
+};
 </script>
 
 <style scoped>
 .publish-page {
-  position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding-top: 120px;
-  padding-bottom: 4rem;
-}
-
-.background-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.background-svg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.3;
+  background-color: var(--color-white);
+  padding-top: calc(var(--navbar-height) - var(--spacing-2xl));
+  padding-bottom: var(--spacing-3xl);
 }
 
 .page-header {
-  position: relative;
-  z-index: 1;
   text-align: center;
-  margin-bottom: 3rem;
-  padding: 0 1rem;
+  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-xl) var(--spacing-3xl);
 }
 
 .page-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-lg);
 }
 
-.page-header p {
-  font-size: 1.1rem;
-  color: #666;
-  max-width: 500px;
-  margin: 0 auto;
+.type-selector {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  margin-top: var(--spacing-xl);
+}
+
+.type-selector button {
+  padding: var(--spacing-md) var(--spacing-2xl);
+  border: var(--border-width) solid var(--border-color);
+  background: var(--color-white);
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.type-selector button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+  box-shadow: none !important;
+}
+
+.type-selector button.active {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+  box-shadow: none !important;
 }
 
 @media (max-width: 768px) {
   .publish-page {
-    padding-top: 100px;
+    padding-top: calc(var(--navbar-height) - var(--spacing-xl));
   }
-  
+
+  .page-header {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
   .page-header h1 {
-    font-size: 2rem;
+    font-size: var(--font-size-2xl);
   }
-  
-  .page-header p {
-    font-size: 1rem;
+
+  .type-selector {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 var(--spacing-md);
+  }
+
+  .type-selector button {
+    width: 100%;
   }
 }
 </style> 
