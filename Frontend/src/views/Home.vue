@@ -1,30 +1,43 @@
 <template>
   <div class="home-page">
-    <!-- 背景 SVG -->
-    <div class="background-container">
-      <img v-if="isMobile" src="../../public/svg/background5.svg" class="background-svg" :style="{ opacity: backgroundOpacity }" />
-      <img v-else src="../../public/svg/background4.svg" class="background-svg" :style="{ opacity: backgroundOpacity }" />
-    </div>
-
-    <!-- 新增标题和短句子 -->
-    <div class="page-title">
-      <h1>UW Social</h1>
-      <p>Your social gateway<br />to everything happening at UW</p>
-      <!-- 新增按钮 -->
-      <el-row class="page-button">
-        <el-button round type="primary" @click="navigateToEvents">
-          Explore Now
-          <img src="../../public/svg/rightarrow1.svg" alt="arrow" class="button-arrow" />
-        </el-button>
-      </el-row>
-    </div>
-
-    <div class="events-section">
-      <h2>Recommend for you</h2>
-      <EventList @open-card="setSelectedEvent" />
-      <div v-if="selectedEvent" class="detail-card-overlay" @click.self="clearSelectedEvent">
-        <DetailCard :event="selectedEvent" />
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <h1 class="hero-title">Discover Campus Life</h1>
+        <p class="hero-subtitle">Connect with events, clubs, and communities at UW</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-lg" @click="navigateToEvents">
+            Explore Events
+            <svg class="btn-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="btn btn-outline btn-lg" @click="router.push('/clubs')">
+            Browse Clubs
+          </button>
+        </div>
       </div>
+      <div class="hero-illustration">
+        <div class="illustration-card card-1"></div>
+        <div class="illustration-card card-2"></div>
+        <div class="illustration-card card-3"></div>
+      </div>
+    </section>
+
+    <!-- Featured Section -->
+    <section class="featured-section">
+      <div class="section-header">
+        <h2 class="section-title">Recommended for You</h2>
+        <p class="section-subtitle">Personalized events based on your interests</p>
+      </div>
+      <div class="events-container">
+        <EventList @open-card="setSelectedEvent" />
+      </div>
+    </section>
+
+    <!-- Detail Card Modal -->
+    <div v-if="selectedEvent" class="detail-card-overlay" @click.self="clearSelectedEvent">
+      <DetailCard :event="selectedEvent" :currentUserId="userStore.userProfile?.uid" @close="clearSelectedEvent" />
     </div>
   </div>
 </template>
@@ -35,183 +48,241 @@ import DetailCard from '../components/DetailCard.vue';
 import { setSelectedEvent, clearSelectedEvent, useSelectedEvent, mountKeyDownListener, unmountKeyDownListener } from '../utils/eventUtils';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useEventStore } from '../stores/event';
+import { useUserStore } from '../stores/user';
 
-const homeSearch = ref('');
 const router = useRouter();
-const backgroundOpacity = ref(1); // 背景透明度
-const eventStore = useEventStore();
-
-const isMobile = ref(window.innerWidth <= 576);
-
+const userStore = useUserStore();
 const selectedEvent = useSelectedEvent();
 
-function handleHomeSearch() {
-  if (homeSearch.value.trim()) {
-    router.push({ path: '/events', query: { q: homeSearch.value.trim() } });
-    homeSearch.value = '';
-  }
-}
-
-// 新增 navigateToEvents 方法
 function navigateToEvents() {
-  router.push('/events'); // 跳转到 events 页面
-}
-
-// 监听滚动事件，动态调整背景透明度
-function handleScroll() {
-  const maxScroll = 550; // 滚动多少像素后完全透明
-  const scrollTop = window.scrollY;
-
-  backgroundOpacity.value = Math.max(1 - scrollTop / maxScroll, 0.1);
+  router.push('/events');
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
   mountKeyDownListener();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
   unmountKeyDownListener();
 });
 </script>
 
 <style scoped>
+/**
+ * Home Page - Flat, Modern Design
+ */
+
 .home-page {
-  position: relative;
-  min-height: calc(100vh - 100px);
-  overflow: hidden;
-  z-index: 1; /* 确保内容在背景之上 */
+  min-height: 100vh;
+  background-color: var(--color-white);
+  padding-top: calc(var(--navbar-height) - var(--spacing-2xl));
 }
 
-.background-container {
-  position: fixed;
-  top: 0px; /* 留出导航栏的高度，假设导航栏高度为 80px */
-  left: 0;
-  width: 100vw; /* 背景宽度覆盖整个视口 */
-  height: 160vh; /* 背景高度覆盖整个视口 */
-  z-index: -1; /* 确保背景在内容后面 */
-  display: flex;
-  justify-content: center;
+/* Hero Section */
+.hero-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3xl);
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  min-height: calc(100vh - var(--navbar-height));
   align-items: center;
+}
+
+.hero-content {
+  display: flex;
   flex-direction: column;
-  pointer-events: none; /* 防止背景影响内容交互 */
+  gap: var(--spacing-xl);
 }
 
-.background-svg {
-  width: 100%; /* 宽度自动调整 */
-  height: 100%; /* 高度覆盖容器 */
-  object-fit: cover; /* 确保背景图像适应容器 */
-  opacity: 1;
-  transition: opacity 0.2s ease-out; /* 平滑过渡 */
-}
-
-.page-title {
-  position: absolute;
-  top: calc(80px + 3rem); /* 导航栏高度 + 3rem */
-  left: 5rem; /* 距离左侧 5rem */
-  color: #8358D8; /* 标题颜色 */
-  font-family: 'Poppins', sans-serif; /* 使用 Poppins 字体 */
-  z-index: 2; /* 确保标题在背景之上 */
-}
-
-.page-title h1 {
-  font-size: 3.4rem; /* 主标题字体大小 */
-  font-weight: 1000; /* 主标题字体粗细 */
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-gray-900);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
-.page-title p {
-  font-size: 2.1rem; /* 副标题字体大小 */
-  font-weight: 500; /* 副标题字体粗细 */
-  margin: 0.5rem 0 0 0; /* 副标题与主标题的间距 */
-  line-height: 1.5; /* 行高 */
+.hero-subtitle {
+  font-size: var(--font-size-xl);
+  color: var(--color-gray-600);
+  line-height: var(--line-height-normal);
+  margin: 0;
+  max-width: 500px;
 }
 
-.page-button {
-  margin-top: 3rem; /* 按钮距离标题的间距 */
-  z-index: 4; /* 确保按钮在其他元素之上 */
+.hero-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-lg {
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: var(--font-size-base);
+}
+
+.btn-icon {
+  margin-left: var(--spacing-xs);
+  transition: transform var(--transition-fast);
+}
+
+.btn-primary:hover .btn-icon {
+  transform: translateX(4px);
+}
+
+/* Hero Illustration */
+.hero-illustration {
   position: relative;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.page-button .el-button { /*explore now button */
-  background-color: #8c66d8; /* 按钮背景颜色 */
-  color: #F4EBD1; /* 按钮文字颜色 */
-  font-size: 1.4rem; /* 按钮文字大小 */
-  font-family: 'Poppins', sans-serif; /* 按钮文字字体 */
-  border-radius: 40px; /* 按钮圆角 */
-  padding: 2rem 2.3rem; /* 按钮内边距 */
-  transition: background-color 0.3s ease;
+.illustration-card {
+  position: absolute;
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: var(--border-width) solid var(--border-color);
 }
 
-.page-button .el-button:hover {
-  background-color: #b196e5; /* 按钮悬停时的背景颜色 */
+.card-1 {
+  width: 280px;
+  height: 350px;
+  background: linear-gradient(135deg, var(--color-primary-bg) 0%, var(--color-white) 100%);
+  transform: rotate(-5deg);
+  z-index: 1;
 }
 
-.events-section {
-  margin: 30rem 0;
-  padding: 9rem 4rem 1rem;
-  z-index: 2; /* 确保 EventList 在背景之上 */
-  position: relative; /* 确保 z-index 生效 */
+.card-2 {
+  width: 300px;
+  height: 380px;
+  background: linear-gradient(135deg, var(--color-white) 0%, var(--color-gray-50) 100%);
+  z-index: 2;
 }
 
-.events-section h2 {
-  text-align: left;
-  color: #8358D8;
-  padding: 0 0 0 2rem;
-  font-size: 1.5rem;
-  font-family: 'Poppins', sans-serif; /* 设置字体为 Poppins */
-  font-weight: 500;
+.card-3 {
+  width: 260px;
+  height: 320px;
+  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-primary-bg) 100%);
+  transform: rotate(5deg);
+  right: 0;
+  z-index: 1;
 }
 
-.button-arrow {
-  width: 2.5rem;
-  height: 2.5rem;
-  vertical-align: middle;
+/* Featured Section */
+.featured-section {
+  background-color: var(--color-gray-50);
+  padding: var(--spacing-3xl) var(--spacing-xl);
 }
 
-.detail-card-container {
-  margin-top: 100px;
-  border: none;
+.section-header {
+  max-width: var(--container-max-width);
+  margin: 0 auto var(--spacing-2xl);
+  text-align: center;
 }
 
+.section-title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-gray-900);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.section-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.events-container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+}
+
+/* Detail Card Modal */
 .detail-card-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  z-index: 1000;
+  z-index: var(--z-modal);
   overflow-y: auto;
-  padding: 20px 0;
+  padding: var(--spacing-2xl) var(--spacing-md);
+  backdrop-filter: blur(4px);
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .hero-section {
+    grid-template-columns: 1fr;
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    min-height: auto;
+  }
+
+  .hero-illustration {
+    height: 400px;
+    order: -1;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: var(--font-size-lg);
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .section-title {
+    font-size: var(--font-size-2xl);
+  }
 }
 
 @media (max-width: 576px) {
-  .page-title {
-    top: calc(80px + 2rem); /* 导航栏高度 + 2rem */
-    left: 2rem; /* 距离左侧 2rem */
+  .home-page {
+    padding-top: calc(var(--navbar-height) - var(--spacing-2xl));
   }
 
-  .page-title h1 {
-    font-size: 2.6rem; /* 主标题字体大小 */
+  .hero-section {
+    padding: var(--spacing-xl) var(--spacing-md);
   }
 
-  .page-title p {
-    font-size: 1.8rem; /* 副标题字体大小 */
+  .hero-title {
+    font-size: 2rem;
   }
 
-  .page-button {
-    margin-top: 6rem; /* 按钮距离标题的间距 */
+  .hero-subtitle {
+    font-size: var(--font-size-base);
   }
 
-  .events-section {
-    margin: 30rem 0;
-    padding: 6rem 0;
+  .hero-illustration {
+    height: 300px;
+  }
+
+  .card-1, .card-2, .card-3 {
+    width: 200px;
+    height: 250px;
+  }
+
+  .featured-section {
+    padding: var(--spacing-2xl) var(--spacing-md);
+  }
+
+  .detail-card-overlay {
+    padding: var(--spacing-md);
   }
 }
 </style>

@@ -1,19 +1,9 @@
 <template>
   <div class="login-container">
-    <div class="login-background">
-      <div class="floating-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-        <div class="shape shape-4"></div>
-      </div>
-    </div>
-    
     <div class="login-content">
       <div class="login-card">
         <div class="login-header">
-          <img src="/images/logo1.png" alt="UW Social Logo" class="login-logo">
-          <h1>Welcome to UW Social</h1>
+          <h1>UW Social</h1>
           <p>Connect with your campus community</p>
         </div>
         
@@ -51,20 +41,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useUserStore } from '../stores/user'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import '../assets/login.css'
 
 const userStore = useUserStore()
 const router = useRouter()
+const route = useRoute()
 const isLoading = ref(false)
 
 const handleGoogleLogin = async () => {
   if (isLoading.value) return
-  
+
   isLoading.value = true
   try {
     await userStore.loginWithGoogle()
-    router.push('/profile')
+    // 登录成功后，跳转到之前想访问的页面，如果没有则跳转到profile
+    const redirect = route.query.redirect as string || '/profile'
+    router.push(redirect)
   } catch (error) {
     console.error('Login failed:', error)
   } finally {
@@ -74,4 +67,34 @@ const handleGoogleLogin = async () => {
 </script>
 
 <style scoped>
+/* Ensure consistent border-radius across all elements */
+:deep(.login-card) {
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+:deep(.google-login-btn) {
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:deep(.google-login-btn:hover) {
+  box-shadow: none !important;
+}
+
+:deep(.google-login-btn:focus) {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:deep(.google-login-btn:active) {
+  box-shadow: none !important;
+}
+
+:deep(.google-login-btn:focus-visible) {
+  box-shadow: none !important;
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
 </style>

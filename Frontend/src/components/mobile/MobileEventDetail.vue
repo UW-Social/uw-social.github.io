@@ -193,7 +193,7 @@ const displayTags = computed(() => {
 
 .event-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 300;
   color: #333;
   margin: 0;
   line-height: 1.3;
@@ -267,7 +267,7 @@ const displayTags = computed(() => {
 .detail-text {
   font-size: 14px;
   color: #333;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .tags-section {
@@ -281,7 +281,7 @@ const displayTags = computed(() => {
   background: #f0f0f0;
   color: #666;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 300;
   padding: 4px 8px;
   border-radius: 12px;
   white-space: nowrap;
@@ -302,7 +302,7 @@ const displayTags = computed(() => {
 
 .section-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 300;
   color: #333;
   margin: 0 0 16px 0;
 }
@@ -310,8 +310,8 @@ const displayTags = computed(() => {
 .description-content {
   color: #666;
   font-size: 17px;
-  line-height: 1.7;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.3;
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -363,8 +363,8 @@ const displayTags = computed(() => {
   flex: 1;
   font-size: 15px;
   color: #333;
-  font-weight: 500;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 300;
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .external-icon {

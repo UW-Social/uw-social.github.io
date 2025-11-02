@@ -206,58 +206,48 @@ export function formatEventSchedule(event: Event): string {
     }
 
     case RecurrenceType.DAILY: {
-      let str = `Daily`;
+      const startDate = getDate(schedule.startDate);
+      const dateStr = safeFormatDate(startDate);
+
       if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        str += `, ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
+        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
       } else if (schedule.startTimeOfDay) {
-        str += `, from ${schedule.startTimeOfDay}`;
+        return `${dateStr} from ${schedule.startTimeOfDay}`;
       } else if (schedule.endTimeOfDay) {
-        str += `, until ${schedule.endTimeOfDay}`;
+        return `${dateStr} until ${schedule.endTimeOfDay}`;
       } else {
-        str += `, time TBD`;
+        return `${dateStr}, time TBD`;
       }
-      if (schedule.startDate)
-        str += ` from ${safeFormatDate(getDate(schedule.startDate))}`;
-      if (schedule.endDate)
-        str += ` to ${safeFormatDate(getDate(schedule.endDate))}`;
-      return str;
     }
 
     case RecurrenceType.WEEKLY: {
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      let str = `Weekly on ${schedule.daysOfWeek?.map(d => days[d]).join(', ')}`;
+      const startDate = getDate(schedule.startDate);
+      const dateStr = safeFormatDate(startDate);
+
       if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        str += `, ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
+        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
       } else if (schedule.startTimeOfDay) {
-        str += `, from ${schedule.startTimeOfDay}`;
+        return `${dateStr} from ${schedule.startTimeOfDay}`;
       } else if (schedule.endTimeOfDay) {
-        str += `, until ${schedule.endTimeOfDay}`;
+        return `${dateStr} until ${schedule.endTimeOfDay}`;
       } else {
-        str += `, time TBD`;
+        return `${dateStr}, time TBD`;
       }
-      if (schedule.startDate)
-        str += ` from ${safeFormatDate(getDate(schedule.startDate))}`;
-      if (schedule.endDate)
-        str += ` to ${safeFormatDate(getDate(schedule.endDate))}`;
-      return str;
     }
 
     case RecurrenceType.MONTHLY: {
-      let str = `Monthly on the ${schedule.daysOfMonth?.join(', ')}${schedule.daysOfMonth?.length === 1 ? 'th' : 'ths'}`;
+      const startDate = getDate(schedule.startDate);
+      const dateStr = safeFormatDate(startDate);
+
       if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        str += `, ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
+        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
       } else if (schedule.startTimeOfDay) {
-        str += `, from ${schedule.startTimeOfDay}`;
+        return `${dateStr} from ${schedule.startTimeOfDay}`;
       } else if (schedule.endTimeOfDay) {
-        str += `, until ${schedule.endTimeOfDay}`;
+        return `${dateStr} until ${schedule.endTimeOfDay}`;
       } else {
-        str += `, time TBD`;
+        return `${dateStr}, time TBD`;
       }
-      if (schedule.startDate)
-        str += ` from ${safeFormatDate(getDate(schedule.startDate))}`;
-      if (schedule.endDate)
-        str += ` to ${safeFormatDate(getDate(schedule.endDate))}`;
-      return str;
    }
 
     default:

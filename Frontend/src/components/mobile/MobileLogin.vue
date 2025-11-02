@@ -83,7 +83,7 @@ function handleGoogleLogin() {
 
 .login-title {
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 300;
   color: #222;
   letter-spacing: 1px;
   line-height: 3rem; /* 与 .login-header 高度一致 */
@@ -127,7 +127,7 @@ function handleGoogleLogin() {
   align-items: center;
   justify-content: space-between;
   font-size: 1.1rem;
-  font-weight: 500;
+  font-weight: 300;
   color: #222;
   padding: 0 1.125rem;
   cursor: pointer;

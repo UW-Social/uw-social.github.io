@@ -27,7 +27,7 @@
           <div class="bento-grid">
             <div class="bento-card large">
               <div class="card-header">
-                <h3>📝 Basic Information</h3>
+                <h3>Basic Information</h3>
                 <p>Let's start with the essentials</p>
               </div>
               <div class="form-group">
@@ -55,7 +55,7 @@
             
             <div class="bento-card small">
               <div class="card-header">
-                <h3>📍 Location</h3>
+                <h3>Location</h3>
               </div>
               <div class="form-group">
                 <input
@@ -70,7 +70,7 @@
             
             <div class="bento-card small">
               <div class="card-header">
-                <h3>🏷️ Category</h3>
+                <h3>Category</h3>
               </div>
               <div class="form-group">
                 <select id="category" v-model="formData.category" required>
@@ -97,7 +97,7 @@
           <div class="bento-grid">
             <div class="bento-card large">
               <div class="card-header">
-                <h3>📅 Schedule Details</h3>
+                <h3>Schedule Details</h3>
                 <p>When should people join?</p>
               </div>
               <div class="form-group">
@@ -249,7 +249,7 @@
             
             <div class="bento-card medium">
               <div class="card-header">
-                <h3>🏷️ Tags</h3>
+                <h3>Tags</h3>
                 <p>Separate with commas or spaces</p>
               </div>
               <div class="form-group">
@@ -316,8 +316,8 @@
               <div class="preview-item description-preview" v-html="formatPreviewDescription()">
               </div>
               <div class="preview-details">
-                <span class="detail-chip">📍 {{ formData.location }}</span>
-                <span class="detail-chip">🏷️ {{ formData.category }}</span>
+                <span class="detail-chip">{{ formData.location }}</span>
+                <span class="detail-chip">{{ formData.category }}</span>
                 <span v-if="formData.maxParticipants" class="detail-chip">👥 Max {{ formData.maxParticipants }}</span>
               </div>
               <div v-if="formData.tags.length" class="preview-tags">

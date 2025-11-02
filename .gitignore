@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+.env.production
+!Frontend/.env.production
 
 # 系统文件
 .DS_Store

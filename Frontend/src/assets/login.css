@@ -1,122 +1,50 @@
+/* Login Page - Flat Minimal Design */
+
 .login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.login-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  z-index: 1;
-}
-
-.floating-shapes {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  animation: float 6s ease-in-out infinite;
-}
-
-.shape-1 {
-  width: 80px;
-  height: 80px;
-  top: 20%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.shape-2 {
-  width: 120px;
-  height: 120px;
-  top: 60%;
-  right: 10%;
-  animation-delay: 2s;
-}
-
-.shape-3 {
-  width: 60px;
-  height: 60px;
-  bottom: 20%;
-  left: 20%;
-  animation-delay: 4s;
-}
-
-.shape-4 {
-  width: 100px;
-  height: 100px;
-  top: 10%;
-  right: 30%;
-  animation-delay: 1s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(180deg); }
+  background: var(--color-gray-50);
+  padding: var(--spacing-lg);
 }
 
 .login-content {
-  position: relative;
-  z-index: 2;
   width: 100%;
   max-width: 420px;
-  padding: 2rem;
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 3rem 2.5rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--color-white) !important;
+  border: var(--border-width) solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-3xl) var(--spacing-2xl);
+  box-shadow: none !important;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.login-logo {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 1.5rem;
-  border-radius: 20px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  margin-bottom: var(--spacing-3xl);
+  padding-bottom: var(--spacing-2xl);
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
 .login-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-gray-900);
+  margin: 0 0 var(--spacing-sm) 0;
+  letter-spacing: -0.02em;
 }
 
 .login-header p {
-  color: #718096;
-  font-size: 1.1rem;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-base);
   margin: 0;
 }
 
 .login-form {
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl);
 }
 
 .google-login-btn {
@@ -124,28 +52,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px 24px;
-  background: #fff;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2d3748;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--color-white) !important;
+  border: var(--border-width) solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-900);
   cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  box-shadow: none !important;
 }
 
 .google-login-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+  box-shadow: none !important;
 }
 
 .google-login-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -153,14 +80,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .login-divider {
   display: flex;
   align-items: center;
-  margin: 2rem 0;
-  color: #a0aec0;
-  font-size: 0.9rem;
+  margin: var(--spacing-xl) 0;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-sm);
 }
 
 .login-divider::before,
@@ -168,12 +96,12 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: #e2e8f0;
+  background: var(--border-color);
 }
 
 .login-divider span {
-  padding: 0 1rem;
-  background: rgba(255, 255, 255, 0.95);
+  padding: 0 var(--spacing-md);
+  background: var(--color-white);
 }
 
 .guest-option {
@@ -181,50 +109,52 @@
 }
 
 .guest-option p {
-  color: #718096;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
   margin: 0;
 }
 
 .guest-link {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
-  font-weight: 600;
-  transition: color 0.3s ease;
+  font-weight: var(--font-weight-semibold);
+  transition: color 0.2s ease;
 }
 
 .guest-link:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover);
+  text-decoration: underline;
 }
 
 .login-footer {
   text-align: center;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  padding-top: var(--spacing-xl);
+  border-top: var(--border-width) solid var(--border-color);
 }
 
 .login-footer p {
-  color: #a0aec0;
-  font-size: 0.85rem;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.3;
 }
 
+/* Responsive Design */
 @media (max-width: 576px) {
-  .login-content {
-    padding: 1rem;
+  .login-container {
+    padding: var(--spacing-md);
   }
-  
+
   .login-card {
-    padding: 2rem 1.5rem;
-    border-radius: 16px;
+    padding: var(--spacing-2xl) var(--spacing-lg);
   }
-  
+
   .login-header h1 {
-    font-size: 1.75rem;
+    font-size: var(--font-size-2xl);
   }
-  
-  .login-logo {
-    width: 60px;
-    height: 60px;
+
+  .google-login-btn {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-sm);
   }
 }

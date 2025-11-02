@@ -1,147 +1,238 @@
+/**
+ * Event Card - Flat Design with Divider Lines
+ */
+
 .card.event-card {
-  display: flex; /* 使用 flex 布局 */
-  align-items: center; /* 垂直居中内容 */
-  background: #F5F5F5;
-  border-radius: 16px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 下方阴影效果 */
-  border: 1px solid #E0E0E0; /* 添加边框 */
-  border-color: black;
-  transition: box-shadow 0.2s, border-color 0.2s; /* 添加边框颜色过渡效果 */
-  cursor: pointer; /* 鼠标悬浮时变成小手 */
+  display: flex;
+  align-items: flex-start;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
+  box-shadow: none !important;
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+  padding: var(--spacing-lg) 0;
+  gap: var(--spacing-xl);
   width: 100%;
   box-sizing: border-box;
-  padding: 0.5rem;
-  gap: 1rem; /* 图片与内容之间的间距 */
 }
 
 .card.event-card:hover {
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* 鼠标悬浮时阴影更明显 */
-  border-color: #6c63ff; /* 鼠标悬浮时边框颜色变为紫色 */
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
-.event-card img {
-  width: 150px; /* 图片宽度 */
-  height: 150px; /* 图片高度 */
-  object-fit: cover;
-  border-radius: 8px;
-  flex-shrink: 0; /* 防止图片缩小 */
-}
-
-.event-card-content {
-  display: flex; /* 使用 flex 布局 */
-  gap: 1rem; /* 左右内容之间的间距 */
-  flex: 1; /* 内容区域占据剩余空间 */
-  width: 100%;
-}
-
-.event-card-left {
-  flex: 3; /* 左侧占 3/4 */
-}
-
-.event-card-right {
-  flex: 1; /* 右侧占 1/4 */
-  display: flex;
-  flex-direction: column; /* 垂直排列内容 */
-  justify-content: center; /* 集中在中间 */
-}
-
-.event-card h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
-}
-
-.event-card p {
-  color: #666;
-  margin: 8px 0;
-  font-size: 0.9em;
-}
-
-.event-card .description {
-  margin: 0.5rem 0;
-  color: #374151;
-  font-size: 0.9rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  font-weight: 400;
-  line-height: 1.5;
-  letter-spacing: 0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制为 2 行 */
-  -webkit-box-orient: vertical;
-}
-
-.event-card .event-time,
-.event-card .event-location {
-  font-weight: bold;
-  margin: 0.3rem 0;
-}
-
-.event-card .event-link a {
-  font-size: 0.9rem;
-  color: #2440b3;
+.card.event-card:hover .event-title,
+.card.event-card:hover .description {
   text-decoration: underline;
 }
 
-.event-card .event-link a:hover {
-  color: #4e6ef2;
+.card.event-card:last-child {
+  border-bottom: none !important;
 }
 
+/* Event Image */
+.event-card img {
+  width: 200px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  background-color: var(--color-gray-100);
+}
+
+/* Content Layout */
+.event-card-content {
+  display: flex;
+  gap: var(--spacing-2xl);
+  flex: 1;
+  min-width: 0;
+  height: 150px;
+}
+
+/* Left Content Area */
+.event-card-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.event-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-900);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.description {
+  margin: 0;
+  margin-top: var(--spacing-xs);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Title and Description Container */
+.event-card-left > div:first-child {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+/* Tags */
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: flex-end;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: transparent;
+  color: var(--color-gray-700);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-gray-300);
+  transition: all var(--transition-fast);
+}
+
+.tag-badge:hover {
+  background-color: var(--color-gray-100);
+  border-color: var(--color-gray-400);
+}
+
+/* Right Content Area - Metadata */
+.event-card-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: 200px;
+  height: 100%;
+}
+
+.event-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+}
+
+.meta-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.meta-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-900);
+}
+
+.meta-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-600);
+  line-height: var(--line-height-normal);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Delete Button */
 .delete-btn {
-  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  background-color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
+  color: var(--color-white) !important;
+  font-weight: var(--font-weight-semibold);
+  transition: all var(--transition-fast);
+}
+
+.delete-btn:hover {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Responsive - Mobile */
+@media (max-width: 968px) {
+  .card.event-card {
+    flex-direction: column;
+    padding: var(--spacing-md) 0;
+    gap: var(--spacing-lg);
+  }
+
+  .event-card img {
+    width: 100%;
+    height: 200px;
+  }
+
+  .event-card-content {
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .event-card-right {
+    max-width: none;
+    border-top: 1px solid var(--color-gray-200);
+    padding-top: var(--spacing-md);
+  }
+
+  .event-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .description {
+    font-size: var(--font-size-sm);
+  }
+
+  .tag-badge {
+    font-size: var(--font-size-xs);
+    padding: 6px 12px;
+  }
 }
 
 @media (max-width: 576px) {
   .card.event-card {
-    flex-direction: row; /* 改为水平排列 */
-    align-items: flex-start; /* 内容顶部对齐 */
-    padding: 0.7rem 0.4rem; /* 更窄的内边距 */
-    border-radius: 10px;
+    padding: var(--spacing-sm) 0;
   }
 
   .event-card img {
-    width: 30%; /* 图片宽度占 30% */
-    height: auto; /* 高度自动调整 */
-    object-fit: cover; /* 确保图片适应容器 */
-    border-radius: 8px;
-    flex-shrink: 0; /* 防止图片缩小 */
+    height: 150px;
   }
 
-  .event-card-content {
-    flex: 1; /* 内容区域占据剩余空间 */
-    display: flex;
-    flex-direction: column; /* 垂直排列标题和描述 */
-    gap: 0.5rem; /* 标题和描述之间的间距 */
+  .meta-label {
+    font-size: var(--font-size-xs);
   }
 
-  .event-card h3 {
-    margin-bottom: 0.2rem;
-    font-size: 1.1rem; /* 标题字体大小适配小屏幕 */
-    font-weight: bold;
-    /* margin: 0; */
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2; /* 限制为 2 行 */
-  }
-
-  .event-card .description {
-    font-size: 0.85rem; /* 描述字体略小 */
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 400;
-    line-height: 1.5;
-    letter-spacing: 0.01em;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* 限制为 2 行 */
-    -webkit-box-orient: vertical;
-  }
-
-  .event-card .event-time,
-  .event-card .event-location {
-    font-weight: bold;
-    margin: 0.1rem 0;
+  .meta-value {
+    font-size: var(--font-size-xs);
   }
 }
