@@ -38,7 +38,22 @@ const routes = [
   {
     path: '/events/:id',
     name: 'EventDetail',
-    component: () => import('@/components/mobile/MobileEventDetail.vue'),
+    component: isMobile()
+      ? () => import('@/components/mobile/MobileEventDetail.vue')
+      : () => import('@/views/EventDetail.vue'),
+    props: true
+  },
+  {
+    path: '/clubs',
+    name: 'Clubs',
+    component: isMobile()
+      ? () => import('../views/Clubs.vue')
+      : () => import('../views/Clubs.vue')
+  },
+  {
+    path: '/clubs/:id',
+    name: 'ClubDetail',
+    component: () => import('../views/ClubDetail.vue'),
     props: true
   },
   {
@@ -48,19 +63,13 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/clubs',
-    name: 'Club',
-    component: () => import('../views/Club.vue')
-  },
-  {
-    path: '/:pathMatch(.*)*',
+    path: '/:pathMatch(.*)*', 
     redirect: '/'
   },
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
-  // Cool, better than createWebHistory.
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes
 })
 
@@ -72,7 +81,8 @@ export function isMobile() {
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    next('/login')
+    // 保存原始目标路径，登录后可以返回
+    next({ path: '/login', query: { redirect: to.fullPath } })
   } else {
     next()
   }

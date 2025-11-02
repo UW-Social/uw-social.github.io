@@ -1,7 +1,7 @@
 .sidebar {
   position: fixed;
   top: 80px; /* 如果你的导航栏高度是80px，否则调整为实际高度 */
-  left: 0;
+  left: var(--spacing-3xl);
   width: 163px;
   height: calc(100vh - 80px); /* 减去导航栏高度 */
   background: #f6f7fb;
@@ -22,7 +22,7 @@
 .el-menu-item {
   border-radius: 8px !important;
   margin: 0.5rem 0;
-  font-weight: 500;
+  font-weight: 300;
   font-size: 1.08rem;
   color: #6c63ff !important;
   transition: background 0.2s, color 0.2s;

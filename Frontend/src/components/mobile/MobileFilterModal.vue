@@ -161,7 +161,7 @@ watch(() => props.selectedCategories, (newCategories) => {
 
 .section-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 300;
   color: #333;
   margin: 0;
 }
@@ -178,7 +178,7 @@ watch(() => props.selectedCategories, (newCategories) => {
   border-radius: 20px;
   padding: 8px 16px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 300;
   color: #666;
   cursor: pointer;
   transition: all 0.2s ease;
