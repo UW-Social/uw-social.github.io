@@ -140,13 +140,15 @@ async function refreshEvents() {
     ? eventStore.events
     : eventStore.events.filter(e => e.category.toUpperCase() === props.category?.toUpperCase());
 
-  // Only show upcoming events
+  // Show upcoming events and those from the past 3 days
   const now = new Date();
+  const pastCutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
+
   events = events.filter(e => {
     const end = typeof e.endtime?.toDate === 'function'
       ? e.endtime.toDate()
       : new Date(e.endtime);
-    return end > now;
+    return end > pastCutoff;
   });
 
   // Phase 1: default sorting based on sort type
