@@ -1,6 +1,7 @@
 <template>
   <div class="club-detail-page">
-    <button @click="goBack" class="back-button">
+    <!-- Back Button -->
+    <button @click="goBack" class="back-button shadow-premium">
       <span class="arrow">←</span>
     </button>
 
@@ -9,12 +10,12 @@
     </div>
 
   <div v-else class="club-content">
-      <div class="club-header-section">
-        <div class="club-image-card">
+      <div class="club-header-section animate-slide-up">
+        <div class="club-image-card shadow-premium">
           <img :src="club.imageUrl || '/images/wavingdog.jpg'" alt="Club Logo" class="club-image" />
         </div>
 
-        <div class="club-info-card">
+        <div class="club-info-card shadow-premium">
           <div class="club-info-header">
             <h1 class="club-name">{{ club.name }}</h1>
             <p v-if="clubSummary" class="club-summary">{{ clubSummary }}</p>
@@ -445,10 +446,11 @@ watch(clubId, () => {
 .relevant-clubs-section,
 .contact-info-section {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
   padding: var(--spacing-2xl);
   margin-bottom: var(--spacing-2xl);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .events-list {

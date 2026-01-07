@@ -31,10 +31,7 @@
             <span class="meta-label">Audience:</span>
             <span class="meta-value">{{ getAudienceFromTags(event.tags) }}</span>
           </p>
-          <p class="meta-item">
-            <span class="meta-label">Organizer:</span>
-            <span class="meta-value">{{ event.organizerName }}</span>
-          </p>
+
         </div>
         <el-button
           v-if="String(event.organizerId) === String(currentUserId)"
@@ -52,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, toRefs } from 'vue';
+import { toRefs } from 'vue';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useEventStore } from '../stores/event';

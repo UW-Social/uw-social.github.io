@@ -55,47 +55,59 @@ const handleSuccess = () => {
   text-align: center;
   margin-bottom: var(--spacing-2xl);
   padding: var(--spacing-xl) var(--spacing-3xl);
+  animation: slideUp 0.6s ease-out;
 }
 
 .page-header h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-size: 3rem;
+  font-weight: 800;
   color: var(--color-gray-900);
   margin-bottom: var(--spacing-lg);
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--color-gray-900) 0%, var(--color-gray-600) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .type-selector {
-  display: flex;
-  gap: var(--spacing-md);
+  display: inline-flex;
+  gap: var(--spacing-xs);
   justify-content: center;
   margin-top: var(--spacing-xl);
+  background: var(--color-gray-100);
+  padding: 4px;
+  border-radius: 99px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .type-selector button {
-  padding: var(--spacing-md) var(--spacing-2xl);
-  border: var(--border-width) solid var(--border-color);
-  background: var(--color-white);
-  border-radius: var(--radius-md) !important;
-  box-shadow: none !important;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-gray-700);
+  padding: 10px 32px;
+  border: none;
+  background: transparent;
+  border-radius: 99px !important;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
 }
 
 .type-selector button:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background-color: var(--color-primary-bg);
-  box-shadow: none !important;
+  color: var(--color-gray-700);
 }
 
 .type-selector button.active {
-  background: var(--color-primary);
-  color: var(--color-white);
-  border-color: var(--color-primary);
-  box-shadow: none !important;
+  background: var(--color-white);
+  color: var(--color-primary);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 768px) {
@@ -108,17 +120,19 @@ const handleSuccess = () => {
   }
 
   .page-header h1 {
-    font-size: var(--font-size-2xl);
+    font-size: 2.5rem;
   }
 
   .type-selector {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 0 var(--spacing-md);
+    display: flex; /* pill shape might break on very small screens, but flex row is fine */
+    width: 100%;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .type-selector button {
-    width: 100%;
+    flex: 1;
   }
 }
 </style> 

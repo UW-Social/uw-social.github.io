@@ -1,5 +1,5 @@
 /**
- * Navbar - Flat, Minimal Design
+ * Navbar - Premium Glass Design
  */
 
 nav {
@@ -8,9 +8,17 @@ nav {
   left: 0;
   right: 0;
   z-index: var(--z-sticky);
-  background-color: var(--color-white);
-  border-bottom: none;
-  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+/* Add shadow on scroll if you had a JS class, otherwise basic shadow is fine */
+nav.scrolled {
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .navbar {
@@ -55,40 +63,40 @@ nav {
 .nav-left a {
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  color: var(--color-gray-700);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  padding: 8px 16px;
+  color: var(--color-gray-600);
+  font-size: 0.9rem;
+  font-weight: 500;
   text-decoration: none;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  border-radius: 99px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.01em;
 }
 
 .nav-left a:hover {
-  color: var(--color-primary);
-  background-color: var(--color-gray-50);
+  color: var(--color-gray-900);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
-/* Active State - Simple border bottom */
+/* Active State */
 .nav-left div {
   position: relative;
 }
 
 .nav-left div.active a {
-  color: var(--color-primary);
-  background-color: var(--color-primary-bg);
+  color: var(--color-white);
+  background-color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
 /* Logo Styling */
 .logo-container {
   list-style: none;
-  margin-right: var(--spacing-3xl);
+  margin-right: var(--spacing-2xl);
 }
 
 .logo-link {
-  padding: var(--spacing-xs) var(--spacing-md) !important;
+  padding: 0 !important;
   background-color: transparent !important;
 }
 
@@ -97,15 +105,14 @@ nav {
 }
 
 .logo-text-brand {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-primary);
-  letter-spacing: -0.02em;
-  transition: color var(--transition-fast);
-}
-
-.logo-link:hover .logo-text-brand {
-  color: var(--color-primary-hover);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-gray-900);
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Right Navigation */
@@ -119,37 +126,45 @@ nav {
 .navbar-search {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  background-color: var(--color-gray-50);
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-lg);
-  border: var(--border-width) solid var(--border-color);
+  gap: var(--spacing-xs);
+  background: rgba(0, 0, 0, 0.03);
+  padding: 4px;
+  border-radius: 99px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.navbar-search:focus-within {
+  background: var(--color-white);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .search-type-select {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  border-radius: 99px;
   border: none;
-  background-color: var(--color-white);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  background-color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--color-gray-700);
   outline: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s;
 }
 
 .search-type-select:hover {
-  background-color: var(--color-gray-100);
+  color: var(--color-primary);
+  background: var(--color-white);
 }
 
 .navbar-search-input {
-  padding: var(--spacing-xs) var(--spacing-md);
+  padding: 6px 12px;
   border: none;
   background-color: transparent;
-  font-size: var(--font-size-sm);
+  font-size: 0.9rem;
   color: var(--color-gray-900);
-  width: 200px;
+  width: 220px;
   outline: none;
 }
 
@@ -167,30 +182,32 @@ nav {
 .avatar-logout {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-full);
   object-fit: cover;
-  border: 2px solid var(--color-gray-200);
+  border: 2px solid var(--color-white);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s;
 }
 
 .user-avatar:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-bg);
+  transform: scale(1.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  border-color: var(--color-primary-light);
 }
 
 .logout-link {
-  color: var(--color-gray-600);
+  color: var(--color-gray-500);
   text-decoration: none;
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-sm);
-  transition: color var(--transition-fast);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: color 0.2s;
 }
 
 .logout-link:hover {
@@ -198,22 +215,22 @@ nav {
 }
 
 .login-btn {
-  background-color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #6366f1 100%);
   color: var(--color-white) !important;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  padding: 8px 20px;
+  border-radius: 99px;
+  font-size: 0.9rem;
+  font-weight: 600;
   text-decoration: none;
   border: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
 .login-btn:hover {
-  background-color: var(--color-primary-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.4);
 }
 
 /* Responsive Design */
@@ -224,16 +241,16 @@ nav {
   }
 
   .nav-left {
-    gap: 0;
+    gap: 4px;
   }
 
   .nav-left a {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: var(--font-size-xs);
+    padding: 6px 12px;
+    font-size: 0.8rem;
   }
 
   .logo-text-brand {
-    font-size: var(--font-size-lg);
+    font-size: 1.25rem;
   }
 
   .navbar-search {
@@ -241,8 +258,8 @@ nav {
   }
 
   .login-btn {
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: var(--font-size-xs);
+    padding: 6px 16px;
+    font-size: 0.8rem;
   }
 
   .user-avatar {
