@@ -2,25 +2,26 @@
   <div class="home-page">
     <!-- Hero Section -->
     <section class="hero-section">
-      <div class="hero-content">
-        <h1 class="hero-title">Discover Campus Life</h1>
-        <p class="hero-subtitle">Connect with events, clubs, and communities at UW</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary btn-lg" @click="navigateToEvents">
+      <div class="hero-bg-glow"></div>
+      <div class="hero-content animate-slide-up">
+        <h1 class="hero-title"><span class="text-gradient">Discover Campus Life</span></h1>
+        <p class="hero-subtitle animate-slide-up-delay-1">Connect with events, clubs, and communities at UW</p>
+        <div class="hero-actions animate-slide-up-delay-2">
+          <button class="btn btn-primary btn-lg shadow-glow" @click="navigateToEvents">
             Explore Events
             <svg class="btn-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <button class="btn btn-outline btn-lg" @click="router.push('/clubs')">
+          <button class="btn btn-outline btn-lg glass" @click="router.push('/clubs')">
             Browse Clubs
           </button>
         </div>
       </div>
-      <div class="hero-illustration">
-        <div class="illustration-card card-1"></div>
-        <div class="illustration-card card-2"></div>
-        <div class="illustration-card card-3"></div>
+      <div class="hero-illustration animate-fade-in">
+        <div class="illustration-card card-1 glass"></div>
+        <div class="illustration-card card-2 glass"></div>
+        <div class="illustration-card card-3 glass"></div>
       </div>
     </section>
 
@@ -46,7 +47,7 @@
 import EventList from '../components/EventList.vue';
 import DetailCard from '../components/DetailCard.vue';
 import { setSelectedEvent, clearSelectedEvent, useSelectedEvent, mountKeyDownListener, unmountKeyDownListener } from '../utils/eventUtils';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 
@@ -88,27 +89,42 @@ onUnmounted(() => {
   padding: var(--spacing-3xl) var(--spacing-xl);
   min-height: calc(100vh - var(--navbar-height));
   align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-bg-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .hero-content {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
+  z-index: 1;
 }
 
 .hero-title {
-  font-size: 3.5rem;
-  font-weight: var(--font-weight-bold);
+  font-size: 4rem;
+  font-weight: 800;
   color: var(--color-gray-900);
-  line-height: var(--line-height-tight);
-  letter-spacing: -0.02em;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   margin: 0;
 }
 
 .hero-subtitle {
-  font-size: var(--font-size-xl);
+  font-size: 1.25rem;
   color: var(--color-gray-600);
-  line-height: var(--line-height-normal);
+  line-height: 1.6;
   margin: 0;
   max-width: 500px;
 }
@@ -120,12 +136,13 @@ onUnmounted(() => {
 }
 
 .btn-lg {
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-base);
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+  border-radius: 99px; /* Pill shape */
 }
 
 .btn-icon {
-  margin-left: var(--spacing-xs);
+  margin-left: var(--spacing-sm);
   transition: transform var(--transition-fast);
 }
 
@@ -136,41 +153,51 @@ onUnmounted(() => {
 /* Hero Illustration */
 .hero-illustration {
   position: relative;
-  height: 500px;
+  height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
+  perspective: 1000px;
+  z-index: 1;
 }
 
 .illustration-card {
   position: absolute;
-  background: var(--color-white);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); /* Premium shadow */
+  transition: transform 0.5s ease;
+}
+
+.illustration-card:hover {
+  transform: translateY(-10px) rotate(var(--rotation));
 }
 
 .card-1 {
   width: 280px;
-  height: 350px;
-  background: linear-gradient(135deg, var(--color-primary-bg) 0%, var(--color-white) 100%);
-  transform: rotate(-5deg);
+  height: 380px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(165, 180, 252, 0.9) 100%);
+  transform: rotate(-12deg) translate(-40px, 20px);
+  --rotation: -12deg;
   z-index: 1;
 }
 
 .card-2 {
-  width: 300px;
-  height: 380px;
-  background: linear-gradient(135deg, var(--color-white) 0%, var(--color-gray-50) 100%);
+  width: 320px;
+  height: 420px;
+  background: linear-gradient(135deg, #fff 0%, #f3f4f6 100%);
   z-index: 2;
+  transform: rotate(0deg);
+  --rotation: 0deg;
 }
 
 .card-3 {
   width: 260px;
-  height: 320px;
-  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-primary-bg) 100%);
-  transform: rotate(5deg);
-  right: 0;
+  height: 340px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(199, 210, 254, 0.8) 100%);
+  transform: rotate(12deg) translate(40px, 20px);
+  --rotation: 12deg;
+  right: auto;
+  left: 60%;
   z-index: 1;
 }
 

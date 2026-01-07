@@ -229,22 +229,26 @@ const handleSubmit = async () => {
 .club-form {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0 var(--spacing-3xl);
 }
 
 .form-container {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl) !important;
   padding: var(--spacing-3xl);
-  box-shadow: none !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  position: relative;
+  overflow: hidden;
 }
 
 h2 {
   font-size: 2rem;
   margin-bottom: 2rem;
-  color: #333;
+  color: var(--color-gray-900);
   text-align: center;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .form-content {
@@ -262,26 +266,30 @@ h2 {
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 label {
-  font-weight: 300;
-  color: #333;
-  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
 }
 
 input,
 textarea,
 select {
-  padding: var(--spacing-md);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md) !important;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-lg) !important;
   box-shadow: none !important;
-  font-size: var(--font-size-base);
-  transition: border-color 0.2s;
+  font-size: 0.95rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
-  background: var(--color-white);
+  background: var(--color-gray-50);
+  color: var(--color-gray-900);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 input:focus,
@@ -289,75 +297,77 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-bg) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+  background: var(--color-white);
 }
 
 textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 120px;
 }
 
 small {
-  color: #666;
+  color: var(--color-gray-500);
   font-size: 0.85rem;
 }
 
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .cancel-btn,
 .submit-btn {
   flex: 1;
-  padding: var(--spacing-lg);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md) !important;
-  box-shadow: none !important;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  padding: 12px 24px;
+  border-radius: 99px !important;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cancel-btn {
   background: var(--color-white);
   color: var(--color-gray-700);
-  border-color: var(--border-color);
+  border: 1px solid var(--color-gray-200);
 }
 
 .cancel-btn:hover {
   background: var(--color-gray-50);
   border-color: var(--color-gray-300);
-  box-shadow: none !important;
 }
 
 .submit-btn {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #6366f1 100%);
   color: var(--color-white);
-  border-color: var(--color-primary);
+  border: none;
+  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3) !important;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-  box-shadow: none !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px rgba(99, 102, 241, 0.4) !important;
 }
 
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  background: var(--color-gray-400);
   box-shadow: none !important;
 }
 
 @media (max-width: 768px) {
   .club-form {
-    padding: 1rem;
+    padding: 0 var(--spacing-md);
   }
 
   .form-container {
-    padding: 1.5rem;
+    padding: var(--spacing-lg);
   }
 
   .form-row {

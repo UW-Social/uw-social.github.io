@@ -15,9 +15,6 @@
             <div :class="{ active: $route.path === '/events' }">
               <li><router-link to="/events">Events</router-link></li>
             </div>
-            <div :class="{ active: $route.path === '/clubs' }">
-              <li><router-link to="/clubs">Clubs</router-link></li>
-            </div>
             <div v-if="isWeb" :class="{ active: $route.path === '/publish' }">
               <li><router-link to="/publish">Publish</router-link></li>
             </div>

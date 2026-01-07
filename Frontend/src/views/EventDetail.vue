@@ -1,7 +1,7 @@
 z<template>
   <div class="event-detail-page">
-    <!-- 返回按钮 -->
-    <button @click="goBack" class="back-button">
+    <!-- Back Button -->
+    <button @click="goBack" class="back-button shadow-premium">
       <span class="arrow">←</span>
     </button>
 
@@ -13,7 +13,7 @@ z<template>
     <!-- Event Content -->
     <template v-else>
       <!-- Event Header -->
-      <div class="event-header-section">
+      <div class="event-header-section animate-slide-up">
         <div class="event-image-card">
           <img :src="event.imageUrl || '/images/wavingdog.jpg'" alt="Event Image" class="event-image" />
         </div>
@@ -37,10 +37,7 @@ z<template>
               <span class="meta-label">Category</span>
               <span class="meta-value">{{ event.category }}</span>
             </div>
-            <div class="meta-item" v-if="event.organizerName">
-              <span class="meta-label">Organizer</span>
-              <span class="meta-value">{{ event.organizerName }}</span>
-            </div>
+
             <div class="meta-item" v-if="event.participants?.length">
               <span class="meta-label">Attendees</span>
               <span class="meta-value">
@@ -79,17 +76,7 @@ z<template>
       </div>
 
       <!-- Related Events -->
-      <div class="related-events-section" v-if="relatedEvents.length > 0">
-        <h2 class="section-title">Related Events</h2>
-        <div class="events-grid">
-          <div v-for="relatedEvent in relatedEvents" :key="relatedEvent.id" class="event-card" @click="goToEvent(relatedEvent.id)">
-            <img :src="relatedEvent.imageUrl || '/images/wavingdog.jpg'" alt="Event" class="event-thumbnail" />
-            <div class="event-card-info">
-              <p class="event-card-title">{{ relatedEvent.title }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </template>
   </div>
 </template>
@@ -107,7 +94,6 @@ const eventStore = useEventStore();
 
 const eventId = computed(() => route.params.id as string);
 const event = ref<Event | null>(null);
-const relatedEvents = ref<Event[]>([]);
 const mapContainer = ref<HTMLElement | null>(null);
 
 const descriptionSummary = computed(() => {
@@ -120,12 +106,6 @@ const descriptionSummary = computed(() => {
 
 const goBack = () => {
   router.push('/events');
-};
-
-const goToEvent = (id: string) => {
-  router.push(`/events/${id}`);
-  // Reload the page data
-  loadEventData();
 };
 
 const formatDescription = (desc: string) => {
@@ -141,21 +121,12 @@ const loadEventData = async () => {
 
   event.value = eventStore.events.find(e => e.id === eventId.value) || null;
 
-  // Load related events (based on tags similarity)
-  if (event.value?.tags && event.value.tags.length > 0) {
-    relatedEvents.value = eventStore.events
-      .filter(e => e.id !== eventId.value)
-      .filter(e => {
-        if (!e.tags || e.tags.length === 0) return false;
-        return e.tags.some(tag => event.value?.tags?.includes(tag));
-      })
-      .slice(0, 4);
-  }
-
   // Initialize map
   await nextTick();
   initMap();
 };
+
+
 
 const initMap = async () => {
   const el = mapContainer.value;
@@ -258,25 +229,38 @@ onMounted(() => {
 
 .event-image-card {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   height: 100%;
   min-height: 340px;
   display: flex;
 }
 
+.event-image-card {
+  background: var(--color-gray-50);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  height: 100%;
+  min-height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .event-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .event-info-card {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-3xl);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
@@ -313,12 +297,7 @@ onMounted(() => {
 .meta-item {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2xs);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--color-gray-25, #f7f7fb);
-  min-height: 96px;
+  gap: 4px;
 }
 
 .meta-label {
@@ -370,8 +349,8 @@ onMounted(() => {
 }
 
 .content-section {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-xl);
   margin-bottom: var(--spacing-2xl);
 }
@@ -379,9 +358,10 @@ onMounted(() => {
 .description-card,
 .map-card {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
   padding: var(--spacing-2xl);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .section-title {
@@ -408,9 +388,10 @@ onMounted(() => {
 
 .related-events-section {
   background: var(--color-white);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-xl);
   padding: var(--spacing-2xl);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .events-grid {
