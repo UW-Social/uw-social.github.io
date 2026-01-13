@@ -92,8 +92,9 @@ export const useUserStore = defineStore('user', () => {
         };
         await setDoc(userRef, plainUser);
       }
-
+      
       console.log('用户信息已保存到 Firestore');
+      return user;
     } catch (error) {
       console.error('Google 登录失败:', error);
       throw error;
