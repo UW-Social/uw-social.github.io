@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+
 import {
   getAuth,
   signInWithPopup,
@@ -10,7 +11,7 @@ import {
   setPersistence,
   browserLocalPersistence,
 } from 'firebase/auth';
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc,  serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { UserProfile } from '../types/user';
 
@@ -18,6 +19,7 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = ref(false);
   const userProfile = ref<UserProfile | null>(null);
   const auth = getAuth();
+  
 
   let hasInitialized = false;
 
@@ -37,9 +39,8 @@ export const useUserStore = defineStore('user', () => {
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
 
-            if (userDoc.exists()) {
-              userProfile.value = userDoc.data() as UserProfile;
-            } else {
+            // 确保用户文档存在，不存在就创建
+            if (!userDoc.exists()) {
               const plainUser = {
                 uid: user.uid,
                 email: user.email,
@@ -47,8 +48,33 @@ export const useUserStore = defineStore('user', () => {
                 photoURL: user.photoURL,
               };
               await setDoc(userRef, plainUser);
-              userProfile.value = plainUser as UserProfile;
             }
+
+            // 再读一次数据 （或用 userDoc 的 data + 新用户默认 false）
+            const snap = await getDoc(userRef);
+            const data = snap.exists() ? snap.data() : null;
+            const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
+
+            if (!alreadyTracked) {
+              const gtag = (window as any)?.gtag;
+              if (gtag) {
+                gtag("event", "first_login_success", {
+                  method: "google",
+                  uid: user.uid, 
+                });
+              }
+
+              await setDoc(
+                userRef,
+                { analytics: { firstLoginTrackedAt: serverTimestamp() } },
+                { merge: true }
+              );
+
+              console.log("[ANALYTICS] first_login_success tracked ONCE for uid:", user.uid);
+            } else {
+              console.log("[ANALYTICS] first_login_success already tracked for uid:", user.uid);
+            }
+
           } catch (err) {
             console.error('[UserStore] Failed to load user document:', err);
           }
