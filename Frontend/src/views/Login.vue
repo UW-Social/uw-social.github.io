@@ -39,51 +39,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useUserStore } from '../stores/user'
-import { useRouter, useRoute } from 'vue-router'
-import '../assets/login.css'
+import { ref } from "vue";
+import { useUserStore } from "../stores/user";
+import { useRouter, useRoute } from "vue-router";
+import "../assets/login.css";
 
-const userStore = useUserStore()
-const router = useRouter()
-const route = useRoute()
-const isLoading = ref(false)
+const userStore = useUserStore();
+const router = useRouter();
+const route = useRoute();
+const isLoading = ref(false);
 
 function track(event: string, params: Record<string, any> = {}) {
   console.log("[TRACK FIRED]", event, params);
 
   const gtag = (window as any)?.gtag;
   if (gtag) gtag("event", event, params);
+  else console.warn("[GTAG MISSING] window.gtag is undefined");
 }
 
 const handleGoogleLogin = async () => {
   if (isLoading.value) return;
 
+  // 每次点击都记（用于漏斗：click -> success）
   track("login_click_google", { source: "login_page" });
 
   isLoading.value = true;
   try {
-    const user = await userStore.loginWithGoogle(); 
+    const user = await userStore.loginWithGoogle(); // first_login_success（只一次）
+
+    // 设置 user_id
     const uid = user?.uid;
-
     const gtag = (window as any)?.gtag;
-    if (gtag && uid) gtag("set", { user_id: uid }); 
+    if (gtag && uid) gtag("set", { user_id: uid });
 
+    //  每次登录成功都记
     track("login_success", { method: "google" });
 
     const redirect = (route.query.redirect as string) || "/profile";
     router.push(redirect);
   } catch (error: any) {
-    track("login_fail", { method: "google", error: error?.code || error?.message || "unknown" });
+    track("login_fail", {
+      method: "google",
+      error: error?.code || error?.message || "unknown",
+    });
     console.error("Login failed:", error);
   } finally {
     isLoading.value = false;
   }
 };
-
-
-
 </script>
+
 
 <style scoped>
 /* Ensure consistent border-radius across all elements */
