@@ -49,21 +49,40 @@ const router = useRouter()
 const route = useRoute()
 const isLoading = ref(false)
 
-const handleGoogleLogin = async () => {
-  if (isLoading.value) return
+function track(event: string, params: Record<string, any> = {}) {
+  console.log("[TRACK FIRED]", event, params);
 
-  isLoading.value = true
-  try {
-    await userStore.loginWithGoogle()
-    // 登录成功后，跳转到之前想访问的页面，如果没有则跳转到profile
-    const redirect = route.query.redirect as string || '/profile'
-    router.push(redirect)
-  } catch (error) {
-    console.error('Login failed:', error)
-  } finally {
-    isLoading.value = false
-  }
+  const gtag = (window as any)?.gtag;
+  if (gtag) gtag("event", event, params);
 }
+
+const handleGoogleLogin = async () => {
+  if (isLoading.value) return;
+
+  track("login_click_google", { source: "login_page" });
+
+  isLoading.value = true;
+  try {
+    const user = await userStore.loginWithGoogle(); 
+    const uid = user?.uid;
+
+    const gtag = (window as any)?.gtag;
+    if (gtag && uid) gtag("set", { user_id: uid }); 
+
+    track("login_success", { method: "google" });
+
+    const redirect = (route.query.redirect as string) || "/profile";
+    router.push(redirect);
+  } catch (error: any) {
+    track("login_fail", { method: "google", error: error?.code || error?.message || "unknown" });
+    console.error("Login failed:", error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+
+
 </script>
 
 <style scoped>
