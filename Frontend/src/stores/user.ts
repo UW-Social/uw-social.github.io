@@ -48,6 +48,13 @@ export const useUserStore = defineStore('user', () => {
                 photoURL: user.photoURL,
               };
               await setDoc(userRef, plainUser);
+              const gtag = (window as any)?.gtag;
+              if (gtag) {
+                gtag("event", "first_login_success", {
+                  method: "google",
+                  uid: user.uid, 
+                });
+              }
             }
 
             // 再读一次数据 （或用 userDoc 的 data + 新用户默认 false）
@@ -56,13 +63,7 @@ export const useUserStore = defineStore('user', () => {
             const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
 
             if (!alreadyTracked) {
-              const gtag = (window as any)?.gtag;
-              if (gtag) {
-                gtag("event", "first_login_success", {
-                  method: "google",
-                  uid: user.uid, 
-                });
-              }
+              
 
               await setDoc(
                 userRef,
