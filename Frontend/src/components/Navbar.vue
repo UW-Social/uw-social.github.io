@@ -27,11 +27,15 @@
         <div class="right-link">
           <!-- 搜索框：仅在 Home 和 Publish 页面显示 -->
           <div v-if="isWeb && shouldShowSearch" class="navbar-search">
+            <select v-model="searchType" class="search-type-select">
+              <option value="events">Events</option>
+              <option value="clubs">Clubs</option>
+            </select>
             <input
               v-model="navbarSearch"
               @keyup.enter="handleNavbarSearch"
               type="text"
-              :placeholder="`Search Events...`"
+              :placeholder="`Search ${searchType}...`"
               class="navbar-search-input"
               :title="`Search for ${searchType} by name, tags, or description`"
             />

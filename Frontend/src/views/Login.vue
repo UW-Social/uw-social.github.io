@@ -44,6 +44,9 @@ import { ref } from "vue";
 import { useUserStore } from "../stores/user";
 import { useRouter, useRoute } from "vue-router";
 import "../assets/login.css";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase/config";
+
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -96,19 +99,22 @@ async function trackFirstLoginOnce(uid: string) {
 const handleGoogleLogin = async () => {
   if (isLoading.value) return;
 
-  // 每次点击都记（用于漏斗：click -> success）
   track("login_click_google", { source: "login_page" });
 
   isLoading.value = true;
   try {
-    const user = await userStore.loginWithGoogle(); // first_login_success（只一次）
-
-    // 设置 user_id
+    const user = await userStore.loginWithGoogle();
     const uid = user?.uid;
-    const gtag = (window as any)?.gtag;
-    if (gtag && uid) gtag("set", { user_id: uid });
+    if (!uid) throw new Error("Missing uid after login");
 
-    //  每次登录成功都记
+    // 设置 GA user_id（用于同一人识别）
+    const gtag = (window as any)?.gtag;
+    if (gtag) gtag("set", { user_id: uid });
+
+    
+    await trackFirstLoginOnce(uid);
+
+    // 每次登录成功
     track("login_success", { method: "google" });
 
     const redirect = (route.query.redirect as string) || "/profile";
@@ -123,6 +129,7 @@ const handleGoogleLogin = async () => {
     isLoading.value = false;
   }
 };
+
 </script>
 
 
