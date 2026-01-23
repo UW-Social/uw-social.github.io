@@ -1,3 +1,4 @@
+
 <template>
   <div class="login-container">
     <div class="login-content">
@@ -51,12 +52,47 @@ const isLoading = ref(false);
 
 function track(event: string, params: Record<string, any> = {}) {
   console.log("[TRACK FIRED]", event, params);
-
   const gtag = (window as any)?.gtag;
   if (gtag) gtag("event", event, params);
   else console.warn("[GTAG MISSING] window.gtag is undefined");
 }
 
+async function trackFirstLoginOnce(uid: string) {
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+  const data = snap.exists() ? snap.data() : null;
+
+  const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
+  const retentionTracked = !!data?.analytics?.retentionTrackedAt;
+  if (alreadyTracked) {
+    if (retentionTracked) {
+      
+      return;
+    }
+
+    track("retention_user", { method: "google" });
+
+    await setDoc(
+      userRef,
+      { analytics: { retentionTrackedAt: serverTimestamp() } },
+      { merge: true }
+    );
+
+    console.log("[ANALYTICS] retention_user tracked ONCE for uid:", uid);
+    return;
+  }
+
+  
+  track("first_login_success", { method: "google" });
+
+  await setDoc(
+    userRef,
+    { analytics: { firstLoginTrackedAt: serverTimestamp() } },
+    { merge: true }
+  );
+
+  console.log("[ANALYTICS] first_login_success tracked ONCE for uid:", uid);
+}
 const handleGoogleLogin = async () => {
   if (isLoading.value) return;
 

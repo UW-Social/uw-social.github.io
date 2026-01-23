@@ -21,6 +21,7 @@ export const useUserStore = defineStore('user', () => {
   const auth = getAuth();
   
 
+
   let hasInitialized = false;
 
   const loadUser = async (): Promise<void> => {
@@ -38,6 +39,11 @@ export const useUserStore = defineStore('user', () => {
           try {
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
+            const gtag = (window as any)?.gtag;
+            if (gtag) {
+              // Ensure GA4 uses Firebase UID for user-level de-duplication
+              gtag('set', { user_id: user.uid });
+            }
 
             // 确保用户文档存在，不存在就创建
             if (!userDoc.exists()) {
