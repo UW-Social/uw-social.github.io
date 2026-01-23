@@ -20,6 +20,10 @@ export const useUserStore = defineStore('user', () => {
   const userProfile = ref<UserProfile | null>(null);
   const auth = getAuth();
   
+  const trackEvent = (event: string, params: Record<string, any> = {}) => {
+    const gtag = (window as any)?.gtag;
+    if (gtag) gtag('event', event, params);
+  };
 
   let hasInitialized = false;
 
@@ -38,6 +42,11 @@ export const useUserStore = defineStore('user', () => {
           try {
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
+            const gtag = (window as any)?.gtag;
+            if (gtag) {
+              // Ensure GA4 uses Firebase UID for user-level de-duplication
+              gtag('set', { user_id: user.uid });
+            }
 
             // 确保用户文档存在，不存在就创建
             if (!userDoc.exists()) {
@@ -48,13 +57,6 @@ export const useUserStore = defineStore('user', () => {
                 photoURL: user.photoURL,
               };
               await setDoc(userRef, plainUser);
-              const gtag = (window as any)?.gtag;
-              if (gtag) {
-                gtag("event", "first_login_success", {
-                  method: "google",
-                  uid: user.uid, 
-                });
-              }
             }
 
             // 再读一次数据 （或用 userDoc 的 data + 新用户默认 false）
@@ -63,8 +65,6 @@ export const useUserStore = defineStore('user', () => {
             const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
 
             if (!alreadyTracked) {
-              
-
               await setDoc(
                 userRef,
                 { analytics: { firstLoginTrackedAt: serverTimestamp() } },
