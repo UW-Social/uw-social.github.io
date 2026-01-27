@@ -1,3 +1,4 @@
+
 <template>
   <div class="login-container">
     <div class="login-content">
@@ -39,32 +40,98 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useUserStore } from '../stores/user'
-import { useRouter, useRoute } from 'vue-router'
-import '../assets/login.css'
+import { ref } from "vue";
+import { useUserStore } from "../stores/user";
+import { useRouter, useRoute } from "vue-router";
+import "../assets/login.css";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase/config";
 
-const userStore = useUserStore()
-const router = useRouter()
-const route = useRoute()
-const isLoading = ref(false)
 
-const handleGoogleLogin = async () => {
-  if (isLoading.value) return
+const userStore = useUserStore();
+const router = useRouter();
+const route = useRoute();
+const isLoading = ref(false);
 
-  isLoading.value = true
-  try {
-    await userStore.loginWithGoogle()
-    // 登录成功后，跳转到之前想访问的页面，如果没有则跳转到profile
-    const redirect = route.query.redirect as string || '/profile'
-    router.push(redirect)
-  } catch (error) {
-    console.error('Login failed:', error)
-  } finally {
-    isLoading.value = false
-  }
+function track(event: string, params: Record<string, any> = {}) {
+  console.log("[TRACK FIRED]", event, params);
+  const gtag = (window as any)?.gtag;
+  if (gtag) gtag("event", event, params);
+  else console.warn("[GTAG MISSING] window.gtag is undefined");
 }
+
+async function trackFirstLoginOnce(uid: string) {
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+  const data = snap.exists() ? snap.data() : null;
+
+  const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
+  const retentionTracked = !!data?.analytics?.retentionTrackedAt;
+  if (alreadyTracked) {
+    if (retentionTracked) {
+      
+      return;
+    }
+
+    track("retention_user", { method: "google" });
+
+    await setDoc(
+      userRef,
+      { analytics: { retentionTrackedAt: serverTimestamp() } },
+      { merge: true }
+    );
+
+    console.log("[ANALYTICS] retention_user tracked ONCE for uid:", uid);
+    return;
+  }
+
+  
+  track("first_login_success", { method: "google" });
+
+  await setDoc(
+    userRef,
+    { analytics: { firstLoginTrackedAt: serverTimestamp() } },
+    { merge: true }
+  );
+
+  console.log("[ANALYTICS] first_login_success tracked ONCE for uid:", uid);
+}
+const handleGoogleLogin = async () => {
+  if (isLoading.value) return;
+
+  track("login_click_google", { source: "login_page" });
+
+  isLoading.value = true;
+  try {
+    const user = await userStore.loginWithGoogle();
+    const uid = user?.uid;
+    if (!uid) throw new Error("Missing uid after login");
+
+    // 设置 GA user_id（用于同一人识别）
+    const gtag = (window as any)?.gtag;
+    if (gtag) gtag("set", { user_id: uid });
+
+    
+    await trackFirstLoginOnce(uid);
+
+    // 每次登录成功
+    track("login_success", { method: "google" });
+
+    const redirect = (route.query.redirect as string) || "/profile";
+    router.push(redirect);
+  } catch (error: any) {
+    track("login_fail", {
+      method: "google",
+      error: error?.code || error?.message || "unknown",
+    });
+    console.error("Login failed:", error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 </script>
+
 
 <style scoped>
 /* Ensure consistent border-radius across all elements */

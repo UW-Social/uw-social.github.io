@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+
 import {
   getAuth,
   signInWithPopup,
@@ -10,7 +11,7 @@ import {
   setPersistence,
   browserLocalPersistence,
 } from 'firebase/auth';
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc,  serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { UserProfile } from '../types/user';
 
@@ -18,6 +19,11 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = ref(false);
   const userProfile = ref<UserProfile | null>(null);
   const auth = getAuth();
+  
+  const trackEvent = (event: string, params: Record<string, any> = {}) => {
+    const gtag = (window as any)?.gtag;
+    if (gtag) gtag('event', event, params);
+  };
 
   let hasInitialized = false;
 
@@ -36,10 +42,14 @@ export const useUserStore = defineStore('user', () => {
           try {
             const userRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userRef);
+            const gtag = (window as any)?.gtag;
+            if (gtag) {
+              // Ensure GA4 uses Firebase UID for user-level de-duplication
+              gtag('set', { user_id: user.uid });
+            }
 
-            if (userDoc.exists()) {
-              userProfile.value = userDoc.data() as UserProfile;
-            } else {
+            // 确保用户文档存在，不存在就创建
+            if (!userDoc.exists()) {
               const plainUser = {
                 uid: user.uid,
                 email: user.email,
@@ -47,8 +57,25 @@ export const useUserStore = defineStore('user', () => {
                 photoURL: user.photoURL,
               };
               await setDoc(userRef, plainUser);
-              userProfile.value = plainUser as UserProfile;
             }
+
+            // 再读一次数据 （或用 userDoc 的 data + 新用户默认 false）
+            const snap = await getDoc(userRef);
+            const data = snap.exists() ? snap.data() : null;
+            const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
+
+            if (!alreadyTracked) {
+              await setDoc(
+                userRef,
+                { analytics: { firstLoginTrackedAt: serverTimestamp() } },
+                { merge: true }
+              );
+
+              console.log("[ANALYTICS] first_login_success tracked ONCE for uid:", user.uid);
+            } else {
+              console.log("[ANALYTICS] first_login_success already tracked for uid:", user.uid);
+            }
+
           } catch (err) {
             console.error('[UserStore] Failed to load user document:', err);
           }
@@ -92,8 +119,9 @@ export const useUserStore = defineStore('user', () => {
         };
         await setDoc(userRef, plainUser);
       }
-
+      
       console.log('用户信息已保存到 Firestore');
+      return user;
     } catch (error) {
       console.error('Google 登录失败:', error);
       throw error;
