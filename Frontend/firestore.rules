@@ -18,6 +18,23 @@ service cloud.firestore {
       allow delete: if request.auth != null && 
         request.auth.uid == resource.data.organizerId;
     }
+
+    // 活动集合的规则(events)
+    match /events/{eventId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+        request.auth.uid == resource.data.organizerId;
+
+      // 论坛帖子
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if request.auth != null &&
+          request.resource.data.userId == request.auth.uid;
+        allow update, delete: if request.auth != null &&
+          request.auth.uid == resource.data.userId;
+      }
+    }
     
     // 用户集合的规则
     match /users/{userId} {
