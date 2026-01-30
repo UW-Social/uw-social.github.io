@@ -95,71 +95,22 @@
         </a>
       </div>
     </div>
-
-    <!-- Forum -->
-    <div class="forum-card">
-      <div class="forum-header">
-        <h2 class="section-title">Forum</h2>
-        <span class="forum-count">{{ posts.length }} posts</span>
-      </div>
-
-      <div class="forum-input">
-        <textarea
-          v-model="newPost"
-          class="forum-textarea"
-          rows="3"
-          :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
-          :disabled="!userStore.isLoggedIn || isPosting"
-        ></textarea>
-        <button
-          class="forum-submit"
-          :disabled="!canSubmitPost"
-          @click="submitPost"
-        >
-          Post
-        </button>
-      </div>
-
-      <p v-if="postError" class="forum-error">{{ postError }}</p>
-
-      <div v-if="posts.length === 0" class="forum-empty">
-        No posts yet. Be the first to post!
-      </div>
-
-      <div v-else class="forum-list">
-        <div v-for="post in posts" :key="post.id" class="forum-item">
-          <div class="forum-item-header">
-            <span class="forum-email">{{ post.userEmail || 'Unknown' }}</span>
-          </div>
-          <p class="forum-text">{{ post.text }}</p>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEventStore } from '../../stores/event';
-import { useUserStore } from '../../stores/user';
 import { formatEventSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
 import { loadGoogleMaps } from '../../utils/googleMaps';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase/config';
 
 const route = useRoute();
 const eventStore = useEventStore();
-const userStore = useUserStore();
 const event = ref<Event | null>(null);
 const isLoading = ref(true);
 const mapEl = ref<HTMLElement | null>(null);
-const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
-const newPost = ref('');
-const isPosting = ref(false);
-const postError = ref('');
-let unsubscribePosts: (() => void) | null = null;
 
 // Load event data when component mounts
 onMounted(async () => {
@@ -185,30 +136,6 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
-
-const subscribePosts = (id: string) => {
-  if (!id) return;
-  if (unsubscribePosts) {
-    unsubscribePosts();
-    unsubscribePosts = null;
-  }
-
-  const postsRef = collection(db, 'events', id, 'posts');
-  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
-  unsubscribePosts = onSnapshot(
-    postsQuery,
-    (snapshot) => {
-      posts.value = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as { text: string; userEmail?: string | null }),
-      }));
-    },
-    (error) => {
-      console.error('Failed to load posts:', error);
-      postError.value = 'Failed to load posts.';
-    }
-  );
-};
 
 // Handle image loading errors
 const handleImageError = (event: any) => {
@@ -236,55 +163,10 @@ const formattedTime = computed(() => {
   }
 });
 
-const canSubmitPost = computed(() => {
-  return userStore.isLoggedIn && !isPosting.value && newPost.value.trim().length > 0;
-});
-
-const submitPost = async () => {
-  if (!userStore.isLoggedIn || !userStore.userProfile?.email) {
-    alert('Please log in to post.');
-    return;
-  }
-
-  const text = newPost.value.trim();
-  const eventId = route.params.id as string;
-  if (!text || !eventId) return;
-
-  isPosting.value = true;
-  postError.value = '';
-
-  try {
-    await addDoc(collection(db, 'events', eventId, 'posts'), {
-      text,
-      userId: userStore.userProfile.uid,
-      userEmail: userStore.userProfile.email,
-      createdAt: serverTimestamp(),
-    });
-    newPost.value = '';
-  } catch (error) {
-    console.error('Failed to post message:', error);
-    postError.value = 'Failed to post. Please try again.';
-  } finally {
-    isPosting.value = false;
-  }
-};
-
 // Display limited number of tags
 const displayTags = computed(() => {
   if (!event.value?.tags || event.value.tags.length === 0) return [];
   return event.value.tags.slice(0, 5); // Show up to 5 tags
-});
-
-watch(
-  () => route.params.id as string,
-  (id) => {
-    if (id) subscribePosts(id);
-  },
-  { immediate: true }
-);
-
-onBeforeUnmount(() => {
-  if (unsubscribePosts) unsubscribePosts();
 });
 
 </script>
@@ -334,104 +216,6 @@ onBeforeUnmount(() => {
 
 .bookmark-button:hover {
   background: #f5f5f5;
-}
-
-.forum-card {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1.5px solid #333;
-}
-
-.forum-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.forum-count {
-  font-size: 12px;
-  color: #666;
-}
-
-.forum-input {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.forum-textarea {
-  flex: 1;
-  resize: vertical;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  padding: 10px;
-  font-size: 14px;
-  background: #f7f7f7;
-}
-
-.forum-textarea:disabled {
-  background: #ececec;
-  color: #888;
-}
-
-.forum-submit {
-  background: #333;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.forum-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.forum-error {
-  color: #c0392b;
-  margin-bottom: 10px;
-  font-size: 13px;
-}
-
-.forum-empty {
-  color: #666;
-  font-size: 13px;
-}
-
-.forum-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.forum-item {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  padding: 10px;
-  background: #f9f9f9;
-}
-
-.forum-item-header {
-  margin-bottom: 6px;
-}
-
-.forum-email {
-  font-size: 12px;
-  color: #444;
-  font-weight: 600;
-}
-
-.forum-text {
-  margin: 0;
-  color: #333;
-  font-size: 14px;
 }
 
 .bento-container {
