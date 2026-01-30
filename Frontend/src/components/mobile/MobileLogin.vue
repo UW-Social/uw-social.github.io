@@ -43,10 +43,18 @@ import email from "../../../public/svg/email.svg";
 import phone from "../../../public/svg/phone.svg";
 import { useUserStore } from "../../stores/user";
 const userStore = useUserStore();
+function track(event: string, params: Record<string, any> = {}) {
+  console.log("[TRACK FIRED]", event, params);
+  const gtag = (window as any)?.gtag;
+  if (gtag) gtag("event", event, params);
+  else console.warn("[GTAG MISSING] window.gtag is undefined");
+}
 
 function handleGoogleLogin() {
+  track("login_click_google", { source: "login_page" });
   userStore.loginWithGoogle();
 }
+
 </script>
 
 <style scoped>
