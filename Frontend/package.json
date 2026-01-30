@@ -17,7 +17,7 @@
     "element-plus": "^2.4.4",
     "firebase": "^10.14.1",
     "fuse.js": "^7.1.0",
-    "onnxruntime-web": "^1.22.0",
+    "onnxruntime-web": "^1.23.2",
     "pinia": "^2.1.7",
     "tokenizers": "^0.13.3",
     "vee-validate": "^4.12.4",
