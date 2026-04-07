@@ -103,17 +103,22 @@
         <span class="forum-count">{{ posts.length }} posts</span>
       </div>
 
-      <p class="forum-description">
-        This discussion has its own page, so it stays searchable even after the event is no longer shown in the main list.
-      </p>
-
-      <button
-        class="forum-submit"
-        :disabled="!event"
-        @click="goToForum"
-      >
-        Open Forum
-      </button>
+      <div class="forum-input">
+        <textarea
+          v-model="newPost"
+          class="forum-textarea"
+          rows="3"
+          :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
+          :disabled="!userStore.isLoggedIn || isPosting"
+        ></textarea>
+        <button
+          class="forum-submit"
+          :disabled="!canSubmitPost"
+          @click="submitPost"
+        >
+          Post
+        </button>
+      </div>
 
       <p v-if="postError" class="forum-error">{{ postError }}</p>
 
@@ -134,21 +139,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, ref, onMounted, watch, onBeforeUnmount } from 'vue';
+import { useRoute } from 'vue-router';
 import { useEventStore } from '../../stores/event';
+import { useUserStore } from '../../stores/user';
 import { formatEventSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
 import { loadGoogleMaps } from '../../utils/googleMaps';
-import { subscribeToForumPosts } from '../../api/forums';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 
 const route = useRoute();
 const router = useRouter();
 const eventStore = useEventStore();
+const userStore = useUserStore();
 const event = ref<Event | null>(null);
 const isLoading = ref(true);
 const mapEl = ref<HTMLElement | null>(null);
 const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
+const newPost = ref('');
+const isPosting = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
 
@@ -184,48 +194,21 @@ const subscribePosts = (id: string) => {
     unsubscribePosts = null;
   }
 
-  unsubscribePosts = subscribeToForumPosts(
-    id,
-    (nextPosts) => {
-      posts.value = nextPosts as Array<{ id: string; text: string; userEmail?: string | null }>;
+  const postsRef = collection(db, 'events', id, 'posts');
+  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
+  unsubscribePosts = onSnapshot(
+    postsQuery,
+    (snapshot) => {
+      posts.value = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as { text: string; userEmail?: string | null }),
+      }));
     },
     (error) => {
       console.error('Failed to load posts:', error);
       postError.value = 'Failed to load posts.';
     }
   );
-};
-
-const initMap = async () => {
-  await nextTick();
-  const el = mapEl.value;
-  if (!el || !event.value) return;
-
-  try {
-    const g = await loadGoogleMaps();
-    const fallback = { lat: 47.6553, lng: -122.3035 }; // UW
-
-    const map = new g.maps.Map(el, {
-      center: fallback,
-      zoom: 15,
-    });
-
-    const location = event.value.location || 'University of Washington';
-    const geocoder = new g.maps.Geocoder();
-
-    geocoder.geocode({ address: location }, (results: any, status: any) => {
-      if (status === 'OK' && results?.[0]) {
-        const pos = results[0].geometry.location;
-        map.setCenter(pos);
-        new g.maps.Marker({ position: pos, map });
-      } else {
-        new g.maps.Marker({ position: fallback, map });
-        console.warn('Geocode failed:', status, 'using fallback center');
-      }
-    });
-  } catch (err) {
-    console.error('Failed to load Google Maps:', err);
-  }
 };
 
 // Handle image loading errors
@@ -260,6 +243,39 @@ const formattedTime = computed(() => {
   }
 });
 
+const canSubmitPost = computed(() => {
+  return userStore.isLoggedIn && !isPosting.value && newPost.value.trim().length > 0;
+});
+
+const submitPost = async () => {
+  if (!userStore.isLoggedIn || !userStore.userProfile?.email) {
+    alert('Please log in to post.');
+    return;
+  }
+
+  const text = newPost.value.trim();
+  const eventId = route.params.id as string;
+  if (!text || !eventId) return;
+
+  isPosting.value = true;
+  postError.value = '';
+
+  try {
+    await addDoc(collection(db, 'events', eventId, 'posts'), {
+      text,
+      userId: userStore.userProfile.uid,
+      userEmail: userStore.userProfile.email,
+      createdAt: serverTimestamp(),
+    });
+    newPost.value = '';
+  } catch (error) {
+    console.error('Failed to post message:', error);
+    postError.value = 'Failed to post. Please try again.';
+  } finally {
+    isPosting.value = false;
+  }
+};
+
 // Display limited number of tags
 const displayTags = computed(() => {
   if (!event.value?.tags || event.value.tags.length === 0) return [];
@@ -272,13 +288,6 @@ watch(
     if (id) subscribePosts(id);
   },
   { immediate: true }
-);
-
-watch(
-  () => event.value?.location,
-  (location) => {
-    if (location) initMap();
-  }
 );
 
 onBeforeUnmount(() => {
@@ -350,15 +359,31 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 
-.forum-description {
-  margin: 0 0 12px;
-  color: #555;
-  line-height: 1.6;
-}
-
 .forum-count {
   font-size: 12px;
   color: #666;
+}
+
+.forum-input {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.forum-textarea {
+  flex: 1;
+  resize: vertical;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 14px;
+  background: #f7f7f7;
+}
+
+.forum-textarea:disabled {
+  background: #ececec;
+  color: #888;
 }
 
 .forum-submit {
