@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:forums": "node --env-file=.env.local ./scripts/migrate-forums.mjs"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.1",

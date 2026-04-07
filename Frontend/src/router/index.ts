@@ -44,6 +44,17 @@ const routes = [
     props: true
   },
   {
+    path: '/forums',
+    name: 'Forums',
+    component: () => import('@/views/Forums.vue')
+  },
+  {
+    path: '/forums/:id',
+    name: 'ForumDetail',
+    component: () => import('@/views/ForumDetail.vue'),
+    props: true
+  },
+  {
     path: '/clubs',
     name: 'Clubs',
     component: isMobile()

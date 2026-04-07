@@ -155,6 +155,11 @@ const goBack = () => {
   router.push('/events');
 };
 
+const goToForum = () => {
+  if (!event.value) return;
+  router.push(`/forums/${event.value.id}`);
+};
+
 const formatDescription = (desc: string) => {
   if (!desc) return '';
   return desc.replace(/\n/g, '<br>');
