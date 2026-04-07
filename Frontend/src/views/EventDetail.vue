@@ -82,20 +82,17 @@ z<template>
           <span class="forum-count">{{ posts.length }} posts</span>
         </div>
 
-        <div class="forum-input">
-          <textarea
-            v-model="newPost"
-            class="forum-textarea"
-            rows="3"
-            :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
-            :disabled="!userStore.isLoggedIn || isPosting"
-          ></textarea>
+        <p class="forum-description">
+          Discussions now live on a dedicated forum page, so they remain reachable even after this event is hidden from the main events feed.
+        </p>
+
+        <div class="forum-actions">
           <button
             class="forum-submit"
-            :disabled="!canSubmitPost"
-            @click="submitPost"
+            :disabled="!event"
+            @click="goToForum"
           >
-            Post
+            Open Forum
           </button>
         </div>
 
@@ -123,23 +120,18 @@ z<template>
 import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
-import { useUserStore } from '../stores/user';
 import { formatEventSchedule, type Event } from '../types/event';
 import { loadGoogleMaps } from '../utils/googleMaps';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { subscribeToForumPosts } from '../api/forums';
 
 const route = useRoute();
 const router = useRouter();
 const eventStore = useEventStore();
-const userStore = useUserStore();
 
 const eventId = computed(() => route.params.id as string);
 const event = ref<Event | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
-const newPost = ref('');
-const isPosting = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
 
@@ -153,6 +145,11 @@ const descriptionSummary = computed(() => {
 
 const goBack = () => {
   router.push('/events');
+};
+
+const goToForum = () => {
+  if (!event.value) return;
+  router.push(`/forums/${event.value.id}`);
 };
 
 const formatDescription = (desc: string) => {
@@ -180,53 +177,16 @@ const subscribePosts = (id: string) => {
     unsubscribePosts = null;
   }
 
-  const postsRef = collection(db, 'events', id, 'posts');
-  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
-  unsubscribePosts = onSnapshot(
-    postsQuery,
+  unsubscribePosts = subscribeToForumPosts(
+    id,
     (snapshot) => {
-      posts.value = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as { text: string; userEmail?: string | null }),
-      }));
+      posts.value = snapshot as Array<{ id: string; text: string; userEmail?: string | null }>;
     },
     (error) => {
       console.error('Failed to load posts:', error);
       postError.value = 'Failed to load posts.';
     }
   );
-};
-
-const canSubmitPost = computed(() => {
-  return userStore.isLoggedIn && !isPosting.value && newPost.value.trim().length > 0;
-});
-
-const submitPost = async () => {
-  if (!userStore.isLoggedIn || !userStore.userProfile?.email) {
-    alert('Please log in to post.');
-    return;
-  }
-
-  const text = newPost.value.trim();
-  if (!text || !eventId.value) return;
-
-  isPosting.value = true;
-  postError.value = '';
-
-  try {
-    await addDoc(collection(db, 'events', eventId.value, 'posts'), {
-      text,
-      userId: userStore.userProfile.uid,
-      userEmail: userStore.userProfile.email,
-      createdAt: serverTimestamp(),
-    });
-    newPost.value = '';
-  } catch (error) {
-    console.error('Failed to post message:', error);
-    postError.value = 'Failed to post. Please try again.';
-  } finally {
-    isPosting.value = false;
-  }
 };
 
 
@@ -343,30 +303,18 @@ onBeforeUnmount(() => {
   margin-bottom: var(--spacing-lg);
 }
 
-.forum-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-gray-500);
+.forum-description {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--color-gray-600);
+  line-height: 1.7;
 }
 
-.forum-input {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: flex-start;
+.forum-actions {
   margin-bottom: var(--spacing-lg);
 }
 
-.forum-textarea {
-  flex: 1;
-  resize: vertical;
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  font-size: var(--font-size-md);
-  background: var(--color-gray-50);
-}
-
-.forum-textarea:disabled {
-  background: var(--color-gray-100);
+.forum-count {
+  font-size: var(--font-size-sm);
   color: var(--color-gray-500);
 }
 
