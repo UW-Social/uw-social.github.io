@@ -28,15 +28,16 @@ function updateIsMobile() {
   isMobile.value = window.innerWidth <= 576;
 }
 
+const setVh = () => {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+};
+
 onMounted(() => {
   updateIsMobile();
   window.addEventListener('resize', updateIsMobile);
 
   // 动态设置视口高度，解决移动端 100vh 问题
-  const setVh = () => {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-  };
   setVh();
   window.addEventListener('resize', setVh);
 });
