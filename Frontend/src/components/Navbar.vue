@@ -1,99 +1,63 @@
 <template>
-  <nav>
-    <ul class="navbar">
-      <div class="nav-items">
-        <div class="left-link">
-          <div class="nav-left">
-            <li class="logo-container">
-              <router-link to="/" class="logo-link">
-                <span class="logo-text-brand">UW Social</span>
-              </router-link>
-            </li>
-            <div :class="{ active: $route.path === '/' }">
-              <li><router-link to="/">Home</router-link></li>
-            </div>
-            <div :class="{ active: $route.path === '/events' }">
-              <li><router-link to="/events">Events</router-link></li>
-            </div>
-            <div v-if="isWeb" :class="{ active: $route.path === '/publish' }">
-              <li><router-link to="/publish">Publish</router-link></li>
-            </div>
-            <div v-if="isWeb && userStore.isLoggedIn && userStore.userProfile?.displayName" :class="{ active: $route.path === '/profile' }">
-              <li><router-link to="/profile">Profile</router-link></li>
-            </div>
-          </div>
+  <nav class="site-nav">
+    <div class="navbar">
+      <router-link to="/" class="brand-link">
+        <span class="logo-text-brand">UW SOCIAL</span>
+      </router-link>
+
+      <div class="nav-center">
+        <router-link to="/" :class="['nav-link', { active: route.path === '/' }]">Home</router-link>
+        <router-link to="/events" :class="['nav-link', { active: route.path.startsWith('/events') }]">Events</router-link>
+        <router-link
+          to="/clubs"
+          :class="['nav-link', 'nav-link-tooltip', { active: route.path.startsWith('/clubs') }]"
+          data-tooltip="See what others are discussing"
+        >
+          Forum
+        </router-link>
+      </div>
+
+      <div class="nav-right">
+        <router-link to="/publish" class="publish-btn">Publish</router-link>
+
+        <div v-if="userStore.isLoggedIn && userStore.userProfile?.displayName" class="user-actions">
+          <button class="avatar-button" type="button" @click="navigateToProfile">
+            <img
+              :src="userStore.userProfile.photoURL || '/images/default-avatar.png'"
+              alt="User Avatar"
+              class="user-avatar"
+            />
+          </button>
+          <button class="logout-btn" type="button" @click="handleLogout">Logout</button>
         </div>
 
-        <div class="right-link">
-          <!-- 搜索框：仅在 Home 和 Publish 页面显示 -->
-          <div v-if="isWeb && shouldShowSearch" class="navbar-search">
-            <input
-              v-model="navbarSearch"
-              @keyup.enter="handleNavbarSearch"
-              type="text"
-              :placeholder="`Search Events...`"
-              class="navbar-search-input"
-              :title="`Search for ${searchType} by name, tags, or description`"
-            />
-          </div>
-          <div class="user-profile">
-            <div v-if="userStore.isLoggedIn && userStore.userProfile?.displayName" class="avatar-logout">
-              <img 
-                :src="userStore.userProfile.photoURL || '/images/default-avatar.png'"
-                alt="User Avatar"
-                class="user-avatar"
-                @click="navigateToProfile"
-              />
-              <a v-if="isWeb" href="#" @click.prevent="handleLogout" class="logout-link">Logout</a>
-            </div>
-            <div v-else>
-              <router-link to="/login" class="login-btn">Login</router-link>
-            </div>
-          </div>
-        </div>
+        <router-link v-else to="/login" class="login-btn">Login</router-link>
       </div>
-    </ul>
+    </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-import '../assets/navbar.css';
-import { useUserStore } from '../stores/user'
-import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import '../assets/navbar.css';
+import { useUserStore } from '../stores/user';
 
-const userStore = useUserStore()
-const router = useRouter()
-const route = useRoute()
-const navbarSearch = ref('');
-const searchType = ref<'events' | 'clubs'>('events');
-const isWeb = ref(window.innerWidth > 576);
-
-// 只在非 events 和非 clubs 页面显示搜索框
-const shouldShowSearch = computed(() => {
-  return route.path !== '/events' && route.path !== '/clubs';
-});
+const userStore = useUserStore();
+const router = useRouter();
+const route = useRoute();
 
 const navigateToProfile = () => {
   router.push('/profile');
-}
+};
 
 const handleLogout = async () => {
   try {
-    await userStore.logout()
-    router.push('/login')
+    await userStore.logout();
+    router.push('/login');
   } catch (error) {
-    console.error('Logout failed:', error)
+    console.error('Logout failed:', error);
   }
-}
-
-function handleNavbarSearch() {
-  if (navbarSearch.value.trim()) {
-    const path = searchType.value === 'events' ? '/events' : '/clubs';
-    router.push({ path, query: { q: navbarSearch.value.trim() } });
-    navbarSearch.value = '';
-  }
-}
+};
 </script>
 
 <style>
