@@ -1,21 +1,31 @@
 <template>
-  <nav class="site-nav">
-    <div class="navbar">
-      <router-link to="/" class="brand-link">
-        <span class="logo-text-brand">UW SOCIAL</span>
-      </router-link>
-
-      <div class="nav-center">
-        <router-link to="/" :class="['nav-link', { active: route.path === '/' }]">Home</router-link>
-        <router-link to="/events" :class="['nav-link', { active: route.path.startsWith('/events') }]">Events</router-link>
-        <router-link
-          to="/clubs"
-          :class="['nav-link', 'nav-link-tooltip', { active: route.path.startsWith('/clubs') }]"
-          data-tooltip="See what others are discussing"
-        >
-          Forum
-        </router-link>
-      </div>
+  <nav>
+    <ul class="navbar">
+      <div class="nav-items">
+        <div class="left-link">
+          <div class="nav-left">
+            <li class="logo-container">
+              <router-link to="/" class="logo-link">
+                <span class="logo-text-brand">UW Social</span>
+              </router-link>
+            </li>
+            <div :class="{ active: $route.path === '/' }">
+              <li><router-link to="/">Home</router-link></li>
+            </div>
+            <div :class="{ active: $route.path === '/events' }">
+              <li><router-link to="/events">Events</router-link></li>
+            </div>
+            <div :class="{ active: $route.path === '/forum' }">
+              <li><router-link to="/forum">Forum</router-link></li>
+            </div>
+            <div v-if="isWeb" :class="{ active: $route.path === '/publish' }">
+              <li><router-link to="/publish">Publish</router-link></li>
+            </div>
+            <div v-if="isWeb && userStore.isLoggedIn && userStore.userProfile?.displayName" :class="{ active: $route.path === '/profile' }">
+              <li><router-link to="/profile">Profile</router-link></li>
+            </div>
+          </div>
+        </div>
 
       <div class="nav-right">
         <router-link to="/publish" class="publish-btn">Publish</router-link>
@@ -62,3 +72,4 @@ const handleLogout = async () => {
 
 <style>
 </style>
+

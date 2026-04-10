@@ -80,6 +80,30 @@
   margin-bottom: var(--spacing-xl);
 }
 
+.login-prompt-banner {
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+.login-prompt-label {
+  display: inline-block;
+  margin-bottom: var(--spacing-xs);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.login-prompt-banner p {
+  margin: 0;
+  color: var(--color-gray-700);
+  line-height: 1.5;
+}
+
 .google-login-btn {
   width: 100%;
   display: flex;
