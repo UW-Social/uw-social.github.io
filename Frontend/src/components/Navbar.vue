@@ -8,13 +8,7 @@
       <div class="nav-center">
         <router-link to="/" :class="['nav-link', { active: route.path === '/' }]">Home</router-link>
         <router-link to="/events" :class="['nav-link', { active: route.path.startsWith('/events') }]">Events</router-link>
-        <router-link
-          to="/clubs"
-          :class="['nav-link', 'nav-link-tooltip', { active: route.path.startsWith('/clubs') }]"
-          data-tooltip="See what others are discussing"
-        >
-          Forum
-        </router-link>
+        <router-link to="/forum" :class="['nav-link', { active: route.path.startsWith('/forum') }]">Forum</router-link>
       </div>
 
       <div class="nav-right">
@@ -62,3 +56,4 @@ const handleLogout = async () => {
 
 <style>
 </style>
+
