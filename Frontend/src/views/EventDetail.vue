@@ -62,57 +62,58 @@ z<template>
         </div>
       </div>
 
-      <!-- Description and Map -->
+      <!-- Description and Forum -->
       <div class="content-section">
         <div class="description-card">
           <h2 class="section-title">About this event</h2>
           <p class="event-description" v-html="formatDescription(event.description || '')"></p>
         </div>
 
-        <div class="map-card">
-          <h2 class="section-title">Location</h2>
-          <div class="google-map" ref="mapContainer"></div>
+        <!-- Event Forum -->
+        <div class="forum-card">
+          <div class="forum-header">
+            <h2 class="section-title">Forum</h2>
+            <span class="forum-count">{{ posts.length }} posts</span>
+          </div>
+
+          <div class="forum-input">
+            <textarea
+              v-model="newPost"
+              class="forum-textarea"
+              rows="3"
+              :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
+              :disabled="!userStore.isLoggedIn || isPosting"
+            ></textarea>
+            <button
+              class="forum-submit"
+              :disabled="!canSubmitPost"
+              @click="submitPost"
+            >
+              Post
+            </button>
+          </div>
+
+          <p v-if="postError" class="forum-error">{{ postError }}</p>
+
+          <div v-if="posts.length === 0" class="forum-empty">
+            No posts yet. Be the first to post!
+          </div>
+
+          <div v-else class="forum-list">
+            <div v-for="post in posts" :key="post.id" class="forum-item">
+              <div class="forum-item-header">
+                <span class="forum-email">{{ post.userEmail || 'Unknown' }}</span>
+              </div>
+              <p class="forum-text">{{ post.text }}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Event Forum -->
-      <div class="forum-card">
-        <div class="forum-header">
-          <h2 class="section-title">Forum</h2>
-          <span class="forum-count">{{ posts.length }} posts</span>
-        </div>
-
-        <div class="forum-input">
-          <textarea
-            v-model="newPost"
-            class="forum-textarea"
-            rows="3"
-            :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
-            :disabled="!userStore.isLoggedIn || isPosting"
-          ></textarea>
-          <button
-            class="forum-submit"
-            :disabled="!canSubmitPost"
-            @click="submitPost"
-          >
-            Post
-          </button>
-        </div>
-
-        <p v-if="postError" class="forum-error">{{ postError }}</p>
-
-        <div v-if="posts.length === 0" class="forum-empty">
-          No posts yet. Be the first to post!
-        </div>
-
-        <div v-else class="forum-list">
-          <div v-for="post in posts" :key="post.id" class="forum-item">
-            <div class="forum-item-header">
-              <span class="forum-email">{{ post.userEmail || 'Unknown' }}</span>
-            </div>
-            <p class="forum-text">{{ post.text }}</p>
-          </div>
-        </div>
+      <!-- Location -->
+      <div class="map-card">
+        <h2 class="section-title">Location</h2>
+        <div class="google-map" ref="mapContainer"></div>
       </div>
 
     </template>
@@ -328,7 +329,6 @@ onBeforeUnmount(() => {
 }
 
 .forum-card {
-  margin-top: var(--spacing-3xl);
   background: var(--color-white);
   border-radius: var(--radius-xl);
   border: var(--border-width) solid var(--border-color);
@@ -562,7 +562,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
 }
 
 .description-card,
