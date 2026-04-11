@@ -36,6 +36,11 @@ const routes = [
       : () => import('../views/Events.vue')
   },
   {
+    path: '/forum',
+    name: 'Forum',
+    component: () => import('@/views/Forum.vue')
+  },
+  {
     path: '/events/:id',
     name: 'EventDetail',
     component: isMobile()
@@ -71,7 +76,10 @@ const routes = [
     path: '/publish',
     name: 'Publish',
     component: () => import('../views/Publish.vue'),
-    meta: { requiresAuth: true }
+    meta: {
+      requiresAuth: true,
+      authPrompt: 'Please log in to publish an event or club.'
+    }
   },
   {
     path: '/:pathMatch(.*)*', 
@@ -92,8 +100,15 @@ export function isMobile() {
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    const authPrompt = typeof to.meta.authPrompt === 'string' ? to.meta.authPrompt : ''
     // 保存原始目标路径，登录后可以返回
-    next({ path: '/login', query: { redirect: to.fullPath } })
+    next({
+      path: '/login',
+      query: {
+        redirect: to.fullPath,
+        prompt: authPrompt || undefined
+      }
+    })
   } else {
     next()
   }

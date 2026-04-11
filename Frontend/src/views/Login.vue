@@ -7,6 +7,11 @@
           <h1>UW Social</h1>
           <p>Connect with your campus community</p>
         </div>
+
+        <div v-if="loginPrompt" class="login-prompt-banner">
+          <span class="login-prompt-label">Login required</span>
+          <p>{{ loginPrompt }}</p>
+        </div>
         
         <div class="login-form">
           <button @click="handleGoogleLogin()" class="google-login-btn" :disabled="isLoading">
@@ -40,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useUserStore } from "../stores/user";
 import { useRouter, useRoute } from "vue-router";
 import "../assets/login.css";
@@ -49,6 +54,10 @@ const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 const isLoading = ref(false);
+const loginPrompt = computed(() => {
+  const value = route.query.prompt;
+  return typeof value === 'string' ? value : '';
+});
 
 function track(event: string, params: Record<string, any> = {}) {
   console.log("[TRACK FIRED]", event, params);

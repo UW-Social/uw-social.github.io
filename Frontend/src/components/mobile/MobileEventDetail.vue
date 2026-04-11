@@ -67,35 +67,6 @@
       </div>
     </div>
 
-    <!-- Map under description -->
-    <div v-if="event?.location" class="map-card">
-      <h2 class="section-title">Location Map</h2>
-      <div ref="mapEl" class="google-map"></div>
-    </div>
-
-    <!-- Event Link -->
-    <div class="link-card" v-if="event?.link">
-      <h2 class="section-title">Event Link</h2>
-      <div class="link-content">
-        <a :href="event.link" target="_blank" class="event-link">
-          <div class="link-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-          </div>
-          <span class="link-text">Click here for event registration</span>
-          <div class="external-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15,3 21,3 21,9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-          </div>
-        </a>
-      </div>
-    </div>
-
     <!-- Forum -->
     <div class="forum-card">
       <div class="forum-header">
@@ -133,6 +104,35 @@
           </div>
           <p class="forum-text">{{ post.text }}</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Map under forum -->
+    <div v-if="event?.location" class="map-card">
+      <h2 class="section-title">Location Map</h2>
+      <div ref="mapEl" class="google-map"></div>
+    </div>
+
+    <!-- Event Link -->
+    <div class="link-card" v-if="event?.link">
+      <h2 class="section-title">Event Link</h2>
+      <div class="link-content">
+        <a :href="event.link" target="_blank" class="event-link">
+          <div class="link-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <span class="link-text">Click here for event registration</span>
+          <div class="external-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15,3 21,3 21,9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </div>
+        </a>
       </div>
     </div>
   </div>
@@ -347,7 +347,6 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 16px;
   padding: 16px;
-  margin-top: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1.5px solid #333;
 }
@@ -523,6 +522,17 @@ onBeforeUnmount(() => {
   border: 1.5px solid #333;
 }
 
+.description-card,
+.forum-card,
+.map-card,
+.link-card {
+  margin-top: 16px;
+}
+
+.bento-container + .description-card {
+  margin-top: 0;
+}
+
 .section-title {
   font-size: 18px;
   font-weight: 300;
@@ -569,7 +579,21 @@ onBeforeUnmount(() => {
   padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1.5px solid #333;
-  margin-top: 16px;
+}
+
+.map-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1.5px solid #333;
+}
+
+.google-map {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .link-content {
