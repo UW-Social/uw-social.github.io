@@ -12,14 +12,34 @@
       </div>
     </section>
 
-    <section class="featured-section">
+    <section id="recommendations" class="featured-section">
       <div class="section-header">
-        <h2 class="section-title">Recommended for You</h2>
-        <p class="section-subtitle">Personalized events based on your interests</p>
+        <h2 class="section-title">{{ recommendationHeading }}</h2>
+        <p class="section-subtitle">{{ recommendationSubtitle }}</p>
       </div>
 
       <div class="events-container">
-        <EventList @open-card="setSelectedEvent" />
+        <div v-if="showRecommendationUpdateNotice" class="recommendation-notice">
+          Recommendation is updated, go and check!
+        </div>
+
+        <div v-if="!userStore.isLoggedIn" class="recommendation-cta">
+          <div class="cta-copy">
+            <span class="cta-eyebrow">New here?</span>
+            <h3>Want personalized event recommendations?</h3>
+            <p>Sign up to get picks tailored to your interests, clubs, and campus life.</p>
+          </div>
+
+          <button class="cta-button" type="button" :disabled="isSigningUp" @click="handleSignupClick">
+            {{ isSigningUp ? 'Connecting to Google...' : 'Sign up with Google' }}
+          </button>
+        </div>
+
+        <EventList
+          :limit="userStore.isLoggedIn ? undefined : 3"
+          :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+          @open-card="setSelectedEvent"
+        />
       </div>
     </section>
 
@@ -30,7 +50,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import DetailCard from '../components/DetailCard.vue';
 import EventList from '../components/EventList.vue';
 import SearchFilterBar from '../components/SearchFilterBar.vue';
@@ -43,11 +64,62 @@ import {
   useSelectedEvent,
 } from '../utils/eventUtils';
 
+const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 const selectedEvent = useSelectedEvent();
+const isSigningUp = ref(false);
+
+const showRecommendationUpdateNotice = computed(() => route.query.onboarding === 'complete');
+const hasPersonalizedRecommendations = computed(() => userStore.isLoggedIn && userStore.profileIsComplete);
+
+const recommendationHeading = computed(() => {
+  if (!userStore.isLoggedIn) return 'Latest Campus Events';
+  if (!hasPersonalizedRecommendations.value) return 'Finish Your Personalization';
+  return 'Recommended for You';
+});
+
+const recommendationSubtitle = computed(() => {
+  if (!userStore.isLoggedIn) return 'See the latest events on campus and sign up for tailored picks.';
+  if (!hasPersonalizedRecommendations.value) return 'Complete your profile to unlock recommendations matched to your interests.';
+  return 'Personalized events based on your interests';
+});
+
+async function handleSignupClick(): Promise<void> {
+  if (isSigningUp.value) return;
+
+  isSigningUp.value = true;
+
+  try {
+    const loginResult = await userStore.loginWithGoogle({ redirectPath: '/' });
+    await router.push(loginResult.nextPath);
+  } catch (error) {
+    console.error('Google sign-up failed from homepage CTA:', error);
+  } finally {
+    isSigningUp.value = false;
+  }
+}
+
+async function scrollToRecommendations(): Promise<void> {
+  await nextTick();
+  document.getElementById('recommendations')?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  });
+}
 
 onMounted(() => {
   mountKeyDownListener();
+
+  if (showRecommendationUpdateNotice.value) {
+    void scrollToRecommendations();
+  }
+});
+
+watch(showRecommendationUpdateNotice, (shouldScroll) => {
+  if (shouldScroll) {
+    void scrollToRecommendations();
+  }
 });
 
 onUnmounted(() => {
@@ -149,6 +221,81 @@ onUnmounted(() => {
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.05);
 }
 
+.recommendation-notice {
+  margin: 0.4rem 0.4rem 1rem;
+  padding: 0.95rem 1.1rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(73, 159, 112, 0.14), rgba(73, 159, 112, 0.05));
+  border: 1px solid rgba(73, 159, 112, 0.2);
+  color: #245c43;
+  font-weight: 600;
+  text-align: center;
+}
+
+.recommendation-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.4rem 0.4rem 1rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(91, 97, 246, 0.16), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(238, 244, 255, 0.88));
+  border: 1px solid rgba(91, 97, 246, 0.12);
+}
+
+.cta-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cta-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5b61f6;
+}
+
+.cta-copy h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #132238;
+}
+
+.cta-copy p {
+  margin: 0;
+  color: #526172;
+  line-height: 1.5;
+}
+
+.cta-button {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 0.9rem 1.35rem;
+  background: linear-gradient(135deg, #5b61f6 0%, #6f8cff 100%);
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 16px 30px rgba(91, 97, 246, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.cta-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 36px rgba(91, 97, 246, 0.28);
+}
+
+.cta-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .detail-card-overlay {
   position: fixed;
   top: 0;
@@ -173,6 +320,15 @@ onUnmounted(() => {
   .featured-section {
     margin-top: 3vh;
     padding: 0 var(--spacing-lg) var(--spacing-2xl);
+  }
+
+  .recommendation-cta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cta-button {
+    width: 100%;
   }
 }
 
@@ -200,6 +356,15 @@ onUnmounted(() => {
 
   .section-header {
     padding-top: 1.2rem;
+  }
+
+  .recommendation-cta {
+    margin-inline: 0;
+    border-radius: 20px;
+  }
+
+  .recommendation-notice {
+    margin-inline: 0;
   }
 
   .detail-card-overlay {

@@ -1,149 +1,192 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-
+import { computed, ref } from 'vue';
 import {
-  getAuth,
-  signInWithPopup,
   GoogleAuthProvider,
-  signOut,
-  onAuthStateChanged,
-  User,
-  setPersistence,
+  User as FirebaseUser,
   browserLocalPersistence,
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  signInWithPopup,
+  signOut,
 } from 'firebase/auth';
-import { doc, updateDoc, getDoc, setDoc,  serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { UserProfile } from '../types/user';
 
+interface LoginOptions {
+  redirectPath?: string | null;
+}
+
+interface LoginResult {
+  user: FirebaseUser;
+  profile: UserProfile;
+  needsOnboarding: boolean;
+  nextPath: string;
+}
+
+type StoredUserProfile = Partial<UserProfile> | null | undefined;
+
+function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile): UserProfile {
+  const safeTags = Array.isArray(storedProfile?.tags) ? storedProfile.tags : [];
+  const creationTime = user.metadata.creationTime ?? storedProfile?.metadata?.creationTime ?? '';
+  const lastSignInTime = user.metadata.lastSignInTime ?? storedProfile?.metadata?.lastSignInTime ?? '';
+
+  return {
+    uid: user.uid,
+    email: storedProfile?.email ?? user.email ?? null,
+    displayName: storedProfile?.displayName ?? user.displayName ?? '',
+    grade: storedProfile?.grade ?? null,
+    major: storedProfile?.major ?? null,
+    tags: safeTags,
+    photoURL: storedProfile?.photoURL ?? user.photoURL ?? null,
+    emailVerified: storedProfile?.emailVerified ?? user.emailVerified,
+    metadata: creationTime || lastSignInTime
+      ? {
+          creationTime,
+          lastSignInTime,
+        }
+      : undefined,
+  };
+}
+
 export const useUserStore = defineStore('user', () => {
+  const auth = getAuth();
   const isLoggedIn = ref(false);
   const userProfile = ref<UserProfile | null>(null);
-  const auth = getAuth();
-  
-  const trackEvent = (event: string, params: Record<string, any> = {}) => {
-    const gtag = (window as any)?.gtag;
-    if (gtag) gtag('event', event, params);
+  const hasInitialized = ref(false);
+
+  const profileIsComplete = computed(() => {
+    const profile = userProfile.value;
+    if (!profile) return false;
+
+    return Boolean(
+      profile.displayName?.trim() &&
+      profile.grade &&
+      profile.major &&
+      Array.isArray(profile.tags) &&
+      profile.tags.length > 0,
+    );
+  });
+
+  const ensureUserDocument = async (user: FirebaseUser): Promise<UserProfile> => {
+    const userRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+
+    const baseProfile = buildUserProfile(user);
+
+    if (!userDoc.exists()) {
+      await setDoc(userRef, baseProfile);
+      userProfile.value = baseProfile;
+      return baseProfile;
+    }
+
+    const storedProfile = userDoc.data() as StoredUserProfile;
+    const mergedProfile = buildUserProfile(user, storedProfile);
+
+    userProfile.value = mergedProfile;
+    return mergedProfile;
   };
 
-  let hasInitialized = false;
-
   const loadUser = async (): Promise<void> => {
-    if (hasInitialized) return;
-    hasInitialized = true;
+    if (hasInitialized.value) return;
+    hasInitialized.value = true;
 
-    return new Promise((resolve) => {
-      console.log('Attempting to load user...');
-      onAuthStateChanged(auth, async (user: User | null) => {
-        console.log('Auth state changed:', user);
-
+    await new Promise<void>((resolve) => {
+      onAuthStateChanged(auth, async (user) => {
         isLoggedIn.value = !!user;
 
-        if (user) {
-          try {
-            const userRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userRef);
-            const gtag = (window as any)?.gtag;
-            if (gtag) {
-              // Ensure GA4 uses Firebase UID for user-level de-duplication
-              gtag('set', { user_id: user.uid });
-            }
-
-            // 确保用户文档存在，不存在就创建
-            if (!userDoc.exists()) {
-              const plainUser = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-              };
-              await setDoc(userRef, plainUser);
-            }
-
-            // 再读一次数据 （或用 userDoc 的 data + 新用户默认 false）
-            const snap = await getDoc(userRef);
-            const data = snap.exists() ? snap.data() : null;
-            const alreadyTracked = !!data?.analytics?.firstLoginTrackedAt;
-
-            if (!alreadyTracked) {
-              await setDoc(
-                userRef,
-                { analytics: { firstLoginTrackedAt: serverTimestamp() } },
-                { merge: true }
-              );
-
-              console.log("[ANALYTICS] first_login_success tracked ONCE for uid:", user.uid);
-            } else {
-              console.log("[ANALYTICS] first_login_success already tracked for uid:", user.uid);
-            }
-
-          } catch (err) {
-            console.error('[UserStore] Failed to load user document:', err);
-          }
-        } else {
+        if (!user) {
           userProfile.value = null;
+          resolve();
+          return;
         }
 
-        resolve();
+        try {
+          await ensureUserDocument(user);
+          const gtag = (window as { gtag?: (...args: unknown[]) => void }).gtag;
+          if (gtag) {
+            gtag('set', { user_id: user.uid });
+          }
+        } catch (error) {
+          console.error('[UserStore] Failed to hydrate user profile:', error);
+        } finally {
+          resolve();
+        }
       });
     });
   };
 
-  const loginWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
+  const loginWithGoogle = async (options: LoginOptions = {}): Promise<LoginResult> => {
+    const provider = new GoogleAuthProvider();
 
-      await setPersistence(auth, browserLocalPersistence);
+    await setPersistence(auth, browserLocalPersistence);
 
-      const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    const profile = await ensureUserDocument(result.user);
 
-      const user = result.user;
-      console.log('Google 登录成功:', user);
+    isLoggedIn.value = true;
 
-      isLoggedIn.value = !!user;
-      userProfile.value = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-      };
+    const needsOnboarding = !profileIsComplete.value;
+    const nextPath = needsOnboarding
+      ? '/profile/edit?onboarding=1'
+      : options.redirectPath || '/';
 
-      const userRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userRef);
-
-      if (!userDoc.exists()) {
-        const plainUser = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        };
-        await setDoc(userRef, plainUser);
-      }
-      
-      console.log('用户信息已保存到 Firestore');
-      return user;
-    } catch (error) {
-      console.error('Google 登录失败:', error);
-      throw error;
-    }
+    return {
+      user: result.user,
+      profile,
+      needsOnboarding,
+      nextPath,
+    };
   };
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      userProfile.value = null;
-      isLoggedIn.value = false;
-    } catch (error) {
-      console.error('退出失败:', error);
-      throw error;
+  const fetchUserProfile = async (): Promise<UserProfile | null> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+
+    return ensureUserDocument(currentUser);
+  };
+
+  const updateUserProfile = async (updates: Partial<UserProfile>): Promise<UserProfile> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('User must be signed in to update a profile.');
     }
+
+    const userRef = doc(db, 'users', currentUser.uid);
+    await setDoc(
+      userRef,
+      {
+        ...updates,
+        uid: currentUser.uid,
+      },
+      { merge: true },
+    );
+
+    const mergedProfile = buildUserProfile(currentUser, {
+      ...(userProfile.value ?? {}),
+      ...updates,
+      uid: currentUser.uid,
+    });
+
+    userProfile.value = mergedProfile;
+    return mergedProfile;
+  };
+
+  const logout = async (): Promise<void> => {
+    await signOut(auth);
+    userProfile.value = null;
+    isLoggedIn.value = false;
   };
 
   return {
+    fetchUserProfile,
     isLoggedIn,
-    userProfile,
+    loadUser,
     loginWithGoogle,
     logout,
-    loadUser,
+    profileIsComplete,
+    updateUserProfile,
+    userProfile,
   };
 });
