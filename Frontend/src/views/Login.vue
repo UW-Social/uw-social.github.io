@@ -112,8 +112,10 @@ const handleGoogleLogin = async () => {
 
   isLoading.value = true;
   try {
-    const user = await userStore.loginWithGoogle();
-    const uid = user?.uid;
+    const loginResult = await userStore.loginWithGoogle({
+      redirectPath: (route.query.redirect as string) || '/',
+    });
+    const uid = loginResult.user?.uid;
     if (!uid) throw new Error("Missing uid after login");
 
     // 设置 GA user_id（用于同一人识别）
@@ -126,8 +128,7 @@ const handleGoogleLogin = async () => {
     // 每次登录成功
     track("login_success", { method: "google" });
 
-    const redirect = (route.query.redirect as string) || "/profile";
-    router.push(redirect);
+    router.push(loginResult.nextPath);
   } catch (error: any) {
     track("login_fail", {
       method: "google",
