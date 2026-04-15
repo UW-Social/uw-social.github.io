@@ -74,12 +74,16 @@ function cosineSimilarity(vecA: Float32Array, vecB: Float32Array): number {
 }
 
 async function sortEventsByUserInterest(events: Event[]): Promise<Event[]> {
-  const userTags = (userStore.userProfile?.tags ?? []).map(tag => tag.toLowerCase());
-  if (!userTags.length) {
+  const userSignals = [
+    ...(userStore.userProfile?.tags ?? []),
+    ...(userStore.userProfile?.goals ?? []),
+  ].map(signal => signal.toLowerCase());
+
+  if (!userSignals.length) {
     return sortEventsByStartTimeAsc(events);
   }
 
-  const userTagEmbeddings = await Promise.all(userTags.map(tag => getPhraseVec(tag)));
+  const userSignalEmbeddings = await Promise.all(userSignals.map(signal => getPhraseVec(signal)));
 
   const scoredEvents = await Promise.all(
     events.map(async (event) => {
@@ -96,7 +100,7 @@ async function sortEventsByUserInterest(events: Event[]): Promise<Event[]> {
       let bestScore = -1;
 
       for (const eventVector of eventTagEmbeddings) {
-        for (const userVector of userTagEmbeddings) {
+        for (const userVector of userSignalEmbeddings) {
           bestScore = Math.max(bestScore, cosineSimilarity(eventVector, userVector));
         }
       }
@@ -204,6 +208,7 @@ watch(
     () => userStore.isLoggedIn,
     () => userStore.profileIsComplete,
     () => (userStore.userProfile?.tags ?? []).join('|'),
+    () => (userStore.userProfile?.goals ?? []).join('|'),
   ],
   () => {
     void refreshEvents();

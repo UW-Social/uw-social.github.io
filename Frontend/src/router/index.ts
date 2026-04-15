@@ -30,6 +30,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/views/Onboarding.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/events',
     name: 'Events',
     component: isMobile()

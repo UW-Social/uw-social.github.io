@@ -75,13 +75,13 @@ const hasPersonalizedRecommendations = computed(() => userStore.isLoggedIn && us
 
 const recommendationHeading = computed(() => {
   if (!userStore.isLoggedIn) return 'Latest Campus Events';
-  if (!hasPersonalizedRecommendations.value) return 'Finish Your Personalization';
+  if (!hasPersonalizedRecommendations.value) return "Let's Tune Your Feed";
   return 'Recommended for You';
 });
 
 const recommendationSubtitle = computed(() => {
   if (!userStore.isLoggedIn) return 'See the latest events on campus and sign up for tailored picks.';
-  if (!hasPersonalizedRecommendations.value) return 'Complete your profile to unlock recommendations matched to your interests.';
+  if (!hasPersonalizedRecommendations.value) return 'Pick a few interests to unlock events matched to what you like.';
   return 'Personalized events based on your interests';
 });
 

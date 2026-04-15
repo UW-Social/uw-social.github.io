@@ -29,8 +29,10 @@ type StoredUserProfile = Partial<UserProfile> | null | undefined;
 
 function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile): UserProfile {
   const safeTags = Array.isArray(storedProfile?.tags) ? storedProfile.tags : [];
+  const safeGoals = Array.isArray(storedProfile?.goals) ? storedProfile.goals : [];
   const creationTime = user.metadata.creationTime ?? storedProfile?.metadata?.creationTime ?? '';
   const lastSignInTime = user.metadata.lastSignInTime ?? storedProfile?.metadata?.lastSignInTime ?? '';
+  const hasLegacyCompletedProfile = Boolean(safeTags.length && storedProfile?.grade && storedProfile?.major);
 
   return {
     uid: user.uid,
@@ -39,6 +41,8 @@ function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile)
     grade: storedProfile?.grade ?? null,
     major: storedProfile?.major ?? null,
     tags: safeTags,
+    goals: safeGoals,
+    onboardingCompleted: storedProfile?.onboardingCompleted ?? hasLegacyCompletedProfile,
     photoURL: storedProfile?.photoURL ?? user.photoURL ?? null,
     emailVerified: storedProfile?.emailVerified ?? user.emailVerified,
     metadata: creationTime || lastSignInTime
@@ -61,9 +65,7 @@ export const useUserStore = defineStore('user', () => {
     if (!profile) return false;
 
     return Boolean(
-      profile.displayName?.trim() &&
-      profile.grade &&
-      profile.major &&
+      profile.onboardingCompleted &&
       Array.isArray(profile.tags) &&
       profile.tags.length > 0,
     );
@@ -127,9 +129,9 @@ export const useUserStore = defineStore('user', () => {
 
     isLoggedIn.value = true;
 
-    const needsOnboarding = !profileIsComplete.value;
+    const needsOnboarding = !profile.onboardingCompleted;
     const nextPath = needsOnboarding
-      ? '/profile/edit?onboarding=1'
+      ? '/onboarding'
       : options.redirectPath || '/';
 
     return {

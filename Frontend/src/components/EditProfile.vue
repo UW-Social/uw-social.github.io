@@ -255,6 +255,8 @@ if (!userStore.isLoggedIn) {
       prompt: 'Please sign in to finish your profile setup.',
     },
   });
+} else if (isOnboardingFlow.value) {
+  void router.replace('/onboarding');
 }
 
 // Auto-fill user information
