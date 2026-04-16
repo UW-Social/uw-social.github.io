@@ -3,4 +3,4 @@ A website helps UW students, including transfer students, international students
 ### Project Overview
 This document contains all necessary information about the technology stack, features, database schema, and implementation details. Future development should reference this document to maintain consistency.
 ### Repository documentation
-See wiki.
+See README_technical.md
