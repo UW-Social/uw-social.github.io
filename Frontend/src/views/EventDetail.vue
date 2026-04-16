@@ -1,4 +1,4 @@
-z<template>
+<template>
   <div class="event-detail-page">
     <!-- Back Button -->
     <button @click="goBack" class="back-button shadow-premium">
@@ -20,7 +20,21 @@ z<template>
 
         <div class="event-info-card">
           <div class="event-info-header">
-            <h1 class="event-title">{{ event.title }}</h1>
+            <div class="event-title-row">
+              <h1 class="event-title">{{ event.title }}</h1>
+              <button
+                class="save-event-button"
+                type="button"
+                :class="{ saved: isSavedEvent }"
+                :disabled="isSavingEvent"
+                @click="toggleSavedEvent"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>{{ isSavedEvent ? 'Saved' : 'Save event' }}</span>
+              </button>
+            </div>
             <p v-if="descriptionSummary" class="event-summary">{{ descriptionSummary }}</p>
           </div>
 
@@ -141,8 +155,14 @@ const mapContainer = ref<HTMLElement | null>(null);
 const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
 const newPost = ref('');
 const isPosting = ref(false);
+const isSavingEvent = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+
+const isSavedEvent = computed(() => {
+  if (!event.value?.id) return false;
+  return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
+});
 
 const descriptionSummary = computed(() => {
   const raw = event.value?.description?.trim();
@@ -227,6 +247,38 @@ const submitPost = async () => {
     postError.value = 'Failed to post. Please try again.';
   } finally {
     isPosting.value = false;
+  }
+};
+
+const toggleSavedEvent = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  if (!userStore.userProfile || !event.value?.id || isSavingEvent.value) {
+    return;
+  }
+
+  isSavingEvent.value = true;
+
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== event.value?.id)
+      : [...new Set([...currentSaved, event.value.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved events:', error);
+  } finally {
+    isSavingEvent.value = false;
   }
 };
 
@@ -484,11 +536,56 @@ onBeforeUnmount(() => {
   gap: var(--spacing-md);
 }
 
+.event-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+}
+
 .event-title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-gray-900);
   margin: 0;
+}
+
+.save-event-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.save-event-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.save-event-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.save-event-button.saved {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: var(--color-white);
+  border-color: transparent;
+  box-shadow: 0 14px 30px rgba(99, 102, 241, 0.22);
+}
+
+.save-event-button svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .event-summary {

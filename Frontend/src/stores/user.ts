@@ -30,6 +30,7 @@ type StoredUserProfile = Partial<UserProfile> | null | undefined;
 function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile): UserProfile {
   const safeTags = Array.isArray(storedProfile?.tags) ? storedProfile.tags : [];
   const safeGoals = Array.isArray(storedProfile?.goals) ? storedProfile.goals : [];
+  const safeSavedEventIds = Array.isArray(storedProfile?.savedEventIds) ? storedProfile.savedEventIds : [];
   const creationTime = user.metadata.creationTime ?? storedProfile?.metadata?.creationTime ?? '';
   const lastSignInTime = user.metadata.lastSignInTime ?? storedProfile?.metadata?.lastSignInTime ?? '';
   const hasLegacyCompletedProfile = Boolean(safeTags.length && storedProfile?.grade && storedProfile?.major);
@@ -42,6 +43,7 @@ function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile)
     major: storedProfile?.major ?? null,
     tags: safeTags,
     goals: safeGoals,
+    savedEventIds: safeSavedEventIds,
     onboardingCompleted: storedProfile?.onboardingCompleted ?? hasLegacyCompletedProfile,
     photoURL: storedProfile?.photoURL ?? user.photoURL ?? null,
     emailVerified: storedProfile?.emailVerified ?? user.emailVerified,

@@ -3,7 +3,13 @@
     <!-- Event Header -->
     <div class="event-header">
       <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <button class="bookmark-button">
+      <button
+        class="bookmark-button"
+        type="button"
+        :class="{ saved: isSavedEvent }"
+        :disabled="isSavingEvent"
+        @click="toggleSavedEvent"
+      >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
         </svg>
@@ -158,8 +164,14 @@ const mapEl = ref<HTMLElement | null>(null);
 const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
 const newPost = ref('');
 const isPosting = ref(false);
+const isSavingEvent = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+
+const isSavedEvent = computed(() => {
+  if (!event.value?.id) return false;
+  return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
+});
 
 // Load event data when component mounts
 onMounted(async () => {
@@ -269,6 +281,31 @@ const submitPost = async () => {
   }
 };
 
+const toggleSavedEvent = async () => {
+  if (!userStore.isLoggedIn) {
+    return;
+  }
+
+  if (!userStore.userProfile || !event.value?.id || isSavingEvent.value) {
+    return;
+  }
+
+  isSavingEvent.value = true;
+
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== event.value?.id)
+      : [...new Set([...currentSaved, event.value.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved events:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+};
+
 // Display limited number of tags
 const displayTags = computed(() => {
   if (!event.value?.tags || event.value.tags.length === 0) return [];
@@ -334,6 +371,17 @@ onBeforeUnmount(() => {
 
 .bookmark-button:hover {
   background: #f5f5f5;
+}
+
+.bookmark-button.saved {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+.bookmark-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .forum-card {
