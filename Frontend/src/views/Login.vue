@@ -113,11 +113,11 @@ const handleGoogleLogin = async () => {
     const loginResult = await userStore.loginWithGoogle({
       redirectPath: (route.query.redirect as string) || '/',
     });
-    const uid = loginResult.user?.uid;
     if (!uid) throw new Error("Missing uid after login");
-
-    // 设置 user_id
-    const uid = user?.uid;
+    const loginResult = await userStore.loginWithGoogle({
+      redirectPath: (route.query.redirect as string) || '/',
+    });
+    const uid = loginResult.user?.uid;
     const gtag = (window as any)?.gtag;
     if (gtag && uid) gtag("set", { user_id: uid });
 
