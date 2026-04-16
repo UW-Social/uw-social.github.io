@@ -1,5 +1,19 @@
 <template>
   <div class="event-form">
+    <div class="quick-import">
+        <label for="link">Enter the link to the event for quick input (Optinal)</label>
+        <input
+          id="link"
+          v-model="importLink"
+          type="url"
+          placeholder="Paste event link"
+          @keydown.enter.prevent="handleImport"
+        />
+        <button type="button" @click="handleImport" :disabled="isImporting">
+          {{ isImporting ? 'Importing...' : 'Import' }}
+        </button>
+      </div>
+    
     <div class="form-container">
       <div class="step-indicator">
         <div class="step" :class="{ active: currentStep >= 1 }" @click="currentStep = 1">
@@ -357,6 +371,8 @@ const isSubmitting = ref(false);
 const db = getFirestore();
 const storage = getStorage();
 const currentStep = ref(1);
+const importLink = ref('');
+const isImporting = ref(false);
 
 const formData = ref({
   title: '',
@@ -440,6 +456,48 @@ const selectedImageFile = ref<File | null>(null);
 const handleImageSelection = (event: InputEvent) => {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
+};
+
+const handleImport = async () => {
+  console.log("yes");
+  if (!importLink.value) return;
+
+  isImporting.value = true;
+  try {
+    const data = await scraper(importLink.value);
+
+    if (data.title) formData.value.title = data.title;
+    if (data.description) formData.value.description = data.description;
+    if (data.location) formData.value.location = data.location;
+    if (data.startDate) formData.value.startDate = data.startDate;
+    if (data.startTime) formData.value.startTime = data.startTime;
+    if (data.endDate) formData.value.endDate = data.endDate;
+    if (data.endTime) formData.value.endTime = data.endTime;
+    if (data.imageUrl) formData.value.imageUrl = data.imageUrl;
+
+    currentStep.value = 1;
+
+  } catch (err) {
+    console.error(err);
+    alert('Failed to import event.');
+  } finally {
+    isImporting.value = false;
+  }
+};
+
+const scraper = async (url: string) => {
+  // TODO: implement backend scraping 
+
+  return {
+    title: 'test',
+    description: '',
+    location: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    imageUrl: '',
+  };
 };
 
 const handleSubmit = async () => {
