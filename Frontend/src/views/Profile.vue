@@ -1,255 +1,359 @@
 <template>
-  <div class="profile-layout">
-    <!-- 左侧：个人信息 + 侧边菜单 -->
-    <aside class="profile-sidebar">
-      <div class="profile-card">
-        <AvatarUpload />
-        <h2>{{ userStore.userProfile?.displayName || 'User' }}</h2>
-      </div>
-
-      <div class="profile-menu">
-        <ul>
-          <li>
-            <a href="#" @click.prevent="showSection('default')" :class="{ active: currentSection === 'default' }">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              Profile Home
-            </a>
-          </li>
-          <li>
-            <a href="#" @click.prevent="showSection('published')" :class="{ active: currentSection === 'published' }">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              Published Events
-            </a>
-          </li>
-          <li>
-            <a href="#" @click.prevent="showSection('participated')" :class="{ active: currentSection === 'participated' }">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              Participated Events
-            </a>
-          </li>
-          <li>
-            <a href="#" @click.prevent="showSection('achievements')" :class="{ active: currentSection === 'achievements' }">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="8" r="7"></circle>
-                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-              </svg>
-              Your Achievements
-            </a>
-          </li>
-        </ul>
-      </div>
-    </aside>
-
-    <!-- 右侧：个人信息和社交动态 -->
-    <main class="profile-main">
-      <!-- 默认页面（基本信息 & 社交动态） -->
-      <div v-show="currentSection === 'default'" id="default-content">
-
-        <!-- 个人信息 -->
-        <div class="profile-info">
-          <h3>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            Basic Information
-          </h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Name:</span>
-              <span class="info-value">{{ userStore.userProfile?.displayName }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Grade:</span>
-              <span class="info-value">{{ userStore.userProfile?.grade }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Major:</span>
-              <span class="info-value">{{ userStore.userProfile?.major }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Contact:</span>
-              <span class="info-value">{{ userStore.userProfile?.email }}</span>
-            </div>
+  <div class="profile-page">
+    <div class="profile-shell">
+      <aside class="profile-sidebar">
+        <div class="sidebar-profile">
+          <img
+            class="sidebar-avatar"
+            :src="userStore.userProfile?.photoURL || '/images/default-avatar.png'"
+            alt="User avatar"
+          />
+          <div class="sidebar-profile-copy">
+            <h2>{{ userStore.userProfile?.displayName || 'User' }}</h2>
+            <p>{{ userStore.userProfile?.grade || 'UW Student' }}</p>
+            <p class="sidebar-major">{{ userStore.userProfile?.major || 'Major not set' }}</p>
           </div>
         </div>
 
-        <!-- 个人标签 -->
-        <div class="profile-tags">
-          <h3>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-              <line x1="7" y1="7" x2="7.01" y2="7"></line>
-            </svg>
-            Personal Tags
-          </h3>
-          <ul>
-            <li v-for="tag in userStore.userProfile?.tags || []" :key="tag">{{ tag }}</li>
-          </ul>
-        </div>
-
-        <!-- 编辑 -->
-        <div class="edit-profile">
-          <button class="edit-btn" @click="goToEditProfile">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Edit Profile
+        <nav class="sidebar-nav" aria-label="Profile sections">
+          <button
+            type="button"
+            class="sidebar-link"
+            :class="{ active: currentSection === 'saved' }"
+            @click="showSection('saved')"
+          >
+            <span>Saved Events</span>
           </button>
-        </div>
+          <button
+            type="button"
+            class="sidebar-link"
+            :class="{ active: currentSection === 'published' }"
+            @click="showSection('published')"
+          >
+            <span>My Posts</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-link"
+            :class="{ active: currentSection === 'participated' }"
+            @click="showSection('participated')"
+          >
+            <span>Network</span>
+          </button>
+          <button type="button" class="sidebar-link" @click="goToEditProfile">
+            <span>Profile & Edit</span>
+          </button>
+        </nav>
 
-        <div class="achievements">
-          <h3>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="8" r="7"></circle>
-              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-            </svg>
-            Your Achievements
-          </h3>
-          <div class="achievement-badge">
-            <img src="/images/logo1.png" alt="UW Social Badge">
-            <p>You have published {{ publishedEvents.length }} events!</p>
-          </div>
-          <!-- <div class="achievement-badge">
-            <img src="/images/logo1.png" alt="UW Social Badge">
-            <p>You have made 5 new friends!</p>
-          </div> -->
-        </div>
-      </div>
+        <button type="button" class="sidebar-cta" @click="goToEditProfile">
+          <span>＋</span>
+          <span>Edit Profile</span>
+        </button>
+      </aside>
 
-      <div v-show="currentSection === 'published'" class="profile-section">
-        <h3>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          Published Events
-        </h3>
-        <div class="event-list-horizontal" v-if="publishedEvents.length > 0">
-          <div v-for="event in publishedEvents" :key="event.id" class="event-card-horizontal">
-            <h4>{{ event.title }}</h4>
-            <div class="event-meta">
-              <span>
-                <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                {{ event.date }}
-              </span>
-              <span>
-                <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                {{ event.location }}
-              </span>
+      <main class="profile-main">
+        <header class="content-header">
+          <h1>{{ sectionTitle }}</h1>
+          <p>{{ sectionSubtitle }}</p>
+        </header>
+
+        <section v-if="currentEvents.length > 0" class="events-bento" :class="bentoClass">
+          <article
+            v-if="featuredEvent"
+            class="featured-event"
+            @click="openEvent(featuredEvent.id)"
+          >
+            <button
+              type="button"
+              class="card-save-button"
+              :class="{ saved: isEventSaved(featuredEvent.id) }"
+              @click.stop="toggleSavedEvent(featuredEvent.id)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <img
+              class="featured-event-image"
+              :src="featuredEvent.imageUrl || '/images/wavingdog.jpg'"
+              :alt="featuredEvent.title"
+            />
+            <div class="featured-event-body">
+              <div class="badge-row">
+                <span class="event-chip warm">{{ featuredEvent.category || 'Campus' }}</span>
+                <span v-if="currentSection === 'saved'" class="event-chip cool">Favorite</span>
+              </div>
+              <h2>{{ featuredEvent.title }}</h2>
+              <p>{{ featuredEvent.description || 'Discover one of your highlighted campus picks.' }}</p>
+              <div class="event-detail-row">
+                <span>{{ featuredEvent.date }}</span>
+                <span>{{ featuredEvent.location || 'Location TBD' }}</span>
+              </div>
             </div>
-          </div>
-        </div>
-        <div v-else class="empty-state">
-          <p>No published events yet</p>
-        </div>
-      </div>
+          </article>
 
-      <div v-show="currentSection === 'participated'" class="profile-section">
-        <h3>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          Participated Events
-        </h3>
-        <div v-if="participatedEvents.length > 0">
-          <div v-for="event in participatedEvents" :key="event.id" class="event-card">
-            <h4>{{ event.title }}</h4>
-            <p>
-              <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              {{ event.date }}
-            </p>
-            <p>
-              <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              {{ event.location }}
-            </p>
+          <div v-if="secondaryEvents.length > 0" class="side-stack">
+            <article
+              v-for="event in secondaryEvents"
+              :key="event.id"
+              class="stack-card"
+              @click="openEvent(event.id)"
+            >
+              <button
+                type="button"
+                class="card-save-button"
+                :class="{ saved: isEventSaved(event.id) }"
+                @click.stop="toggleSavedEvent(event.id)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+              <img
+                class="stack-card-image"
+                :src="event.imageUrl || '/images/wavingdog.jpg'"
+                :alt="event.title"
+              />
+              <div class="stack-card-body">
+                <span class="event-chip soft">{{ event.category || 'Campus' }}</span>
+                <h3>{{ event.title }}</h3>
+                <div class="stack-meta">
+                  <span>{{ event.date }}</span>
+                  <span>{{ event.location || 'Location TBD' }}</span>
+                </div>
+              </div>
+            </article>
           </div>
-        </div>
-        <div v-else class="empty-state">
-          <p>No participated events yet</p>
-        </div>
-      </div>
 
-      <div v-show="currentSection === 'achievements'" class="profile-section">
-        <h3>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="8" r="7"></circle>
-            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-          </svg>
-          Your Achievements
-        </h3>
-        <div class="achievement-badge">
-          <img src="/images/logo.png" alt="UW Social Badge">
-          <p>You have published {{ publishedEvents.length }} events!</p>
-        </div>
-        <!-- <div class="achievement-badge">
-          <img src="/images/logo1.png" alt="UW Social Badge">
-          <p>You have made 5 new friends!</p>
-        </div> -->
-      </div>
-    </main>
+          <div v-if="galleryEvents.length > 0" class="bottom-gallery">
+            <article
+              v-for="event in galleryEvents"
+              :key="event.id"
+              class="gallery-card"
+              @click="openEvent(event.id)"
+            >
+              <button
+                type="button"
+                class="card-save-button"
+                :class="{ saved: isEventSaved(event.id) }"
+                @click.stop="toggleSavedEvent(event.id)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+              <img
+                class="gallery-card-image"
+                :src="event.imageUrl || '/images/wavingdog.jpg'"
+                :alt="event.title"
+              />
+              <div class="gallery-card-body">
+                <span class="event-chip soft">{{ event.category || 'Campus' }}</span>
+                <h3>{{ event.title }}</h3>
+                <div class="stack-meta">
+                  <span>{{ event.date }}</span>
+                  <span>{{ event.location || 'Location TBD' }}</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section v-else class="empty-panel">
+          <h2>No events here yet</h2>
+          <p>{{ emptyMessage }}</p>
+        </section>
+
+        <section v-if="(userStore.userProfile?.tags ?? []).length > 0" class="interest-strip">
+          <span class="interest-label">Interests</span>
+          <div class="interest-tags">
+            <span v-for="tag in userStore.userProfile?.tags || []" :key="tag" class="interest-tag">
+              {{ tag }}
+            </span>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useUserStore } from '../stores/user'
-import { useRouter } from 'vue-router'
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore'
-import AvatarUpload from '../components/AvatarUpload.vue'
-import { formatEventSchedule } from '../types/event';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { collection, documentId, getDocs, getFirestore, query, where } from 'firebase/firestore';
+import { useUserStore } from '../stores/user';
+import { formatEventSchedule, type Event as FullEvent } from '../types/event';
 
-interface Event {
-  id: string
-  title: string
-  date: string
-  location: string
+type SectionKey = 'saved' | 'published' | 'participated';
+
+interface ProfileEventCard {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  category: string;
+  imageUrl: string;
+  description: string;
 }
 
-const userStore = useUserStore()
-const router = useRouter()
-const currentSection = ref('default')
-const db = getFirestore()
+const router = useRouter();
+const route = useRoute();
+const userStore = useUserStore();
+const db = getFirestore();
+const isSavingEvent = ref(false);
 
-const publishedEvents = ref<Event[]>([])
-const participatedEvents = ref<Event[]>([])
+const currentSection = ref<SectionKey>('saved');
+const savedEvents = ref<ProfileEventCard[]>([]);
+const publishedEvents = ref<ProfileEventCard[]>([]);
+const participatedEvents = ref<ProfileEventCard[]>([]);
 
-const showSection = (section: string) => {
-  currentSection.value = section
+const currentEvents = computed(() => {
+  if (currentSection.value === 'published') return publishedEvents.value;
+  if (currentSection.value === 'participated') return participatedEvents.value;
+  return savedEvents.value;
+});
+
+const featuredEvent = computed(() => currentEvents.value[0] ?? null);
+const secondaryEvents = computed(() => currentEvents.value.slice(1, 3));
+const galleryEvents = computed(() => currentEvents.value.slice(3));
+const bentoClass = computed(() => `count-${Math.min(currentEvents.value.length, 4)}`);
+
+const sectionTitle = computed(() => {
+  if (currentSection.value === 'published') return 'Published Events';
+  if (currentSection.value === 'participated') return 'Joined Events';
+  return 'Saved Events';
+});
+
+const sectionSubtitle = computed(() => {
+  if (currentSection.value === 'published') {
+    return `You have published ${publishedEvents.value.length} events so far.`;
+  }
+  if (currentSection.value === 'participated') {
+    return `You are participating in ${participatedEvents.value.length} events.`;
+  }
+  return `You have ${savedEvents.value.length} saved events in your collection.`;
+});
+
+const emptyMessage = computed(() => {
+  if (currentSection.value === 'published') return 'Create an event and it will appear here.';
+  if (currentSection.value === 'participated') return 'Join an event to populate this section.';
+  return 'Save an event from its detail page and it will show up here.';
+});
+
+function showSection(section: SectionKey) {
+  currentSection.value = section;
 }
 
 function goToEditProfile() {
   router.push('/profile/edit');
+}
+
+function openEvent(eventId: string) {
+  router.push(`/events/${eventId}`);
+}
+
+function isEventSaved(eventId: string) {
+  return (userStore.userProfile?.savedEventIds ?? []).includes(eventId);
+}
+
+async function toggleSavedEvent(eventId: string) {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  if (!userStore.userProfile || isSavingEvent.value) return;
+
+  isSavingEvent.value = true;
+
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = currentSaved.includes(eventId)
+      ? currentSaved.filter((id) => id !== eventId)
+      : [...new Set([...currentSaved, eventId])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+
+    if (currentSection.value === 'saved') {
+      await fetchSavedEvents(nextSaved);
+    }
+  } catch (error) {
+    console.error('Failed to toggle saved event from profile cards:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+}
+
+function mapEventDoc(id: string, data: Record<string, any>): ProfileEventCard {
+  const eventForSchedule = {
+    ...data,
+    id,
+  } as FullEvent;
+
+  return {
+    id,
+    title: data.title || 'Untitled event',
+    date: data.schedule || data.startTime ? formatEventSchedule(eventForSchedule) : 'Schedule TBD',
+    location: data.location || '',
+    category: data.category || '',
+    imageUrl: data.imageUrl || '',
+    description: data.description || '',
+  };
+}
+
+async function fetchSavedEvents(savedEventIds: string[]) {
+  if (savedEventIds.length === 0) {
+    savedEvents.value = [];
+    return;
+  }
+
+  const chunks: string[][] = [];
+  for (let index = 0; index < savedEventIds.length; index += 10) {
+    chunks.push(savedEventIds.slice(index, index + 10));
+  }
+
+  const results: ProfileEventCard[] = [];
+
+  for (const chunk of chunks) {
+    const snapshot = await getDocs(
+      query(collection(db, 'events'), where(documentId(), 'in', chunk)),
+    );
+
+    results.push(
+      ...snapshot.docs.map((doc) => mapEventDoc(doc.id, doc.data() as Record<string, any>)),
+    );
+  }
+
+  const orderMap = new Map(savedEventIds.map((id, index) => [id, index]));
+  savedEvents.value = results.sort(
+    (left, right) => (orderMap.get(left.id) ?? 0) - (orderMap.get(right.id) ?? 0),
+  );
+}
+
+async function fetchPublishedEvents(userId: string) {
+  const snapshot = await getDocs(
+    query(collection(db, 'events'), where('organizerId', '==', userId)),
+  );
+
+  publishedEvents.value = snapshot.docs.map((doc) =>
+    mapEventDoc(doc.id, doc.data() as Record<string, any>),
+  );
+}
+
+async function fetchParticipatedEvents(userId: string) {
+  const snapshot = await getDocs(
+    query(collection(db, 'events'), where('participants', 'array-contains', userId)),
+  );
+
+  participatedEvents.value = snapshot.docs.map((doc) =>
+    mapEventDoc(doc.id, doc.data() as Record<string, any>),
+  );
 }
 
 onMounted(async () => {
@@ -258,22 +362,19 @@ onMounted(async () => {
     return;
   }
 
+  const profile = await userStore.fetchUserProfile();
+  const userId = profile?.uid;
+
+  if (!userId) return;
+
   try {
-    const eventsRef = collection(db, 'events');
-    const q = query(eventsRef, where('organizerId', '==', userStore.userProfile?.uid));
-    const querySnapshot = await getDocs(q);
-    publishedEvents.value = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      const dateStr = data.schedule ? formatEventSchedule(data.schedule) : 'Schedule not available';
-      return {
-        id: doc.id,
-        title: data.title || '',
-        date: dateStr,
-        location: data.location || ''
-      };
-    });
+    await Promise.all([
+      fetchSavedEvents(profile?.savedEventIds ?? []),
+      fetchPublishedEvents(userId),
+      fetchParticipatedEvents(userId),
+    ]);
   } catch (error) {
-    console.error('Failed to fetch published events:', error);
+    console.error('Failed to load profile events:', error);
   }
 });
 </script>

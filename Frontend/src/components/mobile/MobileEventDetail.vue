@@ -3,7 +3,13 @@
     <!-- Event Header -->
     <div class="event-header">
       <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <button class="bookmark-button">
+      <button
+        class="bookmark-button"
+        type="button"
+        :class="{ saved: isSavedEvent }"
+        :disabled="isSavingEvent"
+        @click="toggleSavedEvent"
+      >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
         </svg>
@@ -169,6 +175,7 @@ const mapEl = ref<HTMLElement | null>(null);
 const forumSectionRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
 const isPosting = ref(false);
+const isSavingEvent = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
 const highlightedPostId = computed(() => {
@@ -414,6 +421,17 @@ onBeforeUnmount(() => {
 
 .bookmark-button:hover {
   background: #f5f5f5;
+}
+
+.bookmark-button.saved {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+.bookmark-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .forum-card {
