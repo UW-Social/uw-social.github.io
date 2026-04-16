@@ -58,6 +58,8 @@ export const useUserStore = defineStore('user', () => {
   const auth = getAuth();
   const isLoggedIn = ref(false);
   const userProfile = ref<UserProfile | null>(null);
+  
+
   const hasInitialized = ref(false);
 
   const profileIsComplete = computed(() => {
