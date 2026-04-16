@@ -110,7 +110,11 @@ const handleGoogleLogin = async () => {
 
   isLoading.value = true;
   try {
-    const user = await userStore.loginWithGoogle(); // first_login_success（只一次）
+    const loginResult = await userStore.loginWithGoogle({
+      redirectPath: (route.query.redirect as string) || '/',
+    });
+    const uid = loginResult.user?.uid;
+    if (!uid) throw new Error("Missing uid after login");
 
     // 设置 user_id
     const uid = user?.uid;
@@ -120,8 +124,7 @@ const handleGoogleLogin = async () => {
     //  每次登录成功都记
     track("login_success", { method: "google" });
 
-    const redirect = (route.query.redirect as string) || "/profile";
-    router.push(redirect);
+    router.push(loginResult.nextPath);
   } catch (error: any) {
     track("login_fail", {
       method: "google",
