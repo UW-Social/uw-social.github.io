@@ -40,9 +40,6 @@
           >
             <span>Network</span>
           </button>
-          <button type="button" class="sidebar-link" @click="goToEditProfile">
-            <span>Profile & Edit</span>
-          </button>
         </nav>
 
         <button type="button" class="sidebar-cta" @click="goToEditProfile">
@@ -81,97 +78,126 @@
             <div class="featured-event-body">
               <div class="badge-row">
                 <span class="event-chip warm">{{ featuredEvent.category || 'Campus' }}</span>
-                <span v-if="currentSection === 'saved'" class="event-chip cool">Favorite</span>
+                <span v-if="currentSection === 'saved'" class="event-chip cool">Closest Event</span>
               </div>
               <h2>{{ featuredEvent.title }}</h2>
               <p>{{ featuredEvent.description || 'Discover one of your highlighted campus picks.' }}</p>
               <div class="event-detail-row">
-                <span>{{ featuredEvent.date }}</span>
-                <span>{{ featuredEvent.location || 'Location TBD' }}</span>
+                <span class="detail-item">
+                  <span class="detail-icon">Time:</span>
+                  <span>{{ featuredEvent.date }}</span>
+                </span>
+                <span class="detail-item">
+                  <span class="detail-icon">Place:</span>
+                  <span>{{ featuredEvent.location || 'Location TBD' }}</span>
+                </span>
               </div>
             </div>
           </article>
 
-          <div v-if="secondaryEvents.length > 0" class="side-stack">
-            <article
-              v-for="event in secondaryEvents"
-              :key="event.id"
-              class="stack-card"
-              @click="openEvent(event.id)"
+          <article
+            v-for="event in secondaryEvents"
+            :key="event.id"
+            class="compact-event-card"
+            @click="openEvent(event.id)"
+          >
+            <button
+              type="button"
+              class="card-save-button"
+              :class="{ saved: isEventSaved(event.id) }"
+              @click.stop="toggleSavedEvent(event.id)"
             >
-              <button
-                type="button"
-                class="card-save-button"
-                :class="{ saved: isEventSaved(event.id) }"
-                @click.stop="toggleSavedEvent(event.id)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </button>
-              <img
-                class="stack-card-image"
-                :src="event.imageUrl || '/images/wavingdog.jpg'"
-                :alt="event.title"
-              />
-              <div class="stack-card-body">
-                <span class="event-chip soft">{{ event.category || 'Campus' }}</span>
-                <h3>{{ event.title }}</h3>
-                <div class="stack-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <img
+              class="compact-event-image"
+              :src="event.imageUrl || '/images/wavingdog.jpg'"
+              :alt="event.title"
+            />
+            <div class="compact-event-body">
+              <h3>{{ event.title }}</h3>
+              <div class="stack-meta">
+                <span class="compact-meta-item">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                  </svg>
                   <span>{{ event.date }}</span>
+                </span>
+                <span class="compact-meta-item">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 21s7-4.6 7-11a7 7 0 1 0-14 0c0 6.4 7 11 7 11z"></path>
+                    <circle cx="12" cy="10" r="2.5"></circle>
+                  </svg>
                   <span>{{ event.location || 'Location TBD' }}</span>
-                </div>
+                </span>
               </div>
-            </article>
-          </div>
-
-          <div v-if="galleryEvents.length > 0" class="bottom-gallery">
-            <article
-              v-for="event in galleryEvents"
-              :key="event.id"
-              class="gallery-card"
-              @click="openEvent(event.id)"
-            >
-              <button
-                type="button"
-                class="card-save-button"
-                :class="{ saved: isEventSaved(event.id) }"
-                @click.stop="toggleSavedEvent(event.id)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </button>
-              <img
-                class="gallery-card-image"
-                :src="event.imageUrl || '/images/wavingdog.jpg'"
-                :alt="event.title"
-              />
-              <div class="gallery-card-body">
-                <span class="event-chip soft">{{ event.category || 'Campus' }}</span>
-                <h3>{{ event.title }}</h3>
-                <div class="stack-meta">
-                  <span>{{ event.date }}</span>
-                  <span>{{ event.location || 'Location TBD' }}</span>
-                </div>
-              </div>
-            </article>
-          </div>
+            </div>
+          </article>
         </section>
 
-        <section v-else class="empty-panel">
+        <section v-else-if="!hasPassedSavedOnly" class="empty-panel">
           <h2>No events here yet</h2>
           <p>{{ emptyMessage }}</p>
         </section>
 
-        <section v-if="(userStore.userProfile?.tags ?? []).length > 0" class="interest-strip">
-          <span class="interest-label">Interests</span>
-          <div class="interest-tags">
-            <span v-for="tag in userStore.userProfile?.tags || []" :key="tag" class="interest-tag">
-              {{ tag }}
-            </span>
+        <section
+          v-if="currentSection === 'saved' && passedSavedEvents.length > 0"
+          class="passed-events-section"
+        >
+          <div class="passed-events-divider">
+            <span></span>
+            <h2>Passed Saved Events</h2>
+            <span></span>
+          </div>
+
+          <div class="passed-events-grid">
+            <article
+              v-for="event in passedSavedEvents"
+              :key="event.id"
+              class="compact-event-card passed-event-card"
+              @click="openEvent(event.id)"
+            >
+              <button
+                type="button"
+                class="card-save-button"
+                :class="{ saved: isEventSaved(event.id) }"
+                @click.stop="toggleSavedEvent(event.id)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+              <img
+                class="compact-event-image"
+                :src="event.imageUrl || '/images/wavingdog.jpg'"
+                :alt="event.title"
+              />
+              <div class="compact-event-body">
+                <h3>{{ event.title }}</h3>
+                <div class="stack-meta">
+                  <span class="compact-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9"></circle>
+                      <path d="M12 7v5l3 2"></path>
+                    </svg>
+                    <span>{{ event.date }}</span>
+                  </span>
+                  <span class="compact-meta-item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 21s7-4.6 7-11a7 7 0 1 0-14 0c0 6.4 7 11 7 11z"></path>
+                      <circle cx="12" cy="10" r="2.5"></circle>
+                    </svg>
+                    <span>{{ event.location || 'Location TBD' }}</span>
+                  </span>
+                </div>
+              </div>
+            </article>
           </div>
         </section>
+
       </main>
     </div>
   </div>
@@ -194,6 +220,9 @@ interface ProfileEventCard {
   category: string;
   imageUrl: string;
   description: string;
+  startsAtMs: number | null;
+  endsAtMs: number | null;
+  savedOrder: number;
 }
 
 const router = useRouter();
@@ -207,16 +236,23 @@ const savedEvents = ref<ProfileEventCard[]>([]);
 const publishedEvents = ref<ProfileEventCard[]>([]);
 const participatedEvents = ref<ProfileEventCard[]>([]);
 
+const savedUpcomingEvents = computed(() => savedEvents.value.filter((event) => !isPassedEvent(event)));
+const passedSavedEvents = computed(() => savedEvents.value.filter((event) => isPassedEvent(event)));
+
 const currentEvents = computed(() => {
   if (currentSection.value === 'published') return publishedEvents.value;
   if (currentSection.value === 'participated') return participatedEvents.value;
-  return savedEvents.value;
+  return savedUpcomingEvents.value;
 });
 
 const featuredEvent = computed(() => currentEvents.value[0] ?? null);
-const secondaryEvents = computed(() => currentEvents.value.slice(1, 3));
-const galleryEvents = computed(() => currentEvents.value.slice(3));
-const bentoClass = computed(() => `count-${Math.min(currentEvents.value.length, 4)}`);
+const secondaryEvents = computed(() => currentEvents.value.slice(1));
+const bentoClass = computed(() => `count-${Math.min(currentEvents.value.length, 6)}`);
+const hasPassedSavedOnly = computed(() => (
+  currentSection.value === 'saved'
+  && currentEvents.value.length === 0
+  && passedSavedEvents.value.length > 0
+));
 
 const sectionTitle = computed(() => {
   if (currentSection.value === 'published') return 'Published Events';
@@ -231,13 +267,13 @@ const sectionSubtitle = computed(() => {
   if (currentSection.value === 'participated') {
     return `You are participating in ${participatedEvents.value.length} events.`;
   }
-  return `You have ${savedEvents.value.length} saved events in your collection.`;
+  return `You have ${savedUpcomingEvents.value.length} upcoming saved events in your collection.`;
 });
 
 const emptyMessage = computed(() => {
   if (currentSection.value === 'published') return 'Create an event and it will appear here.';
   if (currentSection.value === 'participated') return 'Join an event to populate this section.';
-  return 'Save an event from its detail page and it will show up here.';
+  return 'Save an upcoming event from its detail page and it will show up here.';
 });
 
 function showSection(section: SectionKey) {
@@ -249,7 +285,12 @@ function goToEditProfile() {
 }
 
 function openEvent(eventId: string) {
-  router.push(`/events/${eventId}`);
+  router.push({
+    path: `/events/${eventId}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
 }
 
 function isEventSaved(eventId: string) {
@@ -290,11 +331,87 @@ async function toggleSavedEvent(eventId: string) {
   }
 }
 
-function mapEventDoc(id: string, data: Record<string, any>): ProfileEventCard {
+function toDate(value: any): Date | null {
+  if (!value) return null;
+
+  if (typeof value.toDate === 'function') {
+    const date = value.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value.seconds === 'number') {
+    const date = new Date(value.seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getEventStartDate(data: Record<string, any>): Date | null {
+  const schedule = data.schedule;
+
+  if (schedule?.startDatetime) return toDate(schedule.startDatetime);
+  if (schedule?.startDate) return toDate(schedule.startDate);
+  return toDate(data.startTime);
+}
+
+function getEventEndDate(data: Record<string, any>): Date | null {
+  const schedule = data.schedule;
+
+  if (schedule?.endDatetime) return toDate(schedule.endDatetime);
+  if (schedule?.endDate) return toDate(schedule.endDate);
+  return toDate(data.endtime);
+}
+
+function sortByClosestToNow(events: ProfileEventCard[]) {
+  const now = Date.now();
+
+  return events.slice().sort((left, right) => {
+    const leftRelevantTime = left.endsAtMs !== null && left.endsAtMs >= now
+      ? left.startsAtMs ?? left.endsAtMs
+      : left.startsAtMs;
+    const rightRelevantTime = right.endsAtMs !== null && right.endsAtMs >= now
+      ? right.startsAtMs ?? right.endsAtMs
+      : right.startsAtMs;
+
+    const leftIsUpcoming = leftRelevantTime !== null && (
+      leftRelevantTime >= now || (left.endsAtMs !== null && left.endsAtMs >= now)
+    );
+    const rightIsUpcoming = rightRelevantTime !== null && (
+      rightRelevantTime >= now || (right.endsAtMs !== null && right.endsAtMs >= now)
+    );
+
+    if (leftIsUpcoming !== rightIsUpcoming) return leftIsUpcoming ? -1 : 1;
+
+    if (leftRelevantTime !== null && rightRelevantTime !== null) {
+      if (leftIsUpcoming && rightIsUpcoming) {
+        return leftRelevantTime - rightRelevantTime;
+      }
+
+      return rightRelevantTime - leftRelevantTime;
+    }
+
+    if (leftRelevantTime !== null) return -1;
+    if (rightRelevantTime !== null) return 1;
+    return left.savedOrder - right.savedOrder;
+  });
+}
+
+function isPassedEvent(event: ProfileEventCard) {
+  const now = Date.now();
+  if (event.endsAtMs !== null) return event.endsAtMs < now;
+  if (event.startsAtMs !== null) return event.startsAtMs < now;
+  return false;
+}
+
+function mapEventDoc(id: string, data: Record<string, any>, savedOrder = 0): ProfileEventCard {
   const eventForSchedule = {
     ...data,
     id,
   } as FullEvent;
+  const startsAtMs = getEventStartDate(data)?.getTime() ?? null;
+  const endsAtMs = getEventEndDate(data)?.getTime() ?? null;
 
   return {
     id,
@@ -304,6 +421,9 @@ function mapEventDoc(id: string, data: Record<string, any>): ProfileEventCard {
     category: data.category || '',
     imageUrl: data.imageUrl || '',
     description: data.description || '',
+    startsAtMs,
+    endsAtMs,
+    savedOrder,
   };
 }
 
@@ -326,14 +446,14 @@ async function fetchSavedEvents(savedEventIds: string[]) {
     );
 
     results.push(
-      ...snapshot.docs.map((doc) => mapEventDoc(doc.id, doc.data() as Record<string, any>)),
+      ...snapshot.docs.map((doc) => {
+        const savedOrder = savedEventIds.indexOf(doc.id);
+        return mapEventDoc(doc.id, doc.data() as Record<string, any>, savedOrder);
+      }),
     );
   }
 
-  const orderMap = new Map(savedEventIds.map((id, index) => [id, index]));
-  savedEvents.value = results.sort(
-    (left, right) => (orderMap.get(left.id) ?? 0) - (orderMap.get(right.id) ?? 0),
-  );
+  savedEvents.value = sortByClosestToNow(results);
 }
 
 async function fetchPublishedEvents(userId: string) {
@@ -341,9 +461,9 @@ async function fetchPublishedEvents(userId: string) {
     query(collection(db, 'events'), where('organizerId', '==', userId)),
   );
 
-  publishedEvents.value = snapshot.docs.map((doc) =>
-    mapEventDoc(doc.id, doc.data() as Record<string, any>),
-  );
+  publishedEvents.value = sortByClosestToNow(snapshot.docs.map((doc, index) =>
+    mapEventDoc(doc.id, doc.data() as Record<string, any>, index),
+  ));
 }
 
 async function fetchParticipatedEvents(userId: string) {
@@ -351,9 +471,9 @@ async function fetchParticipatedEvents(userId: string) {
     query(collection(db, 'events'), where('participants', 'array-contains', userId)),
   );
 
-  participatedEvents.value = snapshot.docs.map((doc) =>
-    mapEventDoc(doc.id, doc.data() as Record<string, any>),
-  );
+  participatedEvents.value = sortByClosestToNow(snapshot.docs.map((doc, index) =>
+    mapEventDoc(doc.id, doc.data() as Record<string, any>, index),
+  ));
 }
 
 onMounted(async () => {

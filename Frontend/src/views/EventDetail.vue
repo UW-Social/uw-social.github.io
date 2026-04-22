@@ -180,8 +180,15 @@ const descriptionSummary = computed(() => {
   return (firstLine ?? plain).trim();
 });
 
+const returnTo = computed(() => {
+  const target = route.query.returnTo;
+  if (typeof target !== 'string') return '/events';
+  if (!target.startsWith('/') || target.startsWith('//')) return '/events';
+  return target;
+});
+
 const goBack = () => {
-  router.push('/events');
+  router.push(returnTo.value);
 };
 
 const goToLogin = () => {

@@ -79,7 +79,12 @@ const handleSortUpdate = (value: string) => {
 
 // Event click handler - navigate to detail page
 const handleEventClick = (event: Event) => {
-  router.push(`/events/${event.id}`);
+  router.push({
+    path: `/events/${event.id}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
 };
 
 // Keep layout simple; no additional watchers for select font sizing
