@@ -48,6 +48,16 @@ const routes = [
     component: () => import('@/views/Forum.vue')
   },
   {
+    path: '/events/:id/edit',
+    name: 'EditEvent',
+    component: () => import('@/views/EditEvent.vue'),
+    meta: {
+      requiresAuth: true,
+      authPrompt: 'Please log in to edit your event.'
+    },
+    props: true
+  },
+  {
     path: '/events/:id',
     name: 'EventDetail',
     component: isMobile()

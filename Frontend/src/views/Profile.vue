@@ -30,7 +30,7 @@
             :class="{ active: currentSection === 'published' }"
             @click="showSection('published')"
           >
-            <span>My Posts</span>
+            <span>Your Forum Notes</span>
           </button>
           <button
             type="button"
@@ -38,7 +38,7 @@
             :class="{ active: currentSection === 'participated' }"
             @click="showSection('participated')"
           >
-            <span>Network</span>
+            <span>Your Events</span>
           </button>
         </nav>
 
@@ -54,53 +54,58 @@
           <p>{{ sectionSubtitle }}</p>
         </header>
 
-        <section v-if="currentEvents.length > 0" class="events-bento" :class="bentoClass">
+        <section
+          v-if="currentSection === 'published' && forumNotes.length > 0"
+          class="notes-grid"
+        >
           <article
-            v-if="featuredEvent"
-            class="featured-event"
-            @click="openEvent(featuredEvent.id)"
+            v-for="note in forumNotes"
+            :key="note.id"
+            class="note-card"
           >
-            <button
-              type="button"
-              class="card-save-button"
-              :class="{ saved: isEventSaved(featuredEvent.id) }"
-              @click.stop="toggleSavedEvent(featuredEvent.id)"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
-            <img
-              class="featured-event-image"
-              :src="featuredEvent.imageUrl || '/images/wavingdog.jpg'"
-              :alt="featuredEvent.title"
-            />
-            <div class="featured-event-body">
-              <div class="badge-row">
-                <span class="event-chip warm">{{ featuredEvent.category || 'Campus' }}</span>
-                <span v-if="currentSection === 'saved'" class="event-chip cool">Closest Event</span>
+            <div class="note-card-header">
+              <div>
+                <p class="note-label">Forum note</p>
+                <h2>{{ note.eventTitle }}</h2>
               </div>
-              <h2>{{ featuredEvent.title }}</h2>
-              <p>{{ featuredEvent.description || 'Discover one of your highlighted campus picks.' }}</p>
-              <div class="event-detail-row">
-                <span class="detail-item">
-                  <span class="detail-icon">Time:</span>
-                  <span>{{ featuredEvent.date }}</span>
-                </span>
-                <span class="detail-item">
-                  <span class="detail-icon">Place:</span>
-                  <span>{{ featuredEvent.location || 'Location TBD' }}</span>
-                </span>
-              </div>
+              <button
+                type="button"
+                class="note-link-button"
+                @click="openEvent(note.eventId)"
+              >
+                Open event
+              </button>
+            </div>
+            <p class="note-body">{{ note.text }}</p>
+            <div class="note-meta">
+              <span>{{ note.eventSchedule }}</span>
+              <span v-if="note.eventLocation">{{ note.eventLocation }}</span>
+              <span>{{ formatPostTimestamp(note.createdAt) }}</span>
             </div>
           </article>
+        </section>
 
+        <section v-else-if="currentEvents.length > 0" class="uniform-events-grid">
           <article
-            v-for="event in secondaryEvents"
+            v-for="event in currentEvents"
             :key="event.id"
-            class="compact-event-card"
+            class="featured-event"
             @click="openEvent(event.id)"
           >
+            <div
+              v-if="currentSection !== 'participated'"
+              class="image-countdown-badge"
+            >
+              {{ isUpcomingEvent(event) ? formatCountdown(event) : 'Started' }}
+            </div>
+            <button
+              v-if="currentSection === 'participated'"
+              type="button"
+              class="card-edit-button"
+              @click.stop="goToEditEvent(event.id)"
+            >
+              Edit
+            </button>
             <button
               type="button"
               class="card-save-button"
@@ -112,25 +117,23 @@
               </svg>
             </button>
             <img
-              class="compact-event-image"
+              class="featured-event-image"
               :src="event.imageUrl || '/images/wavingdog.jpg'"
               :alt="event.title"
             />
-            <div class="compact-event-body">
-              <h3>{{ event.title }}</h3>
-              <div class="stack-meta">
-                <span class="compact-meta-item">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 2"></path>
-                  </svg>
+            <div class="featured-event-body">
+              <div class="badge-row">
+                <span class="event-chip warm">{{ event.category || 'Campus' }}</span>
+              </div>
+              <h2>{{ event.title }}</h2>
+              <p>{{ event.description || 'Discover one of your highlighted campus picks.' }}</p>
+              <div class="event-detail-row">
+                <span class="detail-item">
+                  <span class="detail-icon">Time:</span>
                   <span>{{ event.date }}</span>
                 </span>
-                <span class="compact-meta-item">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21s7-4.6 7-11a7 7 0 1 0-14 0c0 6.4 7 11 7 11z"></path>
-                    <circle cx="12" cy="10" r="2.5"></circle>
-                  </svg>
+                <span class="detail-item">
+                  <span class="detail-icon">Place:</span>
                   <span>{{ event.location || 'Location TBD' }}</span>
                 </span>
               </div>
@@ -139,7 +142,7 @@
         </section>
 
         <section v-else-if="!hasPassedSavedOnly" class="empty-panel">
-          <h2>No events here yet</h2>
+          <h2>{{ emptyTitle }}</h2>
           <p>{{ emptyMessage }}</p>
         </section>
 
@@ -149,7 +152,7 @@
         >
           <div class="passed-events-divider">
             <span></span>
-            <h2>Passed Saved Events</h2>
+            <h2>Outdated Saved Event</h2>
             <span></span>
           </div>
 
@@ -204,11 +207,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { collection, documentId, getDocs, getFirestore, query, where } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  documentId,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useUserStore } from '../stores/user';
-import { formatEventSchedule, type Event as FullEvent } from '../types/event';
+import { formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
 
 type SectionKey = 'saved' | 'published' | 'participated';
 
@@ -220,9 +231,20 @@ interface ProfileEventCard {
   category: string;
   imageUrl: string;
   description: string;
+  scheduleType: string | null;
   startsAtMs: number | null;
   endsAtMs: number | null;
   savedOrder: number;
+}
+
+interface ForumNoteCard {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventLocation: string;
+  eventSchedule: string;
+  text: string;
+  createdAt: unknown;
 }
 
 const router = useRouter();
@@ -230,24 +252,23 @@ const route = useRoute();
 const userStore = useUserStore();
 const db = getFirestore();
 const isSavingEvent = ref(false);
+const nowMs = ref(Date.now());
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const currentSection = ref<SectionKey>('saved');
 const savedEvents = ref<ProfileEventCard[]>([]);
-const publishedEvents = ref<ProfileEventCard[]>([]);
-const participatedEvents = ref<ProfileEventCard[]>([]);
+const forumNotes = ref<ForumNoteCard[]>([]);
+const userEvents = ref<ProfileEventCard[]>([]);
 
 const savedUpcomingEvents = computed(() => savedEvents.value.filter((event) => !isPassedEvent(event)));
 const passedSavedEvents = computed(() => savedEvents.value.filter((event) => isPassedEvent(event)));
 
 const currentEvents = computed(() => {
-  if (currentSection.value === 'published') return publishedEvents.value;
-  if (currentSection.value === 'participated') return participatedEvents.value;
+  if (currentSection.value === 'published') return [];
+  if (currentSection.value === 'participated') return userEvents.value;
   return savedUpcomingEvents.value;
 });
 
-const featuredEvent = computed(() => currentEvents.value[0] ?? null);
-const secondaryEvents = computed(() => currentEvents.value.slice(1));
-const bentoClass = computed(() => `count-${Math.min(currentEvents.value.length, 6)}`);
 const hasPassedSavedOnly = computed(() => (
   currentSection.value === 'saved'
   && currentEvents.value.length === 0
@@ -255,25 +276,31 @@ const hasPassedSavedOnly = computed(() => (
 ));
 
 const sectionTitle = computed(() => {
-  if (currentSection.value === 'published') return 'Published Events';
-  if (currentSection.value === 'participated') return 'Joined Events';
+  if (currentSection.value === 'published') return 'Your Forum Notes';
+  if (currentSection.value === 'participated') return 'Your Events';
   return 'Saved Events';
 });
 
 const sectionSubtitle = computed(() => {
   if (currentSection.value === 'published') {
-    return `You have published ${publishedEvents.value.length} events so far.`;
+    return `You have shared ${forumNotes.value.length} forum notes across your event discussions.`;
   }
   if (currentSection.value === 'participated') {
-    return `You are participating in ${participatedEvents.value.length} events.`;
+    return `You have published ${userEvents.value.length} events so far.`;
   }
   return `You have ${savedUpcomingEvents.value.length} upcoming saved events in your collection.`;
 });
 
 const emptyMessage = computed(() => {
-  if (currentSection.value === 'published') return 'Create an event and it will appear here.';
-  if (currentSection.value === 'participated') return 'Join an event to populate this section.';
+  if (currentSection.value === 'published') return 'Post a note inside an event forum and it will show up here.';
+  if (currentSection.value === 'participated') return 'Create an event and it will appear here.';
   return 'Save an upcoming event from its detail page and it will show up here.';
+});
+
+const emptyTitle = computed(() => {
+  if (currentSection.value === 'published') return 'No notes here yet';
+  if (currentSection.value === 'participated') return 'No events here yet';
+  return 'No events here yet';
 });
 
 function showSection(section: SectionKey) {
@@ -282,6 +309,10 @@ function showSection(section: SectionKey) {
 
 function goToEditProfile() {
   router.push('/profile/edit');
+}
+
+function goToEditEvent(eventId: string) {
+  router.push(`/events/${eventId}/edit`);
 }
 
 function openEvent(eventId: string) {
@@ -348,6 +379,30 @@ function toDate(value: any): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function getTimestampMs(value: unknown) {
+  const raw = value as any;
+
+  if (!raw) return 0;
+  if (typeof raw.toDate === 'function') return raw.toDate().getTime();
+  if (typeof raw.seconds === 'number') return raw.seconds * 1000;
+
+  const date = raw instanceof Date ? raw : new Date(raw);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function formatPostTimestamp(value: unknown) {
+  const timestamp = getTimestampMs(value);
+  if (!timestamp) return 'Just now';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(timestamp));
+}
+
 function getEventStartDate(data: Record<string, any>): Date | null {
   const schedule = data.schedule;
 
@@ -358,6 +413,26 @@ function getEventStartDate(data: Record<string, any>): Date | null {
 
 function getEventEndDate(data: Record<string, any>): Date | null {
   const schedule = data.schedule;
+
+  if (schedule?.type === RecurrenceType.ONE_TIME && schedule?.startDatetime) {
+    const startDate = toDate(schedule.startDatetime);
+    const rawEndDate = toDate(schedule.endDatetime) ?? toDate(data.endtime) ?? startDate;
+
+    if (!startDate || !rawEndDate) return null;
+
+    // One-time events in this app are expected to start and end on the same day.
+    // If malformed data drifts onto another date, normalize the end timestamp
+    // back onto the start day so passed/upcoming sections stay accurate.
+    const normalizedEndDate = new Date(startDate);
+    normalizedEndDate.setHours(
+      rawEndDate.getHours(),
+      rawEndDate.getMinutes(),
+      rawEndDate.getSeconds(),
+      rawEndDate.getMilliseconds(),
+    );
+
+    return normalizedEndDate;
+  }
 
   if (schedule?.endDatetime) return toDate(schedule.endDatetime);
   if (schedule?.endDate) return toDate(schedule.endDate);
@@ -399,10 +474,43 @@ function sortByClosestToNow(events: ProfileEventCard[]) {
 }
 
 function isPassedEvent(event: ProfileEventCard) {
-  const now = Date.now();
+  const now = nowMs.value;
+
+  if (event.scheduleType === RecurrenceType.ONE_TIME && event.startsAtMs !== null) {
+    const startDate = new Date(event.startsAtMs);
+    const today = new Date(now);
+
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+    if (startDay < todayDay) {
+      return true;
+    }
+  }
+
   if (event.endsAtMs !== null) return event.endsAtMs < now;
   if (event.startsAtMs !== null) return event.startsAtMs < now;
   return false;
+}
+
+function isUpcomingEvent(event: ProfileEventCard) {
+  return event.startsAtMs !== null && event.startsAtMs > nowMs.value;
+}
+
+function formatCountdown(event: ProfileEventCard) {
+  if (event.startsAtMs === null) return 'Time TBD';
+
+  const diff = event.startsAtMs - nowMs.value;
+  if (diff <= 0) return 'Started';
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  return `${Math.max(minutes, 0)}m left`;
 }
 
 function mapEventDoc(id: string, data: Record<string, any>, savedOrder = 0): ProfileEventCard {
@@ -421,6 +529,7 @@ function mapEventDoc(id: string, data: Record<string, any>, savedOrder = 0): Pro
     category: data.category || '',
     imageUrl: data.imageUrl || '',
     description: data.description || '',
+    scheduleType: data.schedule?.type ?? null,
     startsAtMs,
     endsAtMs,
     savedOrder,
@@ -456,27 +565,69 @@ async function fetchSavedEvents(savedEventIds: string[]) {
   savedEvents.value = sortByClosestToNow(results);
 }
 
-async function fetchPublishedEvents(userId: string) {
+async function fetchUserEvents(userId: string) {
   const snapshot = await getDocs(
     query(collection(db, 'events'), where('organizerId', '==', userId)),
   );
 
-  publishedEvents.value = sortByClosestToNow(snapshot.docs.map((doc, index) =>
+  userEvents.value = sortByClosestToNow(snapshot.docs.map((doc, index) =>
     mapEventDoc(doc.id, doc.data() as Record<string, any>, index),
   ));
 }
 
-async function fetchParticipatedEvents(userId: string) {
+async function fetchForumNotes(userId: string) {
   const snapshot = await getDocs(
-    query(collection(db, 'events'), where('participants', 'array-contains', userId)),
+    query(collectionGroup(db, 'posts'), where('userId', '==', userId)),
   );
 
-  participatedEvents.value = sortByClosestToNow(snapshot.docs.map((doc, index) =>
-    mapEventDoc(doc.id, doc.data() as Record<string, any>, index),
+  if (snapshot.empty) {
+    forumNotes.value = [];
+    return;
+  }
+
+  const eventIds = Array.from(new Set(
+    snapshot.docs
+      .map((doc) => doc.ref.parent.parent?.id)
+      .filter((id): id is string => Boolean(id)),
   ));
+
+  const eventMap = new Map<string, Record<string, any>>();
+  for (let index = 0; index < eventIds.length; index += 10) {
+    const chunk = eventIds.slice(index, index + 10);
+    const eventSnapshot = await getDocs(
+      query(collection(db, 'events'), where(documentId(), 'in', chunk)),
+    );
+
+    eventSnapshot.docs.forEach((doc) => {
+      eventMap.set(doc.id, doc.data() as Record<string, any>);
+    });
+  }
+
+  forumNotes.value = snapshot.docs
+    .map((doc) => {
+      const post = doc.data() as { text?: string; createdAt?: unknown };
+      const eventId = doc.ref.parent.parent?.id ?? '';
+      const eventData = eventMap.get(eventId);
+      const eventForSchedule = eventData ? ({ ...eventData, id: eventId } as FullEvent) : null;
+
+      return {
+        id: doc.id,
+        eventId,
+        eventTitle: eventData?.title || 'Deleted Event',
+        eventLocation: eventData?.location || '',
+        eventSchedule: eventForSchedule ? formatEventSchedule(eventForSchedule) : 'Schedule TBD',
+        text: post.text?.trim() || '(Empty note)',
+        createdAt: post.createdAt,
+      };
+    })
+    .sort((left, right) => getTimestampMs(right.createdAt) - getTimestampMs(left.createdAt));
 }
 
 onMounted(async () => {
+  countdownTimer = setInterval(() => {
+    nowMs.value = Date.now();
+  }, 60000);
+
   if (!userStore.isLoggedIn) {
     router.push('/login');
     return;
@@ -490,11 +641,18 @@ onMounted(async () => {
   try {
     await Promise.all([
       fetchSavedEvents(profile?.savedEventIds ?? []),
-      fetchPublishedEvents(userId),
-      fetchParticipatedEvents(userId),
+      fetchForumNotes(userId),
+      fetchUserEvents(userId),
     ]);
   } catch (error) {
     console.error('Failed to load profile events:', error);
+  }
+});
+
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
   }
 });
 </script>

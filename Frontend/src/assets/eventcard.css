@@ -18,6 +18,7 @@
   margin-bottom: var(--spacing-md);
   position: relative;
   overflow: hidden;
+  min-height: 260px;
 }
 
 .card.event-card:hover {
@@ -108,6 +109,7 @@
   gap: var(--spacing-2xl);
   flex: 1;
   min-width: 0;
+  min-height: 100%;
 }
 
 /* Left Content Area */
@@ -117,6 +119,7 @@
   flex-direction: column;
   min-width: 0;
   gap: var(--spacing-lg);
+  min-height: 100%;
 }
 
 .event-title {
@@ -187,6 +190,7 @@
   padding-left: var(--spacing-xl);
   border-left: 1px solid var(--color-gray-100);
 }
+
 
 .event-meta {
   display: flex;
