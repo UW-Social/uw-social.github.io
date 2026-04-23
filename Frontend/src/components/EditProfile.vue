@@ -5,12 +5,17 @@
         <div class="header-background"></div>
         <div class="profile-avatar-section">
           <AvatarUpload />
-          <h2>{{ userStore.userProfile?.displayName || 'Edit Your Profile' }}</h2>
-          <p>Customize your profile to connect with like-minded people</p>
+          <h2>{{ userStore.userProfile?.displayName || (isOnboardingFlow ? 'Set Up Your Profile' : 'Edit Your Profile') }}</h2>
+          <p>{{ headerDescription }}</p>
         </div>
       </div>
 
       <div class="profile-form">
+        <div v-if="isOnboardingFlow" class="onboarding-intro">
+          <span class="onboarding-badge">Personalization</span>
+          <p>Pick your interests and add the basics so we can tailor the homepage recommendations for you.</p>
+        </div>
+
         <!-- Basic Information Section -->
         <div class="form-section">
           <div class="section-header">
@@ -199,11 +204,11 @@
         <!-- Action Buttons -->
         <div class="form-actions">
           <button @click="saveProfile" class="save-btn" :disabled="isSaving">
-            <span v-if="!isSaving">💾 Save Profile</span>
+            <span v-if="!isSaving">{{ isOnboardingFlow ? 'Save and See Recommendations' : '💾 Save Profile' }}</span>
             <span v-else>Saving...</span>
           </button>
           <button @click="cancelEdit" class="cancel-btn">
-            Cancel
+            {{ isOnboardingFlow ? 'Back to Home' : 'Cancel' }}
           </button>
         </div>
       </div>
@@ -212,15 +217,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue';
-import { useRouter } from 'vue-router';
-import { allTags, academicTags, dormTags, interestTags, sportsTags, csTags } from '../stores/tags';
+import { computed, ref, watchEffect } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { academicTags, allTags } from '../stores/tags';
 import { useUserStore } from '../stores/user';
 import AvatarUpload from './AvatarUpload.vue';
 import '../assets/editprofile.css';
 
+const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const isOnboardingFlow = computed(() => route.query.onboarding === '1');
+const headerDescription = computed(() =>
+  isOnboardingFlow.value
+    ? 'Add your interests and basic info to unlock personalized event picks'
+    : 'Customize your profile to connect with like-minded people',
+);
 
 // Form data
 const name = ref('');
@@ -233,6 +246,18 @@ const isSaving = ref(false);
 // Tag search functionality
 const tagSearchQuery = ref('');
 const filteredTags = ref<string[]>([]);
+
+if (!userStore.isLoggedIn) {
+  void router.replace({
+    path: '/login',
+    query: {
+      redirect: '/profile/edit',
+      prompt: 'Please sign in to finish your profile setup.',
+    },
+  });
+} else if (isOnboardingFlow.value) {
+  void router.replace('/onboarding');
+}
 
 // Auto-fill user information
 watchEffect(() => {
@@ -297,20 +322,39 @@ const removeTag = (tag: string) => {
 
 // Save profile
 const saveProfile = async () => {
+  const normalizedName = name.value.trim();
+  const normalizedContact = contact.value.trim();
+
+  if (!normalizedName || !grade.value || !major.value || selectedTags.value.length === 0) {
+    ElMessage.warning('Please complete your basic info and choose at least one tag.');
+    return;
+  }
+
   isSaving.value = true;
   try {
     await userStore.updateUserProfile({
-      displayName: name.value,
+      displayName: normalizedName,
       grade: grade.value,
       major: major.value,
-      email: contact.value,
+      email: normalizedContact || userStore.userProfile?.email || null,
       tags: selectedTags.value,
     });
-    alert('Profile updated successfully!');
-    router.push('/profile');
+
+    if (isOnboardingFlow.value) {
+      ElMessage.success('Recommendation is updated, go and check!');
+      await router.push({
+        path: '/',
+        query: { onboarding: 'complete' },
+        hash: '#recommendations',
+      });
+      return;
+    }
+
+    ElMessage.success('Profile updated successfully!');
+    await router.push('/profile');
   } catch (error) {
     console.error('Failed to save profile:', error);
-    alert('Failed to save profile. Please try again.');
+    ElMessage.error('Failed to save profile. Please try again.');
   } finally {
     isSaving.value = false;
   }
@@ -318,9 +362,35 @@ const saveProfile = async () => {
 
 // Cancel editing
 const cancelEdit = () => {
-  router.push('/profile');
+  void router.push(isOnboardingFlow.value ? '/' : '/profile');
 };
 </script>
 
 <style scoped>
+.onboarding-intro {
+  margin-bottom: 2rem;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.06));
+  border: 1px solid rgba(102, 126, 234, 0.16);
+}
+
+.onboarding-intro p {
+  margin: 0.45rem 0 0;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.onboarding-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  background: rgba(102, 126, 234, 0.14);
+  color: #5563d6;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 </style>

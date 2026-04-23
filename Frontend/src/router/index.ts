@@ -27,6 +27,13 @@ const routes = [
     path: '/profile/edit',
     name: 'EditProfile',
     component: () => import('@/components/EditProfile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/views/Onboarding.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/events',
@@ -46,6 +53,17 @@ const routes = [
     component: isMobile()
       ? () => import('@/components/mobile/MobileEventDetail.vue')
       : () => import('@/views/EventDetail.vue'),
+    props: true
+  },
+  {
+    path: '/forums',
+    name: 'Forums',
+    component: () => import('@/views/Forums.vue')
+  },
+  {
+    path: '/forums/:id',
+    name: 'ForumDetail',
+    component: () => import('@/views/ForumDetail.vue'),
     props: true
   },
   {

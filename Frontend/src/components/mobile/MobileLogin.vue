@@ -41,8 +41,10 @@ import poster from "../../../public/svg/poster.svg";
 import google from "../../../public/svg/google.svg";
 import email from "../../../public/svg/email.svg";
 import phone from "../../../public/svg/phone.svg";
+import { useRouter } from "vue-router";
 import { useUserStore } from "../../stores/user";
 const userStore = useUserStore();
+const router = useRouter();
 function track(event: string, params: Record<string, any> = {}) {
   console.log("[TRACK FIRED]", event, params);
   const gtag = (window as any)?.gtag;
@@ -50,9 +52,10 @@ function track(event: string, params: Record<string, any> = {}) {
   else console.warn("[GTAG MISSING] window.gtag is undefined");
 }
 
-function handleGoogleLogin() {
+async function handleGoogleLogin() {
   track("login_click_google", { source: "login_page" });
-  userStore.loginWithGoogle();
+  const loginResult = await userStore.loginWithGoogle({ redirectPath: "/" });
+  router.push(loginResult.nextPath);
 }
 
 </script>

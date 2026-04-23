@@ -150,6 +150,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 
 import { db } from '../../firebase/config';
 
 const route = useRoute();
+const router = useRouter();
 const eventStore = useEventStore();
 const userStore = useUserStore();
 const event = ref<Event | null>(null);
@@ -214,6 +215,12 @@ const subscribePosts = (id: string) => {
 const handleImageError = (event: any) => {
   const target = event.target as HTMLImageElement;
   target.src = '/images/wavingdog.jpg';
+};
+
+const goToForum = () => {
+  if (event.value) {
+    router.push(`/forums/${event.value.id}`);
+  }
 };
 
 // Format time using existing utility
@@ -548,6 +555,36 @@ onBeforeUnmount(() => {
 
 .description-content p:last-child {
   margin-bottom: 0;
+}
+
+.map-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1.5px solid #333;
+}
+
+.map-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1.5px solid #333;
+}
+
+.google-map {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.google-map {
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .link-card {
