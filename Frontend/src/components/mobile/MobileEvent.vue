@@ -86,11 +86,11 @@ onMounted(async () => {
       return end > now;
     });
     
-    // Sort by start time (newest first)
+    // Sort by start time (nearest first)
     events.value.sort((a: Event, b: Event) => {
       const toDate = (val: any) =>
         typeof val?.toDate === 'function' ? val.toDate() : new Date(val);
-      return toDate(b.startTime).getTime() - toDate(a.startTime).getTime();
+      return toDate(a.startTime).getTime() - toDate(b.startTime).getTime();
     });
     
   } catch (error) {

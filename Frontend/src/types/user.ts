@@ -6,6 +6,7 @@ export interface UserProfile {
   major: string | null;
   tags?: string[] | null;
   goals?: string[] | null;
+  savedEventIds?: string[] | null;
   onboardingCompleted?: boolean;
   photoURL?: string | null;
   emailVerified: boolean;

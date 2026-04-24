@@ -11,7 +11,13 @@
           @error="handleImageError"
         />
         <!-- Favorite/Action Button (on image) -->
-        <button class="action-button">
+        <button
+          type="button"
+          class="action-button"
+          :class="{ saved: isSavedEvent }"
+          :disabled="isSavingEvent"
+          @click.stop="toggleSavedEvent"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
           </svg>
@@ -62,9 +68,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { formatEventSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
+import { useUserStore } from '../../stores/user';
 
 const props = defineProps<{
   event: Event;
@@ -73,6 +81,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: [];
 }>();
+const userStore = useUserStore();
+const router = useRouter();
+const route = useRoute();
+const isSavingEvent = ref(false);
+
+const isSavedEvent = computed(() => {
+  return (userStore.userProfile?.savedEventIds ?? []).includes(props.event.id);
+});
 
 // Handle image loading errors
 const handleImageError = (event: any) => {
@@ -114,6 +130,36 @@ const truncatedLocation = computed(() => {
     ? props.event.location.substring(0, maxLength) + '...'
     : props.event.location;
 });
+
+const toggleSavedEvent = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  if (!userStore.userProfile || isSavingEvent.value) return;
+
+  isSavingEvent.value = true;
+
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== props.event.id)
+      : [...new Set([...currentSaved, props.event.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved events from mobile card:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -282,6 +328,16 @@ const truncatedLocation = computed(() => {
 .action-button:hover {
   background: rgba(173, 138, 230, 0.9);
   color: white;
+}
+
+.action-button.saved {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+}
+
+.action-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .action-button svg {

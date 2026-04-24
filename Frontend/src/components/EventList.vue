@@ -184,7 +184,7 @@ async function refreshEvents(): Promise<void> {
     events = await sortEventsByUserInterest(events);
   } else if (props.sort === 'farthest') {
     events = sortEventsByStartTimeDesc(events);
-  } else if (props.sort === 'nearest') {
+  } else {
     events = sortEventsByStartTimeAsc(events);
   }
 

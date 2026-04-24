@@ -13,7 +13,7 @@
       <div class="user-tags">
         <span v-for="tag in userProfile.tags || []" :key="tag" class="tag">#{{ tag }}</span>
       </div>
-      <a href="#" class="edit-profile-link">Edit Profile</a>
+      <router-link to="/profile/edit" class="edit-profile-link">Edit Profile</router-link>
     </div>
 
     <!-- Major -->
@@ -22,14 +22,14 @@
       <div class="info-content">{{ userProfile.major || 'No major specified' }}</div>
     </div>
 
-    <!-- Published Events -->
+    <!-- Forum Notes -->
     <div class="info-card">
-      <router-link to="/events" class="info-title">Published Events</router-link>
+      <router-link to="/profile" class="info-title">Your Forum Notes</router-link>
     </div>
 
-    <!-- Participated Events -->
+    <!-- User Events -->
     <div class="info-card">
-      <router-link to="/events" class="info-title">Participated Events</router-link>
+      <router-link to="/profile" class="info-title">Your Events</router-link>
     </div>
   </div>
 </template>
@@ -42,8 +42,6 @@ import 'element-plus/es/components/collapse-item/style/css';
 
 const userStore = useUserStore();
 const userProfile = ref({});
-const activeNames = ref(['1']); // 默认展开第一个折叠面板
-
 // 从 Firebase 获取用户信息
 onMounted(async () => {
   try {
