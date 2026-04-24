@@ -68,28 +68,24 @@
     </div>
 
     <!-- Forum -->
-    <div class="forum-card">
+    <div id="forum-section" ref="forumSectionRef" class="forum-card">
       <div class="forum-header">
         <h2 class="section-title">Forum</h2>
         <span class="forum-count">{{ posts.length }} posts</span>
       </div>
 
-      <div class="forum-input">
-        <textarea
-          v-model="newPost"
-          class="forum-textarea"
-          rows="3"
-          :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
-          :disabled="!userStore.isLoggedIn || isPosting"
-        ></textarea>
-        <button
-          class="forum-submit"
-          :disabled="!canSubmitPost"
-          @click="submitPost"
-        >
-          Post
-        </button>
-      </div>
+      <ReplyInput
+        :is-logged-in="userStore.isLoggedIn"
+        :loading="isPosting"
+        :compact="true"
+        placeholder="Start a discussion about this event..."
+        submit-label="Post"
+        login-heading="Join the discussion"
+        login-text="Log in to share your thoughts about this event."
+        login-button-label="Log in to post"
+        @submit="submitPost"
+        @login="goToLogin"
+      />
 
       <p v-if="postError" class="forum-error">{{ postError }}</p>
 
@@ -98,12 +94,18 @@
       </div>
 
       <div v-else class="forum-list">
-        <div v-for="post in posts" :key="post.id" class="forum-item">
-          <div class="forum-item-header">
-            <span class="forum-email">{{ post.userEmail || 'Unknown' }}</span>
-          </div>
-          <p class="forum-text">{{ post.text }}</p>
-        </div>
+        <ForumPostCard
+          v-for="post in posts"
+          :key="post.id"
+          :post="post"
+          :is-logged-in="userStore.isLoggedIn"
+          :compact="true"
+          :highlighted="highlightedPostId === post.id"
+          :on-login="goToLogin"
+          :on-toggle-post-like="togglePostLike"
+          :on-toggle-reply-like="toggleReplyLike"
+          :on-submit-reply="submitReply"
+        />
       </div>
     </div>
 
@@ -139,15 +141,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../../stores/event';
 import { useUserStore } from '../../stores/user';
 import { formatEventSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
+import type { DiscussionPost } from '../../types/forum';
+import ForumPostCard from '../ForumPostCard.vue';
+import ReplyInput from '../ReplyInput.vue';
 import { loadGoogleMaps } from '../../utils/googleMaps';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import {
+  createDiscussionReply,
+  createEventDiscussionPost,
+  subscribeToEventDiscussionPosts,
+  toggleDiscussionPostLike,
+  toggleDiscussionReplyLike,
+} from '../../api/forums';
 
 const route = useRoute();
 const router = useRouter();
@@ -156,11 +166,15 @@ const userStore = useUserStore();
 const event = ref<Event | null>(null);
 const isLoading = ref(true);
 const mapEl = ref<HTMLElement | null>(null);
-const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
-const newPost = ref('');
+const forumSectionRef = ref<HTMLElement | null>(null);
+const posts = ref<DiscussionPost[]>([]);
 const isPosting = ref(false);
 const postError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+const highlightedPostId = computed(() => {
+  const postId = route.query.postId;
+  return typeof postId === 'string' ? postId : '';
+});
 
 // Load event data when component mounts
 onMounted(async () => {
@@ -184,6 +198,9 @@ onMounted(async () => {
     console.error('Error loading event:', error);
   } finally {
     isLoading.value = false;
+    nextTick(() => {
+      scrollToForum();
+    });
   }
 });
 
@@ -194,21 +211,27 @@ const subscribePosts = (id: string) => {
     unsubscribePosts = null;
   }
 
-  const postsRef = collection(db, 'events', id, 'posts');
-  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
-  unsubscribePosts = onSnapshot(
-    postsQuery,
-    (snapshot) => {
-      posts.value = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as { text: string; userEmail?: string | null }),
-      }));
+  unsubscribePosts = subscribeToEventDiscussionPosts(
+    id,
+    userStore.userProfile?.uid,
+    (nextPosts) => {
+      posts.value = nextPosts;
     },
     (error) => {
       console.error('Failed to load posts:', error);
       postError.value = 'Failed to load posts.';
     }
   );
+};
+
+const goToLogin = () => {
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      prompt: 'Please log in to join the event discussion.'
+    }
+  });
 };
 
 // Handle image loading errors
@@ -243,37 +266,78 @@ const formattedTime = computed(() => {
   }
 });
 
-const canSubmitPost = computed(() => {
-  return userStore.isLoggedIn && !isPosting.value && newPost.value.trim().length > 0;
-});
-
-const submitPost = async () => {
-  if (!userStore.isLoggedIn || !userStore.userProfile?.email) {
-    alert('Please log in to post.');
-    return;
-  }
-
-  const text = newPost.value.trim();
+const submitPost = async (text: string) => {
   const eventId = route.params.id as string;
-  if (!text || !eventId) return;
+  if (!userStore.userProfile?.email || !text || !eventId) return;
 
   isPosting.value = true;
   postError.value = '';
 
   try {
-    await addDoc(collection(db, 'events', eventId, 'posts'), {
-      text,
-      userId: userStore.userProfile.uid,
-      userEmail: userStore.userProfile.email,
-      createdAt: serverTimestamp(),
-    });
-    newPost.value = '';
+    await createEventDiscussionPost(
+      eventId,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
   } catch (error) {
     console.error('Failed to post message:', error);
     postError.value = 'Failed to post. Please try again.';
   } finally {
     isPosting.value = false;
   }
+};
+
+const submitReply = async (postId: string, text: string) => {
+  const eventId = route.params.id as string;
+  if (!userStore.userProfile?.email || !eventId) return;
+
+  try {
+    await createDiscussionReply(
+      eventId,
+      postId,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+    subscribePosts(eventId);
+  } catch (error) {
+    console.error('Failed to post reply:', error);
+    postError.value = 'Failed to post reply. Please try again.';
+  }
+};
+
+const togglePostLike = async (postId: string) => {
+  const eventId = route.params.id as string;
+  if (!userStore.userProfile?.uid || !eventId) return;
+
+  try {
+    await toggleDiscussionPostLike(eventId, postId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle post like:', error);
+  }
+};
+
+const toggleReplyLike = async (postId: string, replyId: string) => {
+  const eventId = route.params.id as string;
+  if (!userStore.userProfile?.uid || !eventId) return;
+
+  try {
+    await toggleDiscussionReplyLike(eventId, postId, replyId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle reply like:', error);
+  }
+};
+
+const scrollToForum = () => {
+  if (!route.query.postId && route.query.section !== 'forum') return;
+  forumSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 // Display limited number of tags
@@ -289,6 +353,15 @@ watch(
   },
   { immediate: true }
 );
+
+watch(() => userStore.userProfile?.uid, () => {
+  const id = route.params.id as string;
+  if (id) subscribePosts(id);
+});
+
+watch(() => route.query, () => {
+  scrollToForum();
+});
 
 onBeforeUnmount(() => {
   if (unsubscribePosts) unsubscribePosts();
@@ -363,43 +436,6 @@ onBeforeUnmount(() => {
   color: #666;
 }
 
-.forum-input {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.forum-textarea {
-  flex: 1;
-  resize: vertical;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  padding: 10px;
-  font-size: 14px;
-  background: #f7f7f7;
-}
-
-.forum-textarea:disabled {
-  background: #ececec;
-  color: #888;
-}
-
-.forum-submit {
-  background: #333;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.forum-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .forum-error {
   color: #c0392b;
   margin-bottom: 10px;
@@ -415,29 +451,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.forum-item {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  padding: 10px;
-  background: #f9f9f9;
-}
-
-.forum-item-header {
-  margin-bottom: 6px;
-}
-
-.forum-email {
-  font-size: 12px;
-  color: #444;
-  font-weight: 600;
-}
-
-.forum-text {
-  margin: 0;
-  color: #333;
-  font-size: 14px;
 }
 
 .bento-container {
