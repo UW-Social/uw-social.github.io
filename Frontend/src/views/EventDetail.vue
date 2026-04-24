@@ -172,6 +172,11 @@ const highlightedPostId = computed(() => {
   return typeof postId === 'string' ? postId : '';
 });
 
+const isSavedEvent = computed(() => {
+  if (!event.value?.id) return false;
+  return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
+});
+
 const descriptionSummary = computed(() => {
   const raw = event.value?.description?.trim();
   if (!raw) return '';
@@ -189,6 +194,7 @@ const returnTo = computed(() => {
 
 const goBack = () => {
   router.push(returnTo.value);
+
 };
 
 const goToLogin = () => {
@@ -265,6 +271,7 @@ const submitPost = async (text: string) => {
     isPosting.value = false;
   }
 };
+
 
 const submitReply = async (postId: string, text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;

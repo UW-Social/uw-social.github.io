@@ -183,6 +183,11 @@ const highlightedPostId = computed(() => {
   return typeof postId === 'string' ? postId : '';
 });
 
+const isSavedEvent = computed(() => {
+  if (!event.value?.id) return false;
+  return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
+});
+
 // Load event data when component mounts
 onMounted(async () => {
   try {
@@ -297,6 +302,7 @@ const submitPost = async (text: string) => {
     isPosting.value = false;
   }
 };
+
 
 const submitReply = async (postId: string, text: string) => {
   const eventId = route.params.id as string;
