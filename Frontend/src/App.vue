@@ -3,25 +3,22 @@
     class="app-container"
     :style="isMobile && route.path === '/login' ? { paddingTop: '0' } : { paddingTop: '70px' }"
   >
-    <!-- <MobileNav v-if="isMobile" /> -->
     <Navbar />
     <div class="content">
       <router-view></router-view>
     </div>
+    <EventChatbot />
   </div>
 </template>
 
 <script setup lang="ts">
 import Navbar from './components/Navbar.vue';
-import MobileNav from '@/components/mobile/MobileNav.vue';
-import DetailCard from '@/components/DetailCard.vue';
+import EventChatbot from './components/EventChatbot.vue';
 import '@/assets/global.css';
 import { onMounted, ref, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { computed } from 'vue';
 
 const route = useRoute();
-const hasQuery = computed(() => !!route.query.q);
 const isMobile = ref(window.innerWidth <= 576);
 
 function updateIsMobile() {
