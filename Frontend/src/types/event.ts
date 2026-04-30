@@ -153,24 +153,18 @@ function toDateValue(date: any): Date | null {
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function formatDateRange(start: any, end?: any): string {
-  const startDate = toDateValue(start);
-  const endDate = toDateValue(end);
-
-  if (!startDate) return 'Schedule date TBD';
-
-  const startText = formatDate(startDate);
-  if (!endDate) return `${startText} onward`;
-
-  const endText = formatDate(endDate);
-  return startText === endText ? startText : `${startText} - ${endText}`;
-}
-
 function formatTimeRange(startTime?: string, endTime?: string): string {
   if (startTime && endTime) return `${startTime} - ${endTime}`;
   if (startTime) return `from ${startTime}`;
   if (endTime) return `until ${endTime}`;
   return 'time TBD';
+}
+
+function formatScheduleLines(lines: Array<[string, string]>): string {
+  return lines
+    .filter(([, value]) => Boolean(value))
+    .map(([label, value]) => `${label}: ${value}`)
+    .join('\n');
 }
 
 function formatOrdinalDay(day: number): string {
@@ -195,11 +189,19 @@ function formatRecurringSchedule(event: Event): string {
     return 'Schedule TBD';
   }
 
-  const dateRange = formatDateRange(schedule.startDate, schedule.endDate);
+  const startDate = toDateValue(schedule.startDate);
+  const endDate = toDateValue(schedule.endDate);
+  const startText = startDate ? formatDate(startDate) : 'TBD';
+  const endText = endDate ? formatDate(endDate) : 'Ongoing';
   const timeRange = formatTimeRange(schedule.startTimeOfDay, schedule.endTimeOfDay);
 
   if (schedule.type === RecurrenceType.DAILY) {
-    return `Daily, ${dateRange}, ${timeRange}`;
+    return formatScheduleLines([
+      ['Start Date', startText],
+      ['End Date', endText],
+      ['Repeats', 'Every day'],
+      ['Time', timeRange],
+    ]);
   }
 
   if (schedule.type === RecurrenceType.WEEKLY) {
@@ -210,7 +212,12 @@ function formatRecurringSchedule(event: Event): string {
           .join(', ')
       : 'selected days';
 
-    return `Weekly on ${days}, ${dateRange}, ${timeRange}`;
+    return formatScheduleLines([
+      ['Start Date', startText],
+      ['End Date', endText],
+      ['Repeats', days],
+      ['Time', timeRange],
+    ]);
   }
 
   const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
@@ -222,7 +229,12 @@ function formatRecurringSchedule(event: Event): string {
         .join(', ')
     : 'selected dates';
 
-  return `Monthly on ${days}, ${dateRange}, ${timeRange}`;
+  return formatScheduleLines([
+    ['Start Date', startText],
+    ['End Date', endText],
+    ['Repeats', `Monthly on ${days}`],
+    ['Time', timeRange],
+  ]);
 }
 
 

@@ -301,8 +301,9 @@ nextTick(() => {
   color: var(--color-gray-600);
   margin-bottom: 0.5rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  white-space: pre-line;
 }
 
 @media (max-width: 768px) {

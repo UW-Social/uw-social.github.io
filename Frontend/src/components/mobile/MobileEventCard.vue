@@ -288,7 +288,7 @@ const toggleSavedEvent = async () => {
 .time-info,
 .location-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   font-size: 11px;
   color: #777;
@@ -304,7 +304,7 @@ const toggleSavedEvent = async () => {
 .time-info span {
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   white-space: normal;
 }

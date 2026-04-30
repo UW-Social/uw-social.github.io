@@ -603,6 +603,7 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-base);
   color: var(--color-gray-900);
   line-height: var(--line-height-normal);
+  white-space: pre-line;
 }
 
 .event-tags {

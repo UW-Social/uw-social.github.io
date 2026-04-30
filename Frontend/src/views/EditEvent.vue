@@ -108,8 +108,10 @@
                   <select id="recurrenceType" v-model="formData.recurrenceType" required>
                     <option :value="RecurrenceType.ONE_TIME">One-time</option>
                     <option :value="RecurrenceType.DAILY">Daily</option>
-                    <option :value="RecurrenceType.WEEKLY">Weekly</option>
-                    <option :value="RecurrenceType.MONTHLY">Monthly</option>
+                    <option :value="RecurrenceType.WEEKLY">Weekly recurring</option>
+                    <option v-if="formData.recurrenceType === RecurrenceType.MONTHLY" :value="RecurrenceType.MONTHLY">
+                      Monthly (legacy)
+                    </option>
                   </select>
                 </div>
 
@@ -192,31 +194,9 @@
                 </div>
 
                 <div v-if="formData.recurrenceType === RecurrenceType.MONTHLY" class="schedule-fields">
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="monthlyStartDate">Start Date</label>
-                      <input id="monthlyStartDate" v-model="formData.startDate" type="date" required>
-                    </div>
-                    <div class="form-group">
-                      <label for="monthlyEndDate">End Date (optional)</label>
-                      <input id="monthlyEndDate" v-model="formData.endDate" type="date">
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="monthlyStartTime">Start Time</label>
-                      <input id="monthlyStartTime" v-model="formData.startTime" type="time" placeholder="Optional - leave empty if TBD">
-                    </div>
-                    <div class="form-group">
-                      <label for="monthlyEndTime">End Time</label>
-                      <input id="monthlyEndTime" v-model="formData.endTime" type="time" placeholder="Optional - leave empty if TBD">
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Days of Month</label>
-                    <input type="text" v-model="formData.daysOfMonthInput" placeholder="e.g., 1, 15, 31">
-                    <small>Enter days separated by commas (1-31)</small>
-                  </div>
+                  <p class="legacy-schedule-note">
+                    This event uses the old monthly schedule format. Switch to Weekly recurring to choose weekdays.
+                  </p>
                 </div>
               </div>
             </div>
