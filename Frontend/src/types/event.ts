@@ -136,6 +136,95 @@ function formatDate(date: any): string {
   }
 }
 
+function toDateValue(date: any): Date | null {
+  if (!date) return null;
+
+  if (typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+
+  if (typeof date.seconds === 'number') {
+    return new Date(date.seconds * 1000);
+  }
+
+  const parsed = date instanceof Date ? date : new Date(date);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function formatDateRange(start: any, end?: any): string {
+  const startDate = toDateValue(start);
+  const endDate = toDateValue(end);
+
+  if (!startDate) return 'Schedule date TBD';
+
+  const startText = formatDate(startDate);
+  if (!endDate) return `${startText} onward`;
+
+  const endText = formatDate(endDate);
+  return startText === endText ? startText : `${startText} - ${endText}`;
+}
+
+function formatTimeRange(startTime?: string, endTime?: string): string {
+  if (startTime && endTime) return `${startTime} - ${endTime}`;
+  if (startTime) return `from ${startTime}`;
+  if (endTime) return `until ${endTime}`;
+  return 'time TBD';
+}
+
+function formatOrdinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function formatRecurringSchedule(event: Event): string {
+  const schedule = event.schedule;
+  if (!schedule || schedule.type === RecurrenceType.ONE_TIME) {
+    return 'Schedule TBD';
+  }
+
+  const dateRange = formatDateRange(schedule.startDate, schedule.endDate);
+  const timeRange = formatTimeRange(schedule.startTimeOfDay, schedule.endTimeOfDay);
+
+  if (schedule.type === RecurrenceType.DAILY) {
+    return `Daily, ${dateRange}, ${timeRange}`;
+  }
+
+  if (schedule.type === RecurrenceType.WEEKLY) {
+    const days = Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0
+      ? schedule.daysOfWeek
+          .map((day) => WEEKDAY_LABELS[Number(day)])
+          .filter(Boolean)
+          .join(', ')
+      : 'selected days';
+
+    return `Weekly on ${days}, ${dateRange}, ${timeRange}`;
+  }
+
+  const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
+    ? schedule.daysOfMonth
+        .map(Number)
+        .filter((day) => day >= 1 && day <= 31)
+        .sort((a, b) => a - b)
+        .map(formatOrdinalDay)
+        .join(', ')
+    : 'selected dates';
+
+  return `Monthly on ${days}, ${dateRange}, ${timeRange}`;
+}
+
 
 /**
  * Formats an EventSchedule into a human-readable string.
@@ -147,8 +236,8 @@ export function formatEventSchedule(event: Event): string {
   const safeFormatDate = (d: any): string => {
     if (!d) return 'Unknown';
     try {
-      const date = d.toDate?.() ?? new Date(d);
-      return isNaN(date.getTime()) ? 'Invalid date' : formatDate(date);
+      const date = toDateValue(d);
+      return !date ? 'Invalid date' : formatDate(date);
     } catch (err) {
       console.warn("Bad date passed to formatDate:", d, err);
       return 'Invalid date';
@@ -156,7 +245,7 @@ export function formatEventSchedule(event: Event): string {
   };
 
   const pad = (n: number) => n.toString().padStart(2, '0');
-  const getDate = (d: any) => (d && typeof d.toDate === 'function') ? d.toDate() : new Date(d);
+  const getDate = (d: any) => toDateValue(d) ?? new Date(NaN);
   const formatTime = (t?: string | Date, hasTime?: boolean) => {
     if (!t) return '';
     if (typeof t === 'string') return t;
@@ -181,9 +270,6 @@ export function formatEventSchedule(event: Event): string {
 
   switch (schedule.type) {
     case RecurrenceType.ONE_TIME: {
-      // Always use .toDate() if available
-      const getDate = (d: any) => (d && typeof d.toDate === 'function') ? d.toDate() : new Date(d);
-
       const start = getDate(schedule.startDatetime);
       const end = getDate(schedule.endDatetime);
 
@@ -206,48 +292,15 @@ export function formatEventSchedule(event: Event): string {
     }
 
     case RecurrenceType.DAILY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
     }
 
     case RecurrenceType.WEEKLY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
     }
 
     case RecurrenceType.MONTHLY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
    }
 
     default:

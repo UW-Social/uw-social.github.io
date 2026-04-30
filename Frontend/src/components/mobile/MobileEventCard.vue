@@ -301,7 +301,14 @@ const toggleSavedEvent = async () => {
   stroke-width: 2;
 }
 
-.time-info span,
+.time-info span {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
 .location-info span {
   overflow: hidden;
   text-overflow: ellipsis;
