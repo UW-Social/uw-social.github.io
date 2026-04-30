@@ -26,8 +26,11 @@ export interface ForumPost {
   id: string;
   eventId: string;
   title?: string;
+  subtitle?: string;
   content: string;
   text?: string;
+  bodyHtml?: string;
+  mediaUrls?: string[];
   authorName?: string;
   postType?: 'event' | 'review' | 'general';
   likeCount?: number;
@@ -58,6 +61,12 @@ export interface DiscussionPost extends ForumPost {
   replies: DiscussionReply[];
 }
 
+export interface ExperiencePost extends ForumPost {
+  likeCount: number;
+  replyCount: number;
+  hasLiked?: boolean;
+}
+
 export interface AggregatedForumPost extends ForumPost {
   eventTitle: string;
   eventLocation?: string;
@@ -65,6 +74,12 @@ export interface AggregatedForumPost extends ForumPost {
 }
 
 export interface AggregatedDiscussionPost extends DiscussionPost {
+  eventTitle: string;
+  eventLocation?: string;
+  eventSchedule?: string;
+}
+
+export interface AggregatedExperiencePost extends ExperiencePost {
   eventTitle: string;
   eventLocation?: string;
   eventSchedule?: string;

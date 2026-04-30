@@ -68,6 +68,24 @@ service cloud.firestore {
           allow create, delete: if isSignedIn() && request.auth.uid == userId;
         }
       }
+
+      // Longer-form event experiences shown on the standalone Forum page.
+      match /forumPosts/{postId} {
+        allow read: if true;
+        allow create: if isSignedIn() &&
+          request.resource.data.userId == request.auth.uid;
+        allow update: if isSignedIn() && (
+          request.auth.uid == resource.data.userId ||
+          isCounterOnlyUpdate(['likeCount', 'replyCount'])
+        );
+        allow delete: if isSignedIn() &&
+          request.auth.uid == resource.data.userId;
+
+        match /likes/{userId} {
+          allow read: if true;
+          allow create, delete: if isSignedIn() && request.auth.uid == userId;
+        }
+      }
     }
 
     // 用户集合的规则
