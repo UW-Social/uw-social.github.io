@@ -48,6 +48,11 @@ const routes = [
     component: () => import('@/views/Forum.vue')
   },
   {
+    path: '/forum/new',
+    name: 'ForumNewPost',
+    component: () => import('@/views/ForumNewPost.vue')
+  },
+  {
     path: '/events/:id/edit',
     name: 'EditEvent',
     component: () => import('@/views/EditEvent.vue'),

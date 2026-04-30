@@ -76,28 +76,70 @@
         </div>
       </div>
 
-      <!-- Description and Forum -->
+      <!-- Description and Social Sections -->
       <div class="content-section">
         <div class="description-card">
           <h2 class="section-title">About this event</h2>
           <p class="event-description" v-html="formatDescription(event.description || '')"></p>
         </div>
 
-        <!-- Event Forum -->
-        <div id="forum-section" ref="forumSectionRef" class="forum-card">
+        <!-- Experience Sharing -->
+        <div id="forum-section" ref="experienceSectionRef" class="forum-card experience-section">
           <div class="forum-header">
-            <h2 class="section-title">Forum</h2>
-            <span class="forum-count">{{ posts.length }} posts</span>
+            <div>
+              <h2 class="section-title">Experience Sharing</h2>
+              <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
+            </div>
+            <span class="forum-count">{{ experiencePosts.length }} posts</span>
+          </div>
+
+          <ReplyInput
+            :is-logged-in="userStore.isLoggedIn"
+            :loading="isPostingExperience"
+            :rows="6"
+            placeholder="Share a longer review, recap, or experience from this event..."
+            submit-label="Share Experience"
+            login-heading="Log in to share your experience"
+            login-text="Log in to share your experience."
+            login-button-label="Log in"
+            @submit="submitExperiencePost"
+            @login="goToLogin"
+          />
+
+          <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
+
+          <div v-if="experiencePosts.length === 0" class="forum-empty">
+            No experiences yet. Share the first recap or review.
+          </div>
+
+          <div v-else class="forum-list">
+            <ExperiencePostCard
+              v-for="post in experiencePosts"
+              :key="post.id"
+              :post="post"
+              :is-logged-in="userStore.isLoggedIn"
+              :compact="true"
+              :on-login="goToLogin"
+              :on-toggle-like="toggleExperienceLike"
+            />
+          </div>
+        </div>
+
+        <!-- Comments -->
+        <div id="comments-section" ref="commentsSectionRef" class="forum-card">
+          <div class="forum-header">
+            <h2 class="section-title">Comments</h2>
+            <span class="forum-count">{{ posts.length }} comments</span>
           </div>
 
           <ReplyInput
             :is-logged-in="userStore.isLoggedIn"
             :loading="isPosting"
-            placeholder="Start a discussion about this event..."
-            submit-label="Post"
-            login-heading="Join the discussion"
-            login-text="Log in to share your thoughts about this event."
-            login-button-label="Log in to post"
+            placeholder="Add a quick comment..."
+            submit-label="Comment"
+            login-heading="Log in to join the conversation"
+            login-text="Log in to join the conversation."
+            login-button-label="Log in"
             @submit="submitPost"
             @login="goToLogin"
           />
@@ -105,7 +147,7 @@
           <p v-if="postError" class="forum-error">{{ postError }}</p>
 
           <div v-if="posts.length === 0" class="forum-empty">
-            No posts yet. Be the first to post!
+            No comments yet. Be the first to comment!
           </div>
 
           <div v-else class="forum-list">
@@ -115,6 +157,7 @@
               :post="post"
               :is-logged-in="userStore.isLoggedIn"
               :compact="true"
+              tag-label="Comment"
               :highlighted="highlightedPostId === post.id"
               :on-login="goToLogin"
               :on-toggle-post-like="togglePostLike"
@@ -141,16 +184,20 @@ import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule, type Event } from '../types/event';
-import type { DiscussionPost } from '../types/forum';
+import type { DiscussionPost, ExperiencePost } from '../types/forum';
+import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
+  createEventExperiencePost,
   subscribeToEventDiscussionPosts,
+  subscribeToEventExperiencePosts,
   toggleDiscussionPostLike,
   toggleDiscussionReplyLike,
+  toggleExperiencePostLike,
 } from '../api/forums';
 
 const route = useRoute();
@@ -161,12 +208,17 @@ const userStore = useUserStore();
 const eventId = computed(() => route.params.id as string);
 const event = ref<Event | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
-const forumSectionRef = ref<HTMLElement | null>(null);
+const commentsSectionRef = ref<HTMLElement | null>(null);
+const experienceSectionRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
+const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
+const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
 const postError = ref('');
+const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+let unsubscribeExperiencePosts: (() => void) | null = null;
 const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
@@ -202,14 +254,9 @@ const goToLogin = () => {
     path: '/login',
     query: {
       redirect: route.fullPath,
-      prompt: 'Please log in to join the event discussion.'
+      prompt: 'Please log in to join the event conversation.'
     }
   });
-};
-
-const goToForum = () => {
-  if (!event.value) return;
-  router.push(`/forums/${event.value.id}`);
 };
 
 const formatDescription = (desc: string) => {
@@ -248,6 +295,26 @@ const subscribePosts = (id: string) => {
   );
 };
 
+const subscribeExperiencePosts = (id: string) => {
+  if (!id) return;
+  if (unsubscribeExperiencePosts) {
+    unsubscribeExperiencePosts();
+    unsubscribeExperiencePosts = null;
+  }
+
+  unsubscribeExperiencePosts = subscribeToEventExperiencePosts(
+    id,
+    userStore.userProfile?.uid,
+    (nextPosts) => {
+      experiencePosts.value = nextPosts;
+    },
+    (error) => {
+      console.error('Failed to load experience posts:', error);
+      experienceError.value = 'Failed to load experience posts.';
+    }
+  );
+};
+
 const submitPost = async (text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;
 
@@ -269,6 +336,30 @@ const submitPost = async (text: string) => {
     postError.value = 'Failed to post. Please try again.';
   } finally {
     isPosting.value = false;
+  }
+};
+
+const submitExperiencePost = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value) return;
+
+  isPostingExperience.value = true;
+  experienceError.value = '';
+
+  try {
+    await createEventExperiencePost(
+      eventId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+  } catch (error) {
+    console.error('Failed to post experience:', error);
+    experienceError.value = 'Failed to share experience. Please try again.';
+  } finally {
+    isPostingExperience.value = false;
   }
 };
 
@@ -314,10 +405,24 @@ const toggleReplyLike = async (postId: string, replyId: string) => {
   }
 };
 
+const toggleExperienceLike = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  try {
+    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle experience like:', error);
+  }
+};
+
 const scrollToForum = async () => {
-  if (!route.query.postId && route.query.section !== 'forum') return;
+  if (!route.query.postId && route.query.section !== 'forum' && route.query.section !== 'comments') return;
   await nextTick();
-  forumSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (route.query.section === 'comments') {
+    commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  experienceSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 
@@ -358,11 +463,17 @@ onMounted(() => {
 });
 
 watch(eventId, (id) => {
-  if (id) subscribePosts(id);
+  if (id) {
+    subscribePosts(id);
+    subscribeExperiencePosts(id);
+  }
 }, { immediate: true });
 
 watch(() => userStore.userProfile?.uid, () => {
-  if (eventId.value) subscribePosts(eventId.value);
+  if (eventId.value) {
+    subscribePosts(eventId.value);
+    subscribeExperiencePosts(eventId.value);
+  }
 });
 
 watch(() => route.query, () => {
@@ -371,6 +482,7 @@ watch(() => route.query, () => {
 
 onBeforeUnmount(() => {
   if (unsubscribePosts) unsubscribePosts();
+  if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
 </script>
 
@@ -660,6 +772,17 @@ onBeforeUnmount(() => {
   font-weight: var(--font-weight-bold);
   color: var(--color-gray-900);
   margin: 0 0 var(--spacing-lg) 0;
+}
+
+.forum-header .section-title {
+  margin-bottom: 0;
+}
+
+.section-helper {
+  margin: var(--spacing-xs) 0 0;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .event-description {

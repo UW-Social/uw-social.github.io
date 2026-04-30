@@ -14,9 +14,11 @@ import {
 import type { Event } from '../types/event';
 import type {
   AggregatedDiscussionPost,
+  AggregatedExperiencePost,
   AggregatedForumPost,
   DiscussionPost,
   DiscussionReply,
+  ExperiencePost,
   Forum,
   ForumPost,
 } from '../types/forum';
@@ -224,6 +226,14 @@ type DiscussionAuthor = {
   displayName?: string | null;
 };
 
+type ExperiencePostInput = string | {
+  title: string;
+  subtitle?: string;
+  body: string;
+  bodyHtml?: string;
+  mediaUrls?: string[];
+};
+
 export function subscribeToEventDiscussionPosts(
   eventId: string,
   currentUserId: string | null | undefined,
@@ -320,6 +330,154 @@ export async function createEventDiscussionPost(
     userId: author.uid,
     userEmail: author.email,
     createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToEventExperiencePosts(
+  eventId: string,
+  currentUserId: string | null | undefined,
+  onData: (posts: ExperiencePost[]) => void,
+  onError: (error: unknown) => void
+) {
+  const postsRef = collection(db, 'events', eventId, 'forumPosts');
+  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
+  let active = true;
+
+  const unsubscribe = onSnapshot(
+    postsQuery,
+    async (snapshot) => {
+      try {
+        const hydratedPosts = await Promise.all(
+          snapshot.docs.map((postDoc) =>
+            hydrateExperiencePost(
+              eventId,
+              postDoc.id,
+              postDoc.data() as Record<string, unknown>,
+              currentUserId
+            )
+          )
+        );
+
+        if (active) {
+          onData(hydratedPosts.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt)));
+        }
+      } catch (error) {
+        if (active) onError(error);
+      }
+    },
+    onError
+  );
+
+  return () => {
+    active = false;
+    unsubscribe();
+  };
+}
+
+export async function listAggregatedExperiencePosts(
+  events: Event[],
+  currentUserId?: string | null
+): Promise<AggregatedExperiencePost[]> {
+  const postsByEvent = await Promise.all(
+    events.map(async (event) => {
+      const postsRef = collection(db, 'events', event.id, 'forumPosts');
+      const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(postsQuery);
+
+      const posts = await Promise.all(
+        snapshot.docs.map(async (postDoc) => {
+          const hydratedPost = await hydrateExperiencePost(
+            event.id,
+            postDoc.id,
+            postDoc.data() as Record<string, unknown>,
+            currentUserId
+          );
+
+          return {
+            ...hydratedPost,
+            eventTitle: event.title,
+            eventLocation: event.location,
+            eventSchedule: buildForumEventSnapshot(event).scheduleSummary,
+          } satisfies AggregatedExperiencePost;
+        })
+      );
+
+      return posts;
+    })
+  );
+
+  return postsByEvent
+    .flat()
+    .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+}
+
+export async function createEventExperiencePost(
+  eventId: string,
+  author: DiscussionAuthor,
+  input: ExperiencePostInput
+) {
+  const content = typeof input === 'string' ? input : input.body;
+  const title = typeof input === 'string' ? deriveExperienceTitle(input) : input.title.trim();
+  const subtitle = typeof input === 'string' ? undefined : input.subtitle?.trim() || undefined;
+  const bodyHtml = typeof input === 'string' ? undefined : input.bodyHtml;
+  const mediaUrls = typeof input === 'string' ? [] : input.mediaUrls ?? [];
+
+  await addDoc(collection(db, 'events', eventId, 'forumPosts'), {
+    eventId,
+    content,
+    text: content,
+    title,
+    ...(subtitle ? { subtitle } : {}),
+    ...(bodyHtml ? { bodyHtml } : {}),
+    mediaUrls,
+    authorName: author.displayName || author.email.split('@')[0],
+    postType: 'review',
+    likeCount: 0,
+    replyCount: 0,
+    userId: author.uid,
+    userEmail: author.email,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function toggleExperiencePostLike(
+  eventId: string,
+  postId: string,
+  userId: string
+) {
+  const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
+  const likeRef = doc(db, 'events', eventId, 'forumPosts', postId, 'likes', userId);
+
+  await runTransaction(db, async (transaction) => {
+    const [postSnap, likeSnap] = await Promise.all([
+      transaction.get(postRef),
+      transaction.get(likeRef),
+    ]);
+
+    if (!postSnap.exists()) {
+      throw new Error('Experience post not found');
+    }
+
+    const currentLikeCount = typeof postSnap.data().likeCount === 'number'
+      ? postSnap.data().likeCount
+      : 0;
+
+    if (likeSnap.exists()) {
+      transaction.delete(likeRef);
+      transaction.update(postRef, {
+        likeCount: Math.max(0, currentLikeCount - 1),
+      });
+      return;
+    }
+
+    transaction.set(likeRef, {
+      userId,
+      createdAt: serverTimestamp(),
+    });
+    transaction.update(postRef, {
+      likeCount: currentLikeCount + 1,
+    });
   });
 }
 
@@ -476,6 +634,30 @@ async function hydrateDiscussionPost(
   };
 }
 
+async function hydrateExperiencePost(
+  eventId: string,
+  postId: string,
+  raw: Record<string, unknown>,
+  currentUserId: string | null | undefined
+): Promise<ExperiencePost> {
+  const [likesSnapshot, likedDoc] = await Promise.all([
+    getDocs(collection(db, 'events', eventId, 'forumPosts', postId, 'likes')),
+    currentUserId
+      ? getDoc(doc(db, 'events', eventId, 'forumPosts', postId, 'likes', currentUserId))
+      : Promise.resolve(null),
+  ]);
+
+  const normalizedPost = normalizeExperiencePostData(eventId, raw);
+
+  return {
+    id: postId,
+    ...normalizedPost,
+    likeCount: likesSnapshot.size || normalizedPost.likeCount || 0,
+    replyCount: normalizedPost.replyCount || 0,
+    hasLiked: likedDoc?.exists?.() ?? false,
+  };
+}
+
 async function loadDiscussionReplies(
   eventId: string,
   postId: string,
@@ -543,6 +725,49 @@ function normalizeDiscussionPostData(
     userEmail: typeof raw.userEmail === 'string' ? raw.userEmail : null,
     createdAt: raw.createdAt,
   };
+}
+
+function normalizeExperiencePostData(
+  eventId: string,
+  raw: Record<string, unknown>
+): Omit<ExperiencePost, 'id' | 'hasLiked'> {
+  const content = typeof raw.content === 'string'
+    ? raw.content
+    : typeof raw.body === 'string'
+      ? raw.body
+      : typeof raw.text === 'string'
+        ? raw.text
+        : '';
+
+  return {
+    eventId: typeof raw.eventId === 'string' ? raw.eventId : eventId,
+    title: typeof raw.title === 'string' && raw.title.trim()
+      ? raw.title
+      : deriveExperienceTitle(content),
+    subtitle: typeof raw.subtitle === 'string' ? raw.subtitle : undefined,
+    content,
+    text: content,
+    bodyHtml: typeof raw.bodyHtml === 'string' ? raw.bodyHtml : undefined,
+    mediaUrls: Array.isArray(raw.mediaUrls)
+      ? raw.mediaUrls.filter((url): url is string => typeof url === 'string')
+      : [],
+    authorName: typeof raw.authorName === 'string' ? raw.authorName : undefined,
+    postType: 'review',
+    likeCount: typeof raw.likeCount === 'number' ? raw.likeCount : 0,
+    replyCount: typeof raw.replyCount === 'number' ? raw.replyCount : 0,
+    userId: typeof raw.userId === 'string' ? raw.userId : undefined,
+    userEmail: typeof raw.userEmail === 'string' ? raw.userEmail : null,
+    createdAt: raw.createdAt,
+  };
+}
+
+function deriveExperienceTitle(content: string) {
+  const firstLine = content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+  const source = firstLine || content.replace(/\s+/g, ' ').trim() || 'Event experience';
+  return source.length <= 72 ? source : `${source.slice(0, 72).trimEnd()}...`;
 }
 
 function normalizeDiscussionReplyData(

@@ -2,7 +2,7 @@
   <article :class="['discussion-card', { compact, highlighted }]">
     <div class="discussion-top">
       <div class="discussion-main">
-        <span class="discussion-tag">Discussion</span>
+        <span class="discussion-tag">{{ tagLabel }}</span>
         <p class="discussion-meta">
           <span class="discussion-author">{{ post.authorName || post.userEmail || 'Anonymous User' }}</span>
           <span>{{ formatTimestamp(post.createdAt) }}</span>
@@ -83,6 +83,7 @@ const props = withDefaults(defineProps<{
   replyPreviewCount?: number;
   compact?: boolean;
   highlighted?: boolean;
+  tagLabel?: string;
   onLogin: () => void;
   onTogglePostLike: (postId: string) => Promise<void> | void;
   onToggleReplyLike: (postId: string, replyId: string) => Promise<void> | void;
@@ -92,6 +93,7 @@ const props = withDefaults(defineProps<{
   replyPreviewCount: undefined,
   compact: false,
   highlighted: false,
+  tagLabel: 'Discussion',
 });
 
 const isReplying = ref(false);
