@@ -362,6 +362,7 @@ import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Event } from '../types/event';
 import { RecurrenceType } from '../types/event';
+import { GoogleGenAI } from "@google/genai";
 import '@/assets/eventform.css';
 
 const router = useRouter();
@@ -373,6 +374,9 @@ const storage = getStorage();
 const currentStep = ref(1);
 const importLink = ref('');
 const isImporting = ref(false);
+const ai = new GoogleGenAI({
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY
+});
 
 const formData = ref({
   title: '',
@@ -459,24 +463,53 @@ const handleImageSelection = (event: InputEvent) => {
 };
 
 const handleImport = async () => {
-  console.log("yes");
   if (!importLink.value) return;
 
   isImporting.value = true;
+
   try {
     const data = await scraper(importLink.value);
 
-    if (data.title) formData.value.title = data.title;
-    if (data.description) formData.value.description = data.description;
-    if (data.location) formData.value.location = data.location;
-    if (data.startDate) formData.value.startDate = data.startDate;
-    if (data.startTime) formData.value.startTime = data.startTime;
-    if (data.endDate) formData.value.endDate = data.endDate;
-    if (data.endTime) formData.value.endTime = data.endTime;
-    if (data.imageUrl) formData.value.imageUrl = data.imageUrl;
+    if (!data || typeof data !== 'object') throw new Error();
+
+    formData.value.title = data.title ?? formData.value.title;
+    formData.value.description = data.description ?? formData.value.description;
+    formData.value.location = data.location ?? formData.value.location;
+    formData.value.category = data.category ?? formData.value.category;
+
+    formData.value.startDate = data.startDate ?? formData.value.startDate;
+    formData.value.startTime = data.startTime ?? formData.value.startTime;
+    formData.value.endDate = data.endDate ?? formData.value.endDate;
+    formData.value.endTime = data.endTime ?? formData.value.endTime;
+
+    formData.value.imageUrl = data.imageUrl ?? formData.value.imageUrl;
+
+    if (data.recurrenceType) {
+      formData.value.recurrenceType = data.recurrenceType;
+    }
+
+    if (Array.isArray(data.tags)) {
+      formData.value.tags = data.tags.map((t: string) => t.trim()).filter(Boolean);
+      tagsInputValue.value = formData.value.tags.join(', ');
+    }
+
+    if (Array.isArray(data.daysOfWeek)) {
+      formData.value.daysOfWeek = data.daysOfWeek.filter((d: number) => d >= 0 && d <= 6);
+    }
+
+    if (data.daysOfMonthInput) {
+      formData.value.daysOfMonthInput = String(data.daysOfMonthInput);
+    }
+
+    if (typeof data.maxParticipants === 'number') {
+      formData.value.maxParticipants = data.maxParticipants;
+    }
+
+    if (data.link) {
+      formData.value.link = data.link;
+    }
 
     currentStep.value = 1;
-
   } catch (err) {
     console.error(err);
     alert('Failed to import event.');
@@ -485,20 +518,72 @@ const handleImport = async () => {
   }
 };
 
-const scraper = async (url: string) => {
-  // TODO: implement backend scraping 
 
-  return {
-    title: 'test',
-    description: '',
-    location: '',
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    imageUrl: '',
-  };
+
+const scraper = async (url: string) => {
+  const response = await fetch(url);
+  console.log(response)
+  const htmlDocument = await response.text();
+  const form = await gemini(htmlDocument);
+  console.log(form);
+  return form;
 };
+
+const gemini = async (document: string) => {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `
+You are an information extraction system.
+
+Extract event details from the document.
+
+If there are multiple events choose the first one.
+
+dont touch the title.
+
+Return ONLY valid JSON with this schema:
+
+{
+  "title": "",
+  "description": "",
+  "location": "",
+  "category": "",
+  "startDate": "",
+  "startTime": "",
+  "endDate": "",
+  "endTime": "",
+  "imageUrl": "",
+  "link": "",
+  "recurrenceType": "",
+  "tags": [],
+  "daysOfWeek": [],
+  "daysOfMonthInput": "",
+  "maxParticipants": null
+}
+
+Rules:
+- Use "" for missing strings 
+- Use [] for missing arrays
+- Use null for unknown numbers
+- DO NOT guess
+- DO NOT hallucinate data not explicitly present
+- Output ONLY raw JSON (no markdown, no explanation)
+
+DOCUMENT:
+${document}
+    `.trim(),
+  });
+
+  const text = response.text;
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error("Gemini returned invalid JSON:\n" + text);
+  }
+};
+
+
 
 const handleSubmit = async () => {
   if (!userStore.userProfile) {
