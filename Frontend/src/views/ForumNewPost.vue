@@ -46,27 +46,79 @@
             </label>
 
             <div class="toolbar" aria-label="Text formatting tools">
-              <button type="button" class="tool-button" title="Bold" @click="formatText('bold')">B</button>
-              <button type="button" class="tool-button italic" title="Italic" @click="formatText('italic')">I</button>
-              <button type="button" class="tool-button underline" title="Underline" @click="formatText('underline')">U</button>
-              <button type="button" class="tool-button highlight" title="Highlight" @click="formatText('hiliteColor', '#fff3a3')">H</button>
+              <button type="button" class="tool-button" title="Bold" @mousedown.prevent="saveSelection" @click="formatText('bold')">B</button>
+              <button type="button" class="tool-button italic" title="Italic" @mousedown.prevent="saveSelection" @click="formatText('italic')">I</button>
+              <button type="button" class="tool-button underline" title="Underline" @mousedown.prevent="saveSelection" @click="formatText('underline')">U</button>
+              <button type="button" class="tool-button color-tool" title="Text color" @mousedown.prevent="saveSelection" @click="openTextColorPicker">
+                <span class="color-tool-letter">A</span>
+                <span class="color-tool-bar" :style="{ backgroundColor: textColor }"></span>
+              </button>
+              <input
+                ref="textColorInputRef"
+                v-model="textColor"
+                class="hidden-color-input"
+                type="color"
+                aria-label="Choose text color"
+                @input="setTextColor"
+              />
 
-              <select class="tool-select" title="Font size" @change="setFontSize">
-                <option value="">Size</option>
-                <option value="3">Normal</option>
-                <option value="4">Large</option>
-                <option value="5">XL</option>
-              </select>
-
-              <select class="tool-select" title="Heading" @change="setBlock">
-                <option value="">Heading</option>
+              <select class="tool-select tool-select-heading" title="Heading" @mousedown="saveSelection" @change="setBlock">
+                <option value="">Style</option>
                 <option value="p">Paragraph</option>
+                <option value="h1">Heading 1</option>
                 <option value="h2">Heading 2</option>
                 <option value="h3">Heading 3</option>
+                <option value="h4">Heading 4</option>
+                <option value="blockquote">Quote</option>
               </select>
 
-              <button type="button" class="tool-button" title="Bullet list" @click="formatText('insertUnorderedList')">•</button>
-              <button type="button" class="tool-button" title="Numbered list" @click="formatText('insertOrderedList')">1.</button>
+              <button
+                type="button"
+                class="tool-button list-tool"
+                title="Bulleted list"
+                aria-label="Bulleted list"
+                @mousedown.prevent="saveSelection"
+                @click="formatText('insertUnorderedList')"
+              >
+                <svg class="list-icon" aria-hidden="true" viewBox="0 0 20 20">
+                  <circle cx="4" cy="5" r="1.3" />
+                  <circle cx="4" cy="10" r="1.3" />
+                  <circle cx="4" cy="15" r="1.3" />
+                  <rect x="7" y="4" width="9" height="2" rx="1" />
+                  <rect x="7" y="9" width="9" height="2" rx="1" />
+                  <rect x="7" y="14" width="9" height="2" rx="1" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="tool-button list-tool"
+                title="Numbered list"
+                aria-label="Numbered list"
+                @mousedown.prevent="saveSelection"
+                @click="formatText('insertOrderedList')"
+              >
+                <svg class="list-icon" aria-hidden="true" viewBox="0 0 20 20">
+                  <text x="1.6" y="6.8">1</text>
+                  <text x="1.3" y="11.8">2</text>
+                  <text x="1.3" y="16.8">3</text>
+                  <rect x="7" y="4" width="9" height="2" rx="1" />
+                  <rect x="7" y="9" width="9" height="2" rx="1" />
+                  <rect x="7" y="14" width="9" height="2" rx="1" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="tool-button clear-format-tool"
+                :class="{ 'tool-button-active': isFormatPainterActive }"
+                title="Format painter"
+                aria-label="Format painter"
+                @mousedown.prevent="saveSelection"
+                @click="toggleFormatPainter"
+              >
+                <span class="clear-format-icon" aria-hidden="true"></span>
+              </button>
             </div>
 
             <div class="link-row">
@@ -89,6 +141,9 @@
               aria-multiline="true"
               :data-placeholder="bodyPlaceholder"
               @input="syncBody"
+              @mouseup="handleEditorPointerUp"
+              @keyup="saveSelection"
+              @focus="saveSelection"
               @blur="syncBody"
             ></div>
           </div>
@@ -216,13 +271,27 @@ const editorRef = ref<HTMLElement | null>(null);
 const eventSelectorRef = ref<HTMLElement | null>(null);
 const eventSearchRef = ref<HTMLInputElement | null>(null);
 const eventResultListRef = ref<HTMLElement | null>(null);
+const textColorInputRef = ref<HTMLInputElement | null>(null);
+const savedSelection = ref<Range | null>(null);
+const isFormatPainterActive = ref(false);
 const isPublishing = ref(false);
 const isEventSelectorOpen = ref(false);
 const errorMessage = ref('');
 const eventSearch = ref('');
+const textColor = ref('#24304a');
 const visibleEventCount = ref(12);
 const bodyPlaceholder = 'Share your experience, thoughts, highlights, or advice...';
 const EVENT_BATCH_SIZE = 12;
+
+type PainterStyle = {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  color: string | null;
+  blockTag: 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'blockquote' | null;
+};
+
+const copiedPainterStyle = ref<PainterStyle | null>(null);
 
 const toDate = (value: unknown): Date => {
   if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
@@ -267,9 +336,39 @@ const canPublish = computed(() =>
   bodyText.value.trim().length > 0
 );
 
-const focusEditor = async () => {
-  await nextTick();
-  editorRef.value?.focus();
+const isSelectionInsideEditor = (selection: Selection | null) => {
+  const editor = editorRef.value;
+  if (!editor || !selection || selection.rangeCount === 0) return false;
+
+  const range = selection.getRangeAt(0);
+  return editor.contains(range.startContainer) && editor.contains(range.endContainer);
+};
+
+const saveSelection = () => {
+  const selection = window.getSelection();
+  if (!isSelectionInsideEditor(selection)) return;
+  savedSelection.value = selection?.getRangeAt(0).cloneRange() ?? null;
+};
+
+const restoreSelection = () => {
+  const selection = window.getSelection();
+  if (!selection || !savedSelection.value) return false;
+
+  selection.removeAllRanges();
+  selection.addRange(savedSelection.value);
+  return true;
+};
+
+const focusEditor = () => {
+  editorRef.value?.focus({ preventScroll: true });
+};
+
+const runEditorCommand = (command: string, value?: string) => {
+  focusEditor();
+  restoreSelection();
+  document.execCommand(command, false, value);
+  saveSelection();
+  syncBody();
 };
 
 const syncBody = () => {
@@ -278,33 +377,113 @@ const syncBody = () => {
   bodyHtml.value = editor?.innerHTML ?? '';
 };
 
-const formatText = (command: string, value?: string) => {
-  focusEditor();
-  document.execCommand(command, false, value);
+const getCurrentPainterStyle = (): PainterStyle | null => {
+  const selection = window.getSelection();
+  const editor = editorRef.value;
+  if (!editor || !selection || selection.rangeCount === 0) return null;
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return null;
+
+  let node: Node | null = range.startContainer;
+  let blockTag: PainterStyle['blockTag'] = null;
+  while (node && node !== editor) {
+    if (node instanceof HTMLElement) {
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'p' || tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'blockquote') {
+        blockTag = tag;
+        break;
+      }
+    }
+    node = node.parentNode;
+  }
+
+  const colorValue = document.queryCommandValue('foreColor');
+
+  return {
+    bold: document.queryCommandState('bold'),
+    italic: document.queryCommandState('italic'),
+    underline: document.queryCommandState('underline'),
+    color: typeof colorValue === 'string' && colorValue ? colorValue : null,
+    blockTag,
+  };
+};
+
+const applyPainterStyle = (style: PainterStyle) => {
+  if (style.blockTag) {
+    runEditorCommand('formatBlock', `<${style.blockTag}>`);
+  }
+
+  document.execCommand('styleWithCSS', false, 'true');
+  const syncToggle = (command: 'bold' | 'italic' | 'underline', enabled: boolean) => {
+    const currentState = document.queryCommandState(command);
+    if (currentState !== enabled) {
+      document.execCommand(command, false, null);
+    }
+  };
+
+  syncToggle('bold', style.bold);
+  syncToggle('italic', style.italic);
+  syncToggle('underline', style.underline);
+
+  if (style.color) {
+    document.execCommand('foreColor', false, style.color);
+    textColor.value = style.color;
+  }
+
+  saveSelection();
   syncBody();
 };
 
-const setFontSize = (event: Event) => {
-  const value = (event.target as HTMLSelectElement).value;
-  if (!value) return;
-  formatText('fontSize', value);
-  (event.target as HTMLSelectElement).value = '';
+const formatText = (command: string, value?: string) => {
+  runEditorCommand(command, value);
 };
 
 const setBlock = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value;
   if (!value) return;
-  formatText('formatBlock', value);
+  runEditorCommand('formatBlock', `<${value}>`);
   (event.target as HTMLSelectElement).value = '';
+};
+
+const openTextColorPicker = () => {
+  textColorInputRef.value?.click();
+};
+
+const setTextColor = () => {
+  runEditorCommand('styleWithCSS', 'true');
+  runEditorCommand('foreColor', textColor.value);
+};
+
+const toggleFormatPainter = () => {
+  if (isFormatPainterActive.value) {
+    isFormatPainterActive.value = false;
+    copiedPainterStyle.value = null;
+    return;
+  }
+
+  const style = getCurrentPainterStyle();
+  if (!style) return;
+
+  copiedPainterStyle.value = style;
+  isFormatPainterActive.value = true;
+};
+
+const handleEditorPointerUp = () => {
+  saveSelection();
+  const selection = window.getSelection();
+  if (!isFormatPainterActive.value || !copiedPainterStyle.value || !selection || selection.isCollapsed) return;
+
+  applyPainterStyle(copiedPainterStyle.value);
+  isFormatPainterActive.value = false;
+  copiedPainterStyle.value = null;
 };
 
 const insertLink = () => {
   const url = linkUrl.value.trim();
   if (!url) return;
-  focusEditor();
-  document.execCommand('createLink', false, url);
+  runEditorCommand('createLink', url);
   linkUrl.value = '';
-  syncBody();
 };
 
 const openEventSelector = async () => {
@@ -540,6 +719,19 @@ watch(eventSearch, async () => {
   flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #d9e0ec;
+  border-radius: 18px;
+  background: #edf2fa;
+}
+
+.hidden-color-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .tool-button,
@@ -549,21 +741,41 @@ watch(eventSearch, async () => {
 .login-button {
   border: none;
   font: inherit;
-  font-weight: 800;
   cursor: pointer;
 }
 
 .tool-button,
 .tool-select {
-  min-height: 38px;
+  min-height: 40px;
   border-radius: 10px;
-  border: 1px solid rgba(99, 102, 241, 0.14);
-  background: #fff;
-  color: #24304a;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #445063;
+  font-family: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
 }
 
 .tool-button {
   width: 42px;
+  font-size: 1.05rem;
+}
+
+.tool-button:hover,
+.tool-select:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.tool-button-active {
+  background: rgba(66, 133, 244, 0.18);
+  color: #1a73e8;
+}
+
+.color-tool,
+.clear-format-tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tool-button.italic {
@@ -574,12 +786,97 @@ watch(eventSearch, async () => {
   text-decoration: underline;
 }
 
-.tool-button.highlight {
-  background: #fff8c7;
+.tool-select {
+  padding: 0 14px;
+  min-width: 112px;
+  cursor: pointer;
+  appearance: none;
+  font-size: 0.98rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #5c677a 50%),
+    linear-gradient(135deg, #5c677a 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 13px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
 }
 
-.tool-select {
-  padding: 0 10px;
+.tool-select-heading {
+  min-width: 176px;
+  background-color: rgba(255, 255, 255, 0.42);
+  border-left: 1px solid #c9d2e0;
+  border-right: 1px solid #c9d2e0;
+  border-radius: 0;
+  padding-left: 18px;
+  font-size: 1rem;
+}
+
+.color-tool-letter {
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.color-tool-bar {
+  position: absolute;
+  bottom: 8px;
+  width: 20px;
+  height: 4px;
+  border-radius: 999px;
+  background: #24304a;
+}
+
+.clear-format-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #4b5563;
+  border-radius: 4px 4px 6px 6px;
+  transform: rotate(-18deg);
+}
+
+.clear-format-icon::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -4px;
+  width: 10px;
+  height: 4px;
+  border: 2px solid #4b5563;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.clear-format-icon::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  bottom: -7px;
+  width: 4px;
+  height: 8px;
+  border-radius: 999px;
+  background: #4b5563;
+}
+
+.list-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-icon {
+  width: 20px;
+  height: 20px;
+  fill: #4f5b6d;
+}
+
+.list-icon text {
+  fill: #4f5b6d;
+  font-size: 6.8px;
+  font-weight: 700;
+  font-family: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .link-row {
@@ -595,9 +892,72 @@ watch(eventSearch, async () => {
   padding: 20px;
   color: #20263a;
   background: rgba(255, 255, 255, 0.94);
+  font-family: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
   line-height: 1.75;
+  letter-spacing: 0.01em;
   outline: none;
   white-space: pre-wrap;
+}
+
+.body-editor :deep(h2) {
+  margin: 0.5em 0 0.3em;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.body-editor :deep(h1) {
+  margin: 0.55em 0 0.35em;
+  font-size: 1.9rem;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.body-editor :deep(h3) {
+  margin: 0.45em 0 0.25em;
+  font-size: 1.25rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.body-editor :deep(h4) {
+  margin: 0.4em 0 0.2em;
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.body-editor :deep(blockquote) {
+  margin: 0 0 0.9em;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 3px solid rgba(99, 102, 241, 0.28);
+  color: #4f5d78;
+  font-style: italic;
+}
+
+.body-editor :deep(p) {
+  margin: 0 0 0.75em;
+}
+
+.body-editor :deep(ul),
+.body-editor :deep(ol) {
+  margin: 0 0 0.9em 1.3em;
+  padding-left: 1.1em;
+}
+
+.body-editor :deep(ul) {
+  list-style: disc;
+}
+
+.body-editor :deep(ol) {
+  list-style: decimal;
+}
+
+.body-editor :deep(li) {
+  display: list-item;
+  margin-bottom: 0.35em;
 }
 
 .body-editor:focus {
@@ -608,6 +968,7 @@ watch(eventSearch, async () => {
 .body-editor:empty::before {
   content: attr(data-placeholder);
   color: #9aa3b8;
+  font-weight: 400;
 }
 
 .media-placeholder {
@@ -794,6 +1155,7 @@ watch(eventSearch, async () => {
   justify-content: center;
   border-radius: 14px;
   padding: 12px 16px;
+  font-weight: 800;
 }
 
 .publish-button,
