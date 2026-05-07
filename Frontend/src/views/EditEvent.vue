@@ -411,6 +411,17 @@ function parseTagsFromInput(value: string) {
   return value.split(/[,，\s]+/).map(tag => tag.trim()).filter(Boolean);
 }
 
+function createLocalDateFromInput(
+  value: string,
+  hours = 0,
+  minutes = 0,
+  seconds = 0,
+  milliseconds = 0
+) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, hours, minutes, seconds, milliseconds);
+}
+
 function handleTagsInput(event: Event) {
   const target = event.target as HTMLInputElement;
   tagsInputValue.value = target.value;
@@ -580,15 +591,15 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
       }
       schedule = {
         type: RecurrenceType.DAILY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
       };
@@ -598,15 +609,15 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
       }
       schedule = {
         type: RecurrenceType.WEEKLY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
         daysOfWeek: formData.value.daysOfWeek.map(Number),
@@ -617,7 +628,7 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
@@ -636,8 +647,8 @@ async function handleSubmit() {
 
       schedule = {
         type: RecurrenceType.MONTHLY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
         daysOfMonth,
@@ -651,8 +662,8 @@ async function handleSubmit() {
       startTime = schedule.startDatetime;
       endtime = schedule.endDatetime;
     } else {
-      const startDate = new Date(formData.value.startDate);
-      const endDate = formData.value.endDate ? new Date(formData.value.endDate) : new Date('2099-12-31');
+      const startDate = createLocalDateFromInput(formData.value.startDate);
+      const endDate = formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : createLocalDateFromInput('2099-12-31');
 
       if (formData.value.startTime) {
         const [hours, minutes] = formData.value.startTime.split(':');

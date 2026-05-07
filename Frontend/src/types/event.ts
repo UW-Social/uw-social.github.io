@@ -129,7 +129,7 @@ function formatDate(date: any): string {
     // Final sanity check
     if (isNaN(d.getTime())) throw new Error("Invalid date object");
 
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   } catch (err) {
     console.warn("formatDate failed:", date, err);
     return 'Invalid date';
@@ -152,6 +152,34 @@ function toDateValue(date: any): Date | null {
 }
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CARD_WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function formatTimeOfDay(time: string): string {
+  const [rawHours, rawMinutes = '00'] = time.split(':');
+  const hours = Number(rawHours);
+  const minutes = Number(rawMinutes);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return time;
+
+  const suffix = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')}${suffix}`;
+}
+
+function formatCardTime(date: Date, hasTime?: boolean): string {
+  if (hasTime === false) return '';
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+
+  if (hasTime === undefined && hours === 0 && minutes === 0) return '';
+  return formatTimeOfDay(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+}
+
+function joinCompactDateAndTime(date: Date, time: string): string {
+  const dateText = formatDate(date);
+  return time ? `${dateText} ${time}` : dateText;
+}
 
 function formatTimeRange(startTime?: string, endTime?: string): string {
   if (startTime && endTime) return `${startTime} - ${endTime}`;
@@ -318,4 +346,47 @@ export function formatEventSchedule(event: Event): string {
     default:
       throw new Error(`Unknown recurrence type: ${(schedule as any).type}`);
   }
+}
+
+export function formatEventCardSchedule(event: Event): string {
+  const schedule = event.schedule;
+
+  if (!schedule) {
+    const start = toDateValue(event.startTime);
+    if (!start) return 'Schedule TBD';
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+  }
+
+  if (schedule.type === RecurrenceType.ONE_TIME) {
+    const start = toDateValue(schedule.startDatetime);
+    if (!start) return 'Schedule TBD';
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+  }
+
+  const startTime = schedule.startTimeOfDay ? formatTimeOfDay(schedule.startTimeOfDay) : '';
+  let recurrenceText = '';
+
+  if (schedule.type === RecurrenceType.DAILY) {
+    recurrenceText = 'Everyday';
+  } else if (schedule.type === RecurrenceType.WEEKLY) {
+    const days = Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0
+      ? schedule.daysOfWeek
+          .map((day) => CARD_WEEKDAY_LABELS[Number(day)])
+          .filter(Boolean)
+          .join(', ')
+      : '';
+    recurrenceText = days ? `Every ${days}` : 'Every week';
+  } else if (schedule.type === RecurrenceType.MONTHLY) {
+    const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
+      ? schedule.daysOfMonth
+          .map(Number)
+          .filter((day) => day >= 1 && day <= 31)
+          .sort((a, b) => a - b)
+          .map(formatOrdinalDay)
+          .join(', ')
+      : '';
+    recurrenceText = days ? `Monthly on ${days}` : 'Every month';
+  }
+
+  return startTime ? `${recurrenceText} ${startTime}` : recurrenceText || 'Schedule TBD';
 }

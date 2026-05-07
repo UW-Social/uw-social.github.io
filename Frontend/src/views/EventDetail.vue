@@ -320,7 +320,6 @@ const scrollToForum = async () => {
   forumSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-
 const initMap = async () => {
   const el = mapContainer.value;
   if (!el || !event.value) return;

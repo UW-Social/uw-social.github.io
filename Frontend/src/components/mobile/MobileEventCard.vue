@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { formatEventSchedule } from '../../types/event';
+import { formatEventCardSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
 import { useUserStore } from '../../stores/user';
 
@@ -106,7 +106,7 @@ const displayTags = computed(() => {
 // Format time using existing utility
 const formattedTime = computed(() => {
   try {
-    return formatEventSchedule(props.event);
+    return formatEventCardSchedule(props.event);
   } catch (error) {
     // Fallback to simple date formatting
     const startDate = typeof props.event.startTime?.toDate === 'function' 

@@ -8,7 +8,7 @@
         :key="event.id"
         :event="event"
         :currentUserId="userStore.userProfile?.uid"
-        @click="$emit('open-card', event)"
+        @open-card="$emit('open-card', event)"
       />
     </div>
   </div>
