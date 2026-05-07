@@ -141,7 +141,12 @@
                   @keydown.esc="closeEventSelector"
                 />
 
-                <div v-if="eventResults.length > 0" class="event-result-list">
+                <div
+                  v-if="eventResults.length > 0"
+                  ref="eventResultListRef"
+                  class="event-result-list"
+                  @scroll="handleEventListScroll"
+                >
                   <button
                     v-for="event in eventResults"
                     :key="event.id"
@@ -153,6 +158,10 @@
                     <span class="event-result-meta">{{ formatEventSchedule(event) }}</span>
                     <span class="event-result-meta">{{ event.location || 'Location TBD' }}</span>
                   </button>
+
+                  <p v-if="eventResults.length < searchedEvents.length" class="event-result-status">
+                    Scroll to load more events
+                  </p>
                 </div>
 
                 <div v-else class="event-empty-state">
@@ -185,7 +194,7 @@
 
 <script setup lang="ts">
 import Fuse from 'fuse.js';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createEventExperiencePost } from '../api/forums';
 import { useEventStore } from '../stores/event';
@@ -206,15 +215,38 @@ const linkUrl = ref('');
 const editorRef = ref<HTMLElement | null>(null);
 const eventSelectorRef = ref<HTMLElement | null>(null);
 const eventSearchRef = ref<HTMLInputElement | null>(null);
+const eventResultListRef = ref<HTMLElement | null>(null);
 const isPublishing = ref(false);
 const isEventSelectorOpen = ref(false);
 const errorMessage = ref('');
 const eventSearch = ref('');
+const visibleEventCount = ref(12);
 const bodyPlaceholder = 'Share your experience, thoughts, highlights, or advice...';
+const EVENT_BATCH_SIZE = 12;
+
+const toDate = (value: unknown): Date => {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate();
+  }
+
+  return new Date(value as string | number | Date);
+};
 
 const events = computed(() => eventStore.events);
-const selectedEvent = computed(() => events.value.find((event) => event.id === selectedEventId.value) ?? null);
-const recentEvents = computed(() => events.value.slice(0, 6));
+const upcomingEvents = computed(() => {
+  const now = Date.now();
+  return events.value.filter((event) => toDate(event.endtime).getTime() > now);
+});
+const selectedEvent = computed(() => upcomingEvents.value.find((event) => event.id === selectedEventId.value) ?? null);
+const sortedEvents = computed(() => upcomingEvents.value);
+const searchedEvents = computed<UWEvent[]>(() => {
+  const query = eventSearch.value.trim();
+  if (!query) return sortedEvents.value;
+
+  return eventFuse.value
+    .search(query)
+    .map((result) => result.item);
+});
 const eventFuse = computed(() => new Fuse(events.value, {
   keys: [
     { name: 'title', weight: 0.5 },
@@ -227,13 +259,7 @@ const eventFuse = computed(() => new Fuse(events.value, {
   minMatchCharLength: 2,
 }));
 const eventResults = computed<UWEvent[]>(() => {
-  const query = eventSearch.value.trim();
-  if (!query) return recentEvents.value;
-
-  return eventFuse.value
-    .search(query)
-    .slice(0, 8)
-    .map((result) => result.item);
+  return searchedEvents.value.slice(0, visibleEventCount.value);
 });
 const canPublish = computed(() =>
   title.value.trim().length > 0 &&
@@ -283,6 +309,7 @@ const insertLink = () => {
 
 const openEventSelector = async () => {
   isEventSelectorOpen.value = true;
+  visibleEventCount.value = EVENT_BATCH_SIZE;
   await nextTick();
   eventSearchRef.value?.focus();
 };
@@ -302,6 +329,21 @@ const selectEvent = (eventId: string) => {
   selectedEventId.value = eventId;
   eventSearch.value = '';
   closeEventSelector();
+};
+
+const loadMoreEvents = () => {
+  if (visibleEventCount.value >= searchedEvents.value.length) return;
+  visibleEventCount.value += EVENT_BATCH_SIZE;
+};
+
+const handleEventListScroll = () => {
+  const list = eventResultListRef.value;
+  if (!list) return;
+
+  const remainingScroll = list.scrollHeight - list.scrollTop - list.clientHeight;
+  if (remainingScroll <= 24) {
+    loadMoreEvents();
+  }
 };
 
 const goToLogin = () => {
@@ -355,13 +397,20 @@ onMounted(async () => {
   }
 
   const eventId = route.query.eventId;
-  if (typeof eventId === 'string' && events.value.some((event) => event.id === eventId)) {
+  if (typeof eventId === 'string' && upcomingEvents.value.some((event) => event.id === eventId)) {
     selectedEventId.value = eventId;
   }
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown);
+});
+
+watch(eventSearch, async () => {
+  visibleEventCount.value = EVENT_BATCH_SIZE;
+  await nextTick();
+  const list = eventResultListRef.value;
+  if (list) list.scrollTop = 0;
 });
 </script>
 
@@ -727,6 +776,14 @@ onBeforeUnmount(() => {
 .event-empty-state p {
   margin: 0 0 10px;
   color: #64708b;
+}
+
+.event-result-status {
+  margin: 2px 0 0;
+  padding: 8px 12px 4px;
+  color: #7a859e;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
 .publish-button,
