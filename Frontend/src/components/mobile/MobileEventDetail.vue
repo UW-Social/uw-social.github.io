@@ -3,17 +3,33 @@
     <!-- Event Header -->
     <div class="event-header">
       <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <button
-        class="bookmark-button"
-        type="button"
-        :class="{ saved: isSavedEvent }"
-        :disabled="isSavingEvent"
-        @click="toggleSavedEvent"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
-        </svg>
-      </button>
+      <div class="header-actions" style="display: flex; gap: 0.5rem;">
+        <button
+          class="bookmark-button download-ics-button"
+          type="button"
+          @click="event ? downloadIcs(event) : null"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="M12 12v6"></path>
+            <path d="M9 15l3 3 3-3"></path>
+          </svg>
+        </button>
+        <button
+          class="bookmark-button"
+          type="button"
+          :class="{ saved: isSavedEvent }"
+          :disabled="isSavingEvent"
+          @click="toggleSavedEvent"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Event Info Bento Layout -->
@@ -202,6 +218,7 @@ import ExperiencePostCard from '../ExperiencePostCard.vue';
 import ForumPostCard from '../ForumPostCard.vue';
 import ReplyInput from '../ReplyInput.vue';
 import { loadGoogleMaps } from '../../utils/googleMaps';
+import { downloadIcs } from '../../utils/icsUtils';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
