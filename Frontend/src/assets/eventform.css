@@ -212,6 +212,13 @@ textarea::placeholder {
   border-top: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
+.legacy-schedule-note {
+  margin: 0;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
 /* Checkbox Group */
 .checkbox-group {
   display: flex;

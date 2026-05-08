@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { formatEventSchedule } from '../../types/event';
+import { formatEventCardSchedule } from '../../types/event';
 import type { Event } from '../../types/event';
 import { useUserStore } from '../../stores/user';
 
@@ -106,7 +106,7 @@ const displayTags = computed(() => {
 // Format time using existing utility
 const formattedTime = computed(() => {
   try {
-    return formatEventSchedule(props.event);
+    return formatEventCardSchedule(props.event);
   } catch (error) {
     // Fallback to simple date formatting
     const startDate = typeof props.event.startTime?.toDate === 'function' 
@@ -288,7 +288,7 @@ const toggleSavedEvent = async () => {
 .time-info,
 .location-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   font-size: 11px;
   color: #777;
@@ -301,7 +301,14 @@ const toggleSavedEvent = async () => {
   stroke-width: 2;
 }
 
-.time-info span,
+.time-info span {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
 .location-info span {
   overflow: hidden;
   text-overflow: ellipsis;

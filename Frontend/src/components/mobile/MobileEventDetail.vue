@@ -628,7 +628,7 @@ onBeforeUnmount(() => {
 
 .detail-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -641,6 +641,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   color: #333;
   line-height: 1.3;
+  white-space: pre-line;
 }
 
 .tags-section {
