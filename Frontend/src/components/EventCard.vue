@@ -1,5 +1,5 @@
 <template>
-  <div class="card event-card" @click="$emit('open-card', event)">
+  <div class="card event-card" @click="emit('open-card', event)">
     <div class="event-card-image-wrap">
       <img :src="event.imageUrl || '/images/wavingdog.jpg'" alt="Event Image" />
       <button
@@ -34,7 +34,7 @@
         <div class="event-meta">
           <p class="meta-item">
             <span class="meta-label">Time:</span>
-            <span class="meta-value">{{ formatEventSchedule(event) }}</span>
+            <span class="meta-value">{{ formatEventCardSchedule(event) }}</span>
           </p>
           <p class="meta-item">
             <span class="meta-label">Location:</span>
@@ -69,7 +69,7 @@ import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { useRoute, useRouter } from 'vue-router';
 // import { useEventDialogStore } from '../stores/eventDialog';
-import { formatEventSchedule, type Event } from '../types/event';
+import { formatEventCardSchedule, type Event } from '../types/event';
 import '../assets/eventcard.css';
 import { ElButton } from 'element-plus';
 import 'element-plus/es/components/button/style/css';
@@ -77,6 +77,10 @@ import 'element-plus/es/components/button/style/css';
 const props = defineProps<{
   event: Event;
   currentUserId?: string | number;
+}>();
+
+const emit = defineEmits<{
+  (event: 'open-card', payload: Event): void;
 }>();
 
 const { event } = toRefs(props);

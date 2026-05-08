@@ -218,6 +218,7 @@
   font-weight: 500;
   color: var(--color-gray-900);
   line-height: 1.4;
+  white-space: pre-line;
 }
 
 /* Delete Button */

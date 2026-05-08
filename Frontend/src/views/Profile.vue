@@ -219,7 +219,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useUserStore } from '../stores/user';
-import { formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
+import { formatEventCardSchedule, formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
 
 type SectionKey = 'saved' | 'published' | 'participated';
 
@@ -524,7 +524,7 @@ function mapEventDoc(id: string, data: Record<string, any>, savedOrder = 0): Pro
   return {
     id,
     title: data.title || 'Untitled event',
-    date: data.schedule || data.startTime ? formatEventSchedule(eventForSchedule) : 'Schedule TBD',
+    date: data.schedule || data.startTime ? formatEventCardSchedule(eventForSchedule) : 'Schedule TBD',
     location: data.location || '',
     category: data.category || '',
     imageUrl: data.imageUrl || '',

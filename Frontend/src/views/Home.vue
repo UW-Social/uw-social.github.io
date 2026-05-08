@@ -38,36 +38,24 @@
         <EventList
           :limit="userStore.isLoggedIn ? undefined : 3"
           :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
-          @open-card="setSelectedEvent"
+          @open-card="goToEventDetail"
         />
       </div>
     </section>
-
-    <div v-if="selectedEvent" class="detail-card-overlay" @click.self="clearSelectedEvent">
-      <DetailCard :event="selectedEvent" :currentUserId="userStore.userProfile?.uid" @close="clearSelectedEvent" />
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import DetailCard from '../components/DetailCard.vue';
 import EventList from '../components/EventList.vue';
 import SearchFilterBar from '../components/SearchFilterBar.vue';
 import { useUserStore } from '../stores/user';
-import {
-  clearSelectedEvent,
-  mountKeyDownListener,
-  setSelectedEvent,
-  unmountKeyDownListener,
-  useSelectedEvent,
-} from '../utils/eventUtils';
+import type { Event } from '../types/event';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const selectedEvent = useSelectedEvent();
 const isSigningUp = ref(false);
 
 const showRecommendationUpdateNotice = computed(() => route.query.onboarding === 'complete');
@@ -100,6 +88,15 @@ async function handleSignupClick(): Promise<void> {
   }
 }
 
+function goToEventDetail(event: Event): void {
+  router.push({
+    path: `/events/${event.id}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
+}
+
 async function scrollToRecommendations(): Promise<void> {
   await nextTick();
   document.getElementById('recommendations')?.scrollIntoView({
@@ -109,8 +106,6 @@ async function scrollToRecommendations(): Promise<void> {
 }
 
 onMounted(() => {
-  mountKeyDownListener();
-
   if (showRecommendationUpdateNotice.value) {
     void scrollToRecommendations();
   }
@@ -120,10 +115,6 @@ watch(showRecommendationUpdateNotice, (shouldScroll) => {
   if (shouldScroll) {
     void scrollToRecommendations();
   }
-});
-
-onUnmounted(() => {
-  unmountKeyDownListener();
 });
 </script>
 
@@ -296,22 +287,6 @@ onUnmounted(() => {
   cursor: wait;
 }
 
-.detail-card-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  z-index: var(--z-modal);
-  overflow-y: auto;
-  padding: var(--spacing-2xl) var(--spacing-md);
-  backdrop-filter: blur(4px);
-}
-
 @media (max-width: 968px) {
   .hero-section {
     padding: 0 var(--spacing-lg) 0;
@@ -365,10 +340,6 @@ onUnmounted(() => {
 
   .recommendation-notice {
     margin-inline: 0;
-  }
-
-  .detail-card-overlay {
-    padding: var(--spacing-md);
   }
 }
 </style>

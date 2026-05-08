@@ -425,7 +425,6 @@ const scrollToForum = async () => {
   experienceSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-
 const initMap = async () => {
   const el = mapContainer.value;
   if (!el || !event.value) return;
@@ -715,6 +714,7 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-base);
   color: var(--color-gray-900);
   line-height: var(--line-height-normal);
+  white-space: pre-line;
 }
 
 .event-tags {

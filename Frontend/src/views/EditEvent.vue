@@ -108,8 +108,10 @@
                   <select id="recurrenceType" v-model="formData.recurrenceType" required>
                     <option :value="RecurrenceType.ONE_TIME">One-time</option>
                     <option :value="RecurrenceType.DAILY">Daily</option>
-                    <option :value="RecurrenceType.WEEKLY">Weekly</option>
-                    <option :value="RecurrenceType.MONTHLY">Monthly</option>
+                    <option :value="RecurrenceType.WEEKLY">Weekly recurring</option>
+                    <option v-if="formData.recurrenceType === RecurrenceType.MONTHLY" :value="RecurrenceType.MONTHLY">
+                      Monthly (legacy)
+                    </option>
                   </select>
                 </div>
 
@@ -192,31 +194,9 @@
                 </div>
 
                 <div v-if="formData.recurrenceType === RecurrenceType.MONTHLY" class="schedule-fields">
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="monthlyStartDate">Start Date</label>
-                      <input id="monthlyStartDate" v-model="formData.startDate" type="date" required>
-                    </div>
-                    <div class="form-group">
-                      <label for="monthlyEndDate">End Date (optional)</label>
-                      <input id="monthlyEndDate" v-model="formData.endDate" type="date">
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="monthlyStartTime">Start Time</label>
-                      <input id="monthlyStartTime" v-model="formData.startTime" type="time" placeholder="Optional - leave empty if TBD">
-                    </div>
-                    <div class="form-group">
-                      <label for="monthlyEndTime">End Time</label>
-                      <input id="monthlyEndTime" v-model="formData.endTime" type="time" placeholder="Optional - leave empty if TBD">
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Days of Month</label>
-                    <input type="text" v-model="formData.daysOfMonthInput" placeholder="e.g., 1, 15, 31">
-                    <small>Enter days separated by commas (1-31)</small>
-                  </div>
+                  <p class="legacy-schedule-note">
+                    This event uses the old monthly schedule format. Switch to Weekly recurring to choose weekdays.
+                  </p>
                 </div>
               </div>
             </div>
@@ -431,6 +411,17 @@ function parseTagsFromInput(value: string) {
   return value.split(/[,，\s]+/).map(tag => tag.trim()).filter(Boolean);
 }
 
+function createLocalDateFromInput(
+  value: string,
+  hours = 0,
+  minutes = 0,
+  seconds = 0,
+  milliseconds = 0
+) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, hours, minutes, seconds, milliseconds);
+}
+
 function handleTagsInput(event: Event) {
   const target = event.target as HTMLInputElement;
   tagsInputValue.value = target.value;
@@ -600,15 +591,15 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
       }
       schedule = {
         type: RecurrenceType.DAILY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
       };
@@ -618,15 +609,15 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
       }
       schedule = {
         type: RecurrenceType.WEEKLY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
         daysOfWeek: formData.value.daysOfWeek.map(Number),
@@ -637,7 +628,7 @@ async function handleSubmit() {
         isSubmitting.value = false;
         return;
       }
-      if (formData.value.endDate && new Date(formData.value.endDate) < new Date(formData.value.startDate)) {
+      if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
         return;
@@ -656,8 +647,8 @@ async function handleSubmit() {
 
       schedule = {
         type: RecurrenceType.MONTHLY as const,
-        startDate: new Date(formData.value.startDate),
-        endDate: formData.value.endDate ? new Date(formData.value.endDate) : undefined,
+        startDate: createLocalDateFromInput(formData.value.startDate),
+        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
         daysOfMonth,
@@ -671,8 +662,8 @@ async function handleSubmit() {
       startTime = schedule.startDatetime;
       endtime = schedule.endDatetime;
     } else {
-      const startDate = new Date(formData.value.startDate);
-      const endDate = formData.value.endDate ? new Date(formData.value.endDate) : new Date('2099-12-31');
+      const startDate = createLocalDateFromInput(formData.value.startDate);
+      const endDate = formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : createLocalDateFromInput('2099-12-31');
 
       if (formData.value.startTime) {
         const [hours, minutes] = formData.value.startTime.split(':');
