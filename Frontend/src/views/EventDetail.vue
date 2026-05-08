@@ -22,18 +22,35 @@
           <div class="event-info-header">
             <div class="event-title-row">
               <h1 class="event-title">{{ event.title }}</h1>
-              <button
-                class="save-event-button"
-                type="button"
-                :class="{ saved: isSavedEvent }"
-                :disabled="isSavingEvent"
-                @click="toggleSavedEvent"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                </svg>
-                <span>{{ isSavedEvent ? 'Saved' : 'Save event' }}</span>
-              </button>
+              <div class="action-buttons" style="display: flex; gap: 0.5rem; align-items: center;">
+                <button
+                  class="save-event-button download-ics-button"
+                  type="button"
+                  @click="downloadIcs(event)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                    <path d="M12 12v6"></path>
+                    <path d="M9 15l3 3 3-3"></path>
+                  </svg>
+                  <span>Download .ics</span>
+                </button>
+                <button
+                  class="save-event-button"
+                  type="button"
+                  :class="{ saved: isSavedEvent }"
+                  :disabled="isSavingEvent"
+                  @click="toggleSavedEvent"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span>{{ isSavedEvent ? 'Saved' : 'Save event' }}</span>
+                </button>
+              </div>
             </div>
             <p v-if="descriptionSummary" class="event-summary">{{ descriptionSummary }}</p>
           </div>
@@ -189,6 +206,7 @@ import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
+import { downloadIcs } from '../utils/icsUtils';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
