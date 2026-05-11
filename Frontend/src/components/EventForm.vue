@@ -531,7 +531,7 @@ const scraper = async (url: string) => {
 
 const gemini = async (document: string) => {
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite",
     contents: `
 You are an information extraction system.
 

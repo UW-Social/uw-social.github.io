@@ -22,11 +22,10 @@
         ref="sortSelectRef"
         v-model="localSort"
         @change="handleSortChange"
-        class="sidebar-select"
-      >
-        <option value="recommended">Recommended</option>
-        <option value="nearest">Nearest</option>
-        <option value="farthest">Farthest</option>
+        class="sidebar-select">
+
+        <option value="newest">Latest</option>
+        <option value="oldest">Oldest</option>
       </select>
     </div>
   </div>
