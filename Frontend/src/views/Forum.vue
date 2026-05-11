@@ -1,148 +1,136 @@
 <template>
   <div class="forum-page">
-    <section class="forum-hero">
-      <div class="forum-hero-copy">
-        <span class="forum-kicker">Community reflections</span>
-        <h1 class="forum-title">Forum</h1>
-        <p class="forum-subtitle">
-          Read notes, reactions, and mini writeups from attendees across UW Social events.
-        </p>
+    <section class="toolbar">
+      <div class="search-field">
+        <span class="sr-only">Search forum posts</span>
+        <input
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search posts or event titles"
+        />
+        <button type="button" class="search-action" aria-label="Search forum posts">
+          <svg viewBox="0 0 24 24" fill="none" class="search-icon" aria-hidden="true">
+            <path
+              d="M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Zm9 3-4.35-4.35"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
-      <div class="forum-stats">
-        <div class="stat-card">
-          <span class="stat-value">{{ attendeePosts.length }}</span>
-          <span class="stat-label">Attendee posts</span>
+      <div class="toolbar-row">
+        <div class="filter-tabs" role="tablist" aria-label="Forum post sorting options">
+          <button
+            v-for="tab in sortTabs"
+            :key="tab.value"
+            type="button"
+            :class="['filter-tab', { active: activeSort === tab.value }]"
+            @click="activeSort = tab.value"
+          >
+            {{ tab.label }}
+          </button>
         </div>
-        <div class="stat-card">
-          <span class="stat-value">{{ activeEventCount }}</span>
-          <span class="stat-label">Events with discussion</span>
-        </div>
+
+        <router-link to="/forum/new" class="start-discussion-button">
+          Share an Experience
+        </router-link>
       </div>
     </section>
 
-    <section class="forum-layout">
-      <aside class="forum-sidebar">
-        <div class="sidebar-card">
-          <h2 class="sidebar-title">What shows up here</h2>
-          <p class="sidebar-text">
-            This feed gathers posts from event forums and highlights posts by people listed as event participants.
-          </p>
-        </div>
+    <section class="forum-content">
+      <div v-if="isLoading" class="state-card">
+        <h2>Loading forum posts...</h2>
+        <p>Pulling the latest event experiences into one feed.</p>
+      </div>
 
-        <div class="sidebar-card">
-          <h2 class="sidebar-title">Why this page exists</h2>
-          <p class="sidebar-text">
-            It gives future attendees a fast way to see what events actually felt like, without opening every event page one by one.
-          </p>
-        </div>
-      </aside>
+      <div v-else-if="errorMessage" class="state-card state-card-error">
+        <h2>Couldn’t load the forum</h2>
+        <p>{{ errorMessage }}</p>
+      </div>
 
-      <main class="forum-feed">
-        <div v-if="isLoading" class="feed-state">
-          <h2>Loading forum posts...</h2>
-          <p>Gathering attendee notes from recent events.</p>
-        </div>
+      <div v-else-if="allPosts.length === 0" class="state-card">
+        <h2>No forum posts yet</h2>
+        <p>Open an event and share the first longer recap or review.</p>
+      </div>
 
-        <div v-else-if="errorMessage" class="feed-state feed-state-error">
-          <h2>Couldn’t load the forum</h2>
-          <p>{{ errorMessage }}</p>
-        </div>
+      <div v-else-if="filteredPosts.length === 0" class="state-card">
+        <h2>No matching posts</h2>
+        <p>Try a different search or switch back to a broader filter.</p>
+      </div>
 
-        <div v-else-if="attendeePosts.length === 0" class="feed-state">
-          <h2>No attendee posts yet</h2>
-          <p>
-            Once participants share notes on event pages, their posts will show up here as a community feed.
-          </p>
-        </div>
-
-        <div v-else class="feed-list">
-          <article
-            v-for="post in attendeePosts"
-            :key="post.id"
-            class="feed-card"
-          >
-            <div class="feed-card-header">
-              <div>
-                <router-link :to="`/events/${post.eventId}`" class="event-link">
-                  {{ post.eventTitle }}
-                </router-link>
-                <p class="event-meta">
-                  {{ post.eventSchedule }}
-                  <span v-if="post.eventLocation">• {{ post.eventLocation }}</span>
-                </p>
-              </div>
-              <span class="post-timestamp">{{ formatTimestamp(post.createdAt) }}</span>
-            </div>
-
-            <p class="post-body">{{ post.text }}</p>
-
-            <div class="feed-card-footer">
-              <span class="author-pill">{{ post.userEmail || 'Unknown attendee' }}</span>
-              <router-link :to="`/events/${post.eventId}`" class="event-cta">
-                Open event
-              </router-link>
-            </div>
-          </article>
-        </div>
-      </main>
+      <div v-else class="post-list">
+        <ExperiencePostCard
+          v-for="post in filteredPosts"
+          :key="post.id"
+          :post="post"
+          :is-logged-in="userStore.isLoggedIn"
+          :show-event-context="true"
+          :on-login="goToLogin"
+          :on-toggle-like="togglePostLike"
+        />
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import ExperiencePostCard from '../components/ExperiencePostCard.vue';
+import {
+  listAggregatedExperiencePosts,
+  toggleExperiencePostLike,
+} from '../api/forums';
+import type { AggregatedExperiencePost } from '../types/forum';
 import { useEventStore } from '../stores/event';
-import { formatEventSchedule, type Event } from '../types/event';
+import { useUserStore } from '../stores/user';
 
-interface ForumPost {
-  id: string;
-  eventId: string;
-  eventTitle: string;
-  eventLocation: string;
-  eventSchedule: string;
-  text: string;
-  userId?: string | null;
-  userEmail?: string | null;
-  createdAt?: {
-    seconds?: number;
-    toDate?: () => Date;
-  } | null;
-}
+type ForumSort = 'recommended' | 'latest' | 'oldest';
 
+const sortTabs: Array<{ label: string; value: ForumSort }> = [
+  { label: 'Recommended', value: 'recommended' },
+  { label: 'Latest', value: 'latest' },
+  { label: 'Oldest', value: 'oldest' },
+];
+
+const route = useRoute();
+const router = useRouter();
 const eventStore = useEventStore();
+const userStore = useUserStore();
 const isLoading = ref(true);
 const errorMessage = ref('');
-const attendeePosts = ref<ForumPost[]>([]);
+const allPosts = ref<AggregatedExperiencePost[]>([]);
+const searchQuery = ref('');
+const activeSort = ref<ForumSort>('recommended');
 
-const activeEventCount = computed(() => {
-  return new Set(attendeePosts.value.map((post) => post.eventId)).size;
-});
+const filteredPosts = computed(() => {
+  const normalizedSearch = searchQuery.value.trim().toLowerCase();
 
-const formatTimestamp = (value: ForumPost['createdAt']) => {
-  if (!value) return 'Just now';
+  const matchingPosts = allPosts.value.filter((post) => {
+    const fallbackTitle = post.title?.trim()
+      ? post.title.trim()
+      : post.content.replace(/\s+/g, ' ').trim().slice(0, 52).trimEnd();
+    const matchesSearch = !normalizedSearch ||
+      post.content.toLowerCase().includes(normalizedSearch) ||
+      post.eventTitle.toLowerCase().includes(normalizedSearch) ||
+      fallbackTitle.toLowerCase().includes(normalizedSearch);
 
-  try {
-    const date = typeof value.toDate === 'function'
-      ? value.toDate()
-      : typeof value.seconds === 'number'
-        ? new Date(value.seconds * 1000)
-        : new Date(value as unknown as string);
+    return matchesSearch;
+  });
 
-    if (Number.isNaN(date.getTime())) return 'Just now';
-
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date);
-  } catch (error) {
-    console.warn('Failed to format forum timestamp:', value, error);
-    return 'Just now';
+  if (activeSort.value === 'latest') {
+    return [...matchingPosts].sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
   }
-};
+
+  if (activeSort.value === 'oldest') {
+    return [...matchingPosts].sort((a, b) => getTimestampMs(a.createdAt) - getTimestampMs(b.createdAt));
+  }
+
+  return matchingPosts;
+});
 
 const loadForumPosts = async () => {
   isLoading.value = true;
@@ -153,12 +141,10 @@ const loadForumPosts = async () => {
       await eventStore.fetchEvents();
     }
 
-    const events = eventStore.events;
-    const postsByEvent = await Promise.all(events.map(loadPostsForEvent));
-
-    attendeePosts.value = postsByEvent
-      .flat()
-      .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+    allPosts.value = await listAggregatedExperiencePosts(
+      eventStore.events,
+      userStore.userProfile?.uid
+    );
   } catch (error) {
     console.error('Failed to load forum page:', error);
     errorMessage.value = 'Please try refreshing the page in a moment.';
@@ -167,38 +153,60 @@ const loadForumPosts = async () => {
   }
 };
 
-const loadPostsForEvent = async (event: Event): Promise<ForumPost[]> => {
-  const postsRef = collection(db, 'events', event.id, 'posts');
-  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(postsQuery);
-
-  return snapshot.docs
-    .map((doc) => ({
-      id: doc.id,
-      eventId: event.id,
-      eventTitle: event.title,
-      eventLocation: event.location,
-      eventSchedule: formatEventSchedule(event),
-      ...(doc.data() as {
-        text: string;
-        userId?: string | null;
-        userEmail?: string | null;
-        createdAt?: ForumPost['createdAt'];
-      }),
-    }))
-    .filter((post) => Boolean(post.userId) && event.participants?.includes(post.userId as string));
+const goToLogin = () => {
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      prompt: 'Please log in to like forum posts.'
+    }
+  });
 };
 
-const getTimestampMs = (value: ForumPost['createdAt']) => {
+const getTimestampMs = (value: AggregatedExperiencePost['createdAt']) => {
   if (!value) return 0;
-  if (typeof value.toDate === 'function') return value.toDate().getTime();
-  if (typeof value.seconds === 'number') return value.seconds * 1000;
 
-  const parsed = new Date(value as unknown as string).getTime();
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'seconds' in value &&
+    typeof (value as { seconds?: number }).seconds === 'number'
+  ) {
+    return (value as { seconds: number }).seconds * 1000;
+  }
+
+  const parsed = new Date(value as string).getTime();
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const togglePostLike = async (postId: string) => {
+  if (!userStore.userProfile?.uid) return;
+
+  const post = allPosts.value.find((item) => item.id === postId);
+  if (!post) return;
+
+  try {
+    await toggleExperiencePostLike(post.eventId, postId, userStore.userProfile.uid);
+    await loadForumPosts();
+  } catch (error) {
+    console.error('Failed to toggle post like:', error);
+  }
+};
+
 onMounted(() => {
+  loadForumPosts();
+});
+
+watch(() => userStore.userProfile?.uid, () => {
   loadForumPosts();
 });
 </script>
@@ -206,254 +214,205 @@ onMounted(() => {
 <style scoped>
 .forum-page {
   min-height: calc(100vh - var(--navbar-height));
-  padding: var(--spacing-2xl) var(--spacing-3xl) var(--spacing-4xl);
-  background:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.08), transparent 28%),
-    linear-gradient(180deg, #f8f8ff 0%, #ffffff 45%, #f8fafc 100%);
+  padding: 0 var(--spacing-3xl) var(--spacing-4xl);
+  background-color: var(--color-white);
 }
 
-.forum-hero {
-  max-width: var(--container-max-width);
-  margin: 0 auto var(--spacing-2xl);
-  padding: var(--spacing-2xl);
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(99, 102, 241, 0.12);
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 24px 60px rgba(99, 102, 241, 0.08);
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: var(--spacing-xl);
-}
-
-.forum-kicker {
-  display: inline-block;
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-primary);
-}
-
-.forum-title {
-  margin: 0 0 var(--spacing-sm);
-  font-size: clamp(2.5rem, 4vw, 4.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  color: var(--color-gray-900);
-}
-
-.forum-subtitle {
-  margin: 0;
-  max-width: 42rem;
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-relaxed);
-  color: var(--color-gray-600);
-}
-
-.forum-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(140px, 1fr));
-  gap: var(--spacing-md);
-  min-width: min(100%, 340px);
-}
-
-.stat-card {
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(255, 255, 255, 0.95));
-  border: 1px solid rgba(99, 102, 241, 0.16);
-}
-
-.stat-value {
-  display: block;
-  font-size: clamp(1.8rem, 2vw, 2.5rem);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-gray-900);
-}
-
-.stat-label {
-  display: block;
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-size-sm);
-  color: var(--color-gray-600);
-}
-
-.forum-layout {
-  max-width: var(--container-max-width);
+.toolbar,
+.forum-content {
+  max-width: 1100px;
   margin: 0 auto;
+  width: 100%;
+}
+
+.toolbar {
+  padding-top: 28px;
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  gap: var(--spacing-xl);
-  align-items: start;
+  gap: 24px;
 }
 
-.forum-sidebar {
-  position: sticky;
-  top: calc(var(--navbar-height) + var(--spacing-xl));
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
-.sidebar-card {
-  padding: var(--spacing-xl);
-  border-radius: var(--radius-xl);
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
-}
-
-.sidebar-title {
-  margin: 0 0 var(--spacing-sm);
-  font-size: 1.1rem;
-  color: var(--color-gray-900);
-}
-
-.sidebar-text {
-  margin: 0;
-  color: var(--color-gray-600);
-  line-height: var(--line-height-relaxed);
-}
-
-.forum-feed {
-  min-width: 0;
-}
-
-.feed-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
-.feed-card {
-  padding: var(--spacing-xl);
-  border-radius: var(--radius-xl);
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
-}
-
-.feed-card-header,
-.feed-card-footer {
+.toolbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: 20px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
-.feed-card-footer {
-  margin-top: var(--spacing-lg);
-}
-
-.event-link {
-  font-size: 1.2rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-gray-900);
-  text-decoration: none;
-}
-
-.event-link:hover,
-.event-cta:hover {
-  color: var(--color-primary);
-}
-
-.event-meta {
-  margin: var(--spacing-xs) 0 0;
-  color: var(--color-gray-500);
-  font-size: var(--font-size-sm);
-}
-
-.post-timestamp {
-  flex-shrink: 0;
-  color: var(--color-gray-500);
-  font-size: var(--font-size-sm);
-}
-
-.post-body {
-  margin: var(--spacing-lg) 0 0;
-  color: var(--color-gray-700);
-  font-size: 1.02rem;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-.author-pill {
+.start-discussion-button,
+.discussion-link {
   display: inline-flex;
   align-items: center;
-  padding: 0.45rem 0.8rem;
+  justify-content: center;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-}
-
-.event-cta {
-  color: var(--color-gray-700);
+  padding: 12px 18px;
   text-decoration: none;
-  font-weight: var(--font-weight-semibold);
+  font-weight: 700;
 }
 
-.feed-state {
-  padding: calc(var(--spacing-3xl) * 1.1) var(--spacing-xl);
+.start-discussion-button {
+  background: #1f2740;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(108, 99, 255, 0.18);
+  margin-left: auto;
+}
+
+.search-field {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem 0.65rem 1.2rem;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-gray-700);
+  font: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+.search-field input::placeholder {
+  color: var(--color-gray-400);
+}
+
+.search-action {
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #7c73ff 100%);
+  color: var(--color-white);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.3);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.search-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(99, 102, 241, 0.35);
+}
+
+.search-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter-tab {
+  border: 1px solid rgba(108, 99, 255, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+  color: #58627e;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-tab.active {
+  background: #1f2740;
+  color: #fff;
+  border-color: #1f2740;
+}
+
+.forum-content {
+  margin-top: 28px;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.state-card {
+  border-radius: 24px;
+  border: 1px solid rgba(108, 99, 255, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 40px rgba(31, 39, 64, 0.06);
+}
+
+.state-card {
+  padding: 36px 28px;
   text-align: center;
-  border-radius: var(--radius-xl);
-  border: 1px dashed rgba(148, 163, 184, 0.4);
-  background: rgba(255, 255, 255, 0.7);
 }
 
-.feed-state h2 {
-  margin: 0 0 var(--spacing-sm);
-  color: var(--color-gray-900);
+.state-card h2 {
+  margin: 0 0 8px;
+  color: #20263a;
 }
 
-.feed-state p {
+.state-card p {
   margin: 0;
-  color: var(--color-gray-600);
+  color: #5e6783;
 }
 
-.feed-state-error {
-  border-style: solid;
-  border-color: rgba(239, 68, 68, 0.2);
-  background: rgba(254, 242, 242, 0.8);
+.state-card-error {
+  border-color: rgba(176, 44, 44, 0.18);
 }
 
-@media (max-width: 1024px) {
-  .forum-hero,
-  .forum-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .forum-hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .forum-stats {
-    width: 100%;
-  }
-
-  .forum-sidebar {
-    position: static;
-  }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .forum-page {
-    padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-3xl);
+    padding: 0 16px 40px;
   }
 
-  .forum-hero {
-    padding: var(--spacing-xl);
+  .toolbar {
+    padding-top: 20px;
+    gap: 20px;
   }
 
-  .feed-card-header,
-  .feed-card-footer {
+  .toolbar-row {
     flex-direction: column;
     align-items: flex-start;
+    gap: 14px;
+  }
+
+  .start-discussion-button {
+    margin-left: 0;
+  }
+
+  .search-field {
+    gap: 0.5rem;
+    padding: 0.55rem 0.55rem 0.55rem 0.9rem;
+  }
+
+  .search-field input {
+    font-size: 0.95rem;
+  }
+
+  .search-action {
+    width: 44px;
+    height: 44px;
   }
 }
 </style>

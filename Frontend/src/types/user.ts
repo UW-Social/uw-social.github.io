@@ -5,6 +5,9 @@ export interface UserProfile {
   grade: string | null;
   major: string | null;
   tags?: string[] | null;
+  goals?: string[] | null;
+  savedEventIds?: string[] | null;
+  onboardingCompleted?: boolean;
   photoURL?: string | null;
   emailVerified: boolean;
   metadata?: {

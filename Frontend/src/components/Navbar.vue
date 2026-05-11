@@ -12,6 +12,15 @@
       </div>
 
       <div class="nav-right">
+        <button
+          v-if="chatbotStore.isEnabled"
+          type="button"
+          class="chat-toggle-btn"
+          @click="chatbotStore.toggle"
+        >
+          Ask
+        </button>
+
         <router-link to="/publish" class="publish-btn">Publish</router-link>
 
         <div v-if="userStore.isLoggedIn && userStore.userProfile?.displayName" class="user-actions">
@@ -35,8 +44,10 @@
 import { useRouter, useRoute } from 'vue-router';
 import '../assets/navbar.css';
 import { useUserStore } from '../stores/user';
+import { useChatbotStore } from '../stores/chatbot';
 
 const userStore = useUserStore();
+const chatbotStore = useChatbotStore();
 const router = useRouter();
 const route = useRoute();
 

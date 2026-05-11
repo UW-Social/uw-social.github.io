@@ -17,9 +17,9 @@ const router = useRouter();
 const handleGoogleLogin = async () => {
   try {
     console.log('Attempting to log in...');
-    await userStore.loginWithGoogle();
+    const loginResult = await userStore.loginWithGoogle({ redirectPath: '/' });
     console.log('Login successful');
-    router.push('/');
+    router.push(loginResult.nextPath);
   } catch (error) {
     console.error('Login failed:', error);
   }

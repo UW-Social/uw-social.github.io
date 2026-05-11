@@ -105,13 +105,28 @@
 .publish-btn,
 .login-btn,
 .logout-btn,
-.avatar-button {
+.avatar-button,
+.chat-toggle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 42px;
   border-radius: 999px;
   transition: all 0.2s ease;
+}
+
+.chat-toggle-btn {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-gray-900);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0 0.9rem;
+}
+
+.chat-toggle-btn:hover {
+  background: rgba(29, 78, 216, 0.08);
+  color: #1d4ed8;
 }
 
 .publish-btn {
