@@ -1,25 +1,28 @@
 <template>
   <div class="event-list">
     <div v-if="isLoading" class="loading">Loading events...</div>
-    <div v-else-if="filteredEvents.length === 0" class="no-events">No events found.</div>
+
+    <div v-else-if="filteredEvents.length === 0" class="no-events">
+      No events found.
+    </div>
+
     <div v-else class="events-grid">
       <EventCard
         v-for="event in filteredEvents"
         :key="event.id"
         :event="event"
         :currentUserId="userStore.userProfile?.uid"
-        @open-card="$emit('open-card', event)"
+        @click="$emit('open-card', event)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import Fuse from 'fuse.js';
 import { useRoute } from 'vue-router';
 import EventCard from './EventCard.vue';
-import { getPhraseVec } from './models/embedding_distance';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import type { Event } from '../types/event';
@@ -27,9 +30,7 @@ import type { Event } from '../types/event';
 const props = defineProps<{
   category?: string;
   search?: string;
-  sort?: string;
-  limit?: number;
-  recommendationMode?: 'default' | 'latest' | 'personalized';
+  sort?: 'newest' | 'oldest';
 }>();
 
 defineEmits<{
@@ -37,102 +38,45 @@ defineEmits<{
 }>();
 
 const eventStore = useEventStore();
-const route = useRoute();
 const userStore = useUserStore();
+const route = useRoute();
 
 const filteredEvents = ref<Event[]>([]);
 const isLoading = ref(true);
 
-function toDate(value: unknown): Date {
-  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate();
-  }
+/* ---------------- helpers ---------------- */
 
-  return new Date(value as string | number | Date);
+function toDate(val: any): Date {
+  return val?.toDate ? val.toDate() : new Date(val);
 }
 
-function sortEventsByStartTimeAsc(events: Event[]): Event[] {
-  return events.slice().sort((a, b) => toDate(a.startTime).getTime() - toDate(b.startTime).getTime());
+function isRecurring(event: Event): boolean {
+  return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
-function sortEventsByStartTimeDesc(events: Event[]): Event[] {
-  return events.slice().sort((a, b) => toDate(b.startTime).getTime() - toDate(a.startTime).getTime());
-}
+/* ---------------- sorting ---------------- */
 
-function cosineSimilarity(vecA: Float32Array, vecB: Float32Array): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
+function sortEvents(events: Event[]): Event[] {
+  const normal = events.filter(e => !isRecurring(e));
+  const recurring = events.filter(e => isRecurring(e));
 
-  for (let index = 0; index < vecA.length; index += 1) {
-    dot += vecA[index] * vecB[index];
-    normA += vecA[index] ** 2;
-    normB += vecB[index] ** 2;
-  }
+  normal.sort((a, b) => {
+    const tA = toDate(a.startTime).getTime();
+    const tB = toDate(b.startTime).getTime();
 
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-async function sortEventsByUserInterest(events: Event[]): Promise<Event[]> {
-  const userSignals = [
-    ...(userStore.userProfile?.tags ?? []),
-    ...(userStore.userProfile?.goals ?? []),
-  ].map(signal => signal.toLowerCase());
-
-  if (!userSignals.length) {
-    return sortEventsByStartTimeAsc(events);
-  }
-
-  const userSignalEmbeddings = await Promise.all(userSignals.map(signal => getPhraseVec(signal)));
-
-  const scoredEvents = await Promise.all(
-    events.map(async (event) => {
-      const eventTags = (event.tags ?? []).map(tag => tag.toLowerCase());
-
-      if (!eventTags.length) {
-        return {
-          event,
-          score: -1,
-        };
-      }
-
-      const eventTagEmbeddings = await Promise.all(eventTags.map(tag => getPhraseVec(tag)));
-      let bestScore = -1;
-
-      for (const eventVector of eventTagEmbeddings) {
-        for (const userVector of userSignalEmbeddings) {
-          bestScore = Math.max(bestScore, cosineSimilarity(eventVector, userVector));
-        }
-      }
-
-      return {
-        event,
-        score: bestScore,
-      };
-    }),
-  );
-
-  scoredEvents.sort((left, right) => {
-    if (right.score !== left.score) {
-      return right.score - left.score;
-    }
-
-    return toDate(left.event.startTime).getTime() - toDate(right.event.startTime).getTime();
+    return props.sort === 'oldest'
+      ? tA - tB
+      : tB - tA;
   });
 
-  return scoredEvents.map(({ event }) => event);
+  return [...normal, ...recurring];
 }
 
-function getVisibleEvents(events: Event[]): Event[] {
-  const now = new Date();
-  const pastCutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-  return events.filter((event) => toDate(event.endtime).getTime() > pastCutoff.getTime());
-}
+/* ---------------- search ---------------- */
 
 function applySearch(events: Event[]): Event[] {
-  const queryText = (props.search || (route.query.q as string) || '').trim();
-  if (!queryText) return events;
+  const q = (props.search || (route.query.q as string) || '').trim();
+  if (!q) return events;
 
   const fuse = new Fuse(events, {
     keys: [
@@ -143,78 +87,56 @@ function applySearch(events: Event[]): Event[] {
       { name: 'location', weight: 0.8 },
     ],
     threshold: 0.3,
-    distance: 80,
     ignoreLocation: true,
-    minMatchCharLength: 2,
-    includeScore: true,
-    shouldSort: true,
   });
 
-  return fuse.search(queryText).map(result => result.item);
+  return fuse.search(q).map(r => r.item);
 }
 
-function getRecommendationMode(): 'default' | 'latest' | 'personalized' {
-  if (props.recommendationMode) {
-    return props.recommendationMode;
-  }
+/* ---------------- core pipeline ---------------- */
 
-  if (props.sort === 'recommended' && userStore.isLoggedIn && userStore.profileIsComplete) {
-    return 'personalized';
-  }
-
-  return 'default';
-}
-
-async function refreshEvents(): Promise<void> {
+async function refreshEvents() {
   isLoading.value = true;
 
-  let events = props.category
-    ? eventStore.events.filter(event => event.category.toUpperCase() === props.category?.toUpperCase())
-    : eventStore.events.slice();
+  // DEBUG: THIS IS WHERE YOUR "ONLY 4 EVENTS" ISSUE SHOWS UP
+  console.log('[DEBUG] store events:', eventStore.events.length);
 
-  events = getVisibleEvents(events);
+  let events: Event[] = props.category
+    ? eventStore.events.filter(e =>
+        e.category.toUpperCase() === props.category?.toUpperCase()
+      )
+    : [...eventStore.events];
+
+  console.log('[DEBUG] after category filter:', events.length);
+
+  // NO HARD LIMIT, NO SLICING, NO LOSS OF DATA
   events = applySearch(events);
-
-  const recommendationMode = getRecommendationMode();
-
-  if (recommendationMode === 'latest') {
-    events = sortEventsByStartTimeAsc(events);
-  } else if (recommendationMode === 'personalized') {
-    // Keep recommendation ordering inside the list so pages only choose the mode they need.
-    events = await sortEventsByUserInterest(events);
-  } else if (props.sort === 'farthest') {
-    events = sortEventsByStartTimeDesc(events);
-  } else {
-    events = sortEventsByStartTimeAsc(events);
-  }
-
-  if (props.limit) {
-    events = events.slice(0, props.limit);
-  }
+  events = sortEvents(events);
 
   filteredEvents.value = events;
+
+  console.log('[DEBUG] final rendered events:', filteredEvents.value.length);
+
   isLoading.value = false;
 }
+
+/* ---------------- watchers ---------------- */
 
 watch(
   [
     () => props.category,
-    () => props.limit,
-    () => props.recommendationMode,
     () => props.search,
     () => props.sort,
     () => route.query.q,
     () => eventStore.events.length,
-    () => userStore.isLoggedIn,
-    () => userStore.profileIsComplete,
-    () => (userStore.userProfile?.tags ?? []).join('|'),
-    () => (userStore.userProfile?.goals ?? []).join('|'),
   ],
   () => {
     void refreshEvents();
   },
-  { immediate: true },
+  { immediate: true }
 );
+
+/* ---------------- init ---------------- */
 
 onMounted(async () => {
   if (eventStore.events.length === 0) {
@@ -236,22 +158,11 @@ onMounted(async () => {
   text-align: center;
   padding: var(--spacing-3xl);
   color: var(--color-gray-600);
-  font-size: var(--font-size-lg);
 }
 
 .events-grid {
   display: flex;
   flex-direction: column;
   width: 100%;
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-@media (max-width: 576px) {
-  .events-grid {
-    padding: 0;
-    margin: 0;
-  }
 }
 </style>
