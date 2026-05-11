@@ -41,7 +41,7 @@ const router = useRouter();
 
 const categoryFilter = ref('');
 const searchQuery = ref('');
-const sortType = ref('recommended'); // 默认为推荐排序
+const sortType = ref<'newest' | 'oldest'>('newest');
 const isUpdatingFromUrl = ref(false); // 标记是否正在从 URL 更新
 
 // 监听路由查询参数变化
