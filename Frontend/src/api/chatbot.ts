@@ -2,7 +2,7 @@ import type { ChatbotRequest, ChatbotResponse, ChatEventCitation } from '../type
 
 // MVP only!!!
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
-const FALLBACK_MODEL = 'gemini-2.0-flash';
+const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 function getApiKey(): string {
   return import.meta.env.VITE_GEMINI_API_KEY || '';
