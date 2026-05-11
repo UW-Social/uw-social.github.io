@@ -129,11 +129,140 @@ function formatDate(date: any): string {
     // Final sanity check
     if (isNaN(d.getTime())) throw new Error("Invalid date object");
 
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   } catch (err) {
     console.warn("formatDate failed:", date, err);
     return 'Invalid date';
   }
+}
+
+function toDateValue(date: any): Date | null {
+  if (!date) return null;
+
+  if (typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+
+  if (typeof date.seconds === 'number') {
+    return new Date(date.seconds * 1000);
+  }
+
+  const parsed = date instanceof Date ? date : new Date(date);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CARD_WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function formatTimeOfDay(time: string): string {
+  const [rawHours, rawMinutes = '00'] = time.split(':');
+  const hours = Number(rawHours);
+  const minutes = Number(rawMinutes);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return time;
+
+  const suffix = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')}${suffix}`;
+}
+
+function formatCardTime(date: Date, hasTime?: boolean): string {
+  if (hasTime === false) return '';
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+
+  if (hasTime === undefined && hours === 0 && minutes === 0) return '';
+  return formatTimeOfDay(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+}
+
+function joinCompactDateAndTime(date: Date, time: string): string {
+  const dateText = formatDate(date);
+  return time ? `${dateText} ${time}` : dateText;
+}
+
+function formatTimeRange(startTime?: string, endTime?: string): string {
+  if (startTime && endTime) return `${startTime} - ${endTime}`;
+  if (startTime) return `from ${startTime}`;
+  if (endTime) return `until ${endTime}`;
+  return 'time TBD';
+}
+
+function formatScheduleLines(lines: Array<[string, string]>): string {
+  return lines
+    .filter(([, value]) => Boolean(value))
+    .map(([label, value]) => `${label}: ${value}`)
+    .join('\n');
+}
+
+function formatOrdinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function formatRecurringSchedule(event: Event): string {
+  const schedule = event.schedule;
+  if (!schedule || schedule.type === RecurrenceType.ONE_TIME) {
+    return 'Schedule TBD';
+  }
+
+  const startDate = toDateValue(schedule.startDate);
+  const endDate = toDateValue(schedule.endDate);
+  const startText = startDate ? formatDate(startDate) : 'TBD';
+  const endText = endDate ? formatDate(endDate) : 'Ongoing';
+  const timeRange = formatTimeRange(schedule.startTimeOfDay, schedule.endTimeOfDay);
+
+  if (schedule.type === RecurrenceType.DAILY) {
+    return formatScheduleLines([
+      ['Start Date', startText],
+      ['End Date', endText],
+      ['Repeats', 'Every day'],
+      ['Time', timeRange],
+    ]);
+  }
+
+  if (schedule.type === RecurrenceType.WEEKLY) {
+    const days = Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0
+      ? schedule.daysOfWeek
+          .map((day) => WEEKDAY_LABELS[Number(day)])
+          .filter(Boolean)
+          .join(', ')
+      : 'selected days';
+
+    return formatScheduleLines([
+      ['Start Date', startText],
+      ['End Date', endText],
+      ['Repeats', days],
+      ['Time', timeRange],
+    ]);
+  }
+
+  const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
+    ? schedule.daysOfMonth
+        .map(Number)
+        .filter((day) => day >= 1 && day <= 31)
+        .sort((a, b) => a - b)
+        .map(formatOrdinalDay)
+        .join(', ')
+    : 'selected dates';
+
+  return formatScheduleLines([
+    ['Start Date', startText],
+    ['End Date', endText],
+    ['Repeats', `Monthly on ${days}`],
+    ['Time', timeRange],
+  ]);
 }
 
 
@@ -147,8 +276,8 @@ export function formatEventSchedule(event: Event): string {
   const safeFormatDate = (d: any): string => {
     if (!d) return 'Unknown';
     try {
-      const date = d.toDate?.() ?? new Date(d);
-      return isNaN(date.getTime()) ? 'Invalid date' : formatDate(date);
+      const date = toDateValue(d);
+      return !date ? 'Invalid date' : formatDate(date);
     } catch (err) {
       console.warn("Bad date passed to formatDate:", d, err);
       return 'Invalid date';
@@ -156,7 +285,7 @@ export function formatEventSchedule(event: Event): string {
   };
 
   const pad = (n: number) => n.toString().padStart(2, '0');
-  const getDate = (d: any) => (d && typeof d.toDate === 'function') ? d.toDate() : new Date(d);
+  const getDate = (d: any) => toDateValue(d) ?? new Date(NaN);
   const formatTime = (t?: string | Date, hasTime?: boolean) => {
     if (!t) return '';
     if (typeof t === 'string') return t;
@@ -181,9 +310,6 @@ export function formatEventSchedule(event: Event): string {
 
   switch (schedule.type) {
     case RecurrenceType.ONE_TIME: {
-      // Always use .toDate() if available
-      const getDate = (d: any) => (d && typeof d.toDate === 'function') ? d.toDate() : new Date(d);
-
       const start = getDate(schedule.startDatetime);
       const end = getDate(schedule.endDatetime);
 
@@ -206,51 +332,61 @@ export function formatEventSchedule(event: Event): string {
     }
 
     case RecurrenceType.DAILY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
     }
 
     case RecurrenceType.WEEKLY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
     }
 
     case RecurrenceType.MONTHLY: {
-      const startDate = getDate(schedule.startDate);
-      const dateStr = safeFormatDate(startDate);
-
-      if (schedule.startTimeOfDay && schedule.endTimeOfDay) {
-        return `${dateStr} ${schedule.startTimeOfDay} - ${schedule.endTimeOfDay}`;
-      } else if (schedule.startTimeOfDay) {
-        return `${dateStr} from ${schedule.startTimeOfDay}`;
-      } else if (schedule.endTimeOfDay) {
-        return `${dateStr} until ${schedule.endTimeOfDay}`;
-      } else {
-        return `${dateStr}, time TBD`;
-      }
+      return formatRecurringSchedule(event);
    }
 
     default:
       throw new Error(`Unknown recurrence type: ${(schedule as any).type}`);
   }
+}
+
+export function formatEventCardSchedule(event: Event): string {
+  const schedule = event.schedule;
+
+  if (!schedule) {
+    const start = toDateValue(event.startTime);
+    if (!start) return 'Schedule TBD';
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+  }
+
+  if (schedule.type === RecurrenceType.ONE_TIME) {
+    const start = toDateValue(schedule.startDatetime);
+    if (!start) return 'Schedule TBD';
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+  }
+
+  const startTime = schedule.startTimeOfDay ? formatTimeOfDay(schedule.startTimeOfDay) : '';
+  let recurrenceText = '';
+
+  if (schedule.type === RecurrenceType.DAILY) {
+    recurrenceText = 'Everyday';
+  } else if (schedule.type === RecurrenceType.WEEKLY) {
+    const days = Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0
+      ? schedule.daysOfWeek
+          .map((day) => CARD_WEEKDAY_LABELS[Number(day)])
+          .filter(Boolean)
+          .join(', ')
+      : '';
+    recurrenceText = days ? `Every ${days}` : 'Every week';
+  } else if (schedule.type === RecurrenceType.MONTHLY) {
+    const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
+      ? schedule.daysOfMonth
+          .map(Number)
+          .filter((day) => day >= 1 && day <= 31)
+          .sort((a, b) => a - b)
+          .map(formatOrdinalDay)
+          .join(', ')
+      : '';
+    recurrenceText = days ? `Monthly on ${days}` : 'Every month';
+  }
+
+  return startTime ? `${recurrenceText} ${startTime}` : recurrenceText || 'Schedule TBD';
 }

@@ -1,4 +1,4 @@
-z<template>
+<template>
   <div class="event-detail-page">
     <!-- Back Button -->
     <button @click="goBack" class="back-button shadow-premium">
@@ -20,7 +20,38 @@ z<template>
 
         <div class="event-info-card">
           <div class="event-info-header">
-            <h1 class="event-title">{{ event.title }}</h1>
+            <div class="event-title-row">
+              <h1 class="event-title">{{ event.title }}</h1>
+              <div class="action-buttons" style="display: flex; gap: 0.5rem; align-items: center;">
+                <button
+                  class="save-event-button download-ics-button"
+                  type="button"
+                  @click="downloadIcs(event)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                    <path d="M12 12v6"></path>
+                    <path d="M9 15l3 3 3-3"></path>
+                  </svg>
+                  <span>Download .ics</span>
+                </button>
+                <button
+                  class="save-event-button"
+                  type="button"
+                  :class="{ saved: isSavedEvent }"
+                  :disabled="isSavingEvent"
+                  @click="toggleSavedEvent"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span>{{ isSavedEvent ? 'Saved' : 'Save event' }}</span>
+                </button>
+              </div>
+            </div>
             <p v-if="descriptionSummary" class="event-summary">{{ descriptionSummary }}</p>
           </div>
 
@@ -62,50 +93,94 @@ z<template>
         </div>
       </div>
 
-      <!-- Description and Forum -->
+      <!-- Description and Social Sections -->
       <div class="content-section">
         <div class="description-card">
           <h2 class="section-title">About this event</h2>
           <p class="event-description" v-html="formatDescription(event.description || '')"></p>
         </div>
 
-        <!-- Event Forum -->
-        <div class="forum-card">
+        <!-- Experience Sharing -->
+        <div id="forum-section" ref="experienceSectionRef" class="forum-card experience-section">
           <div class="forum-header">
-            <h2 class="section-title">Forum</h2>
-            <span class="forum-count">{{ posts.length }} posts</span>
+            <div>
+              <h2 class="section-title">Experience Sharing</h2>
+              <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
+            </div>
+            <span class="forum-count">{{ experiencePosts.length }} posts</span>
           </div>
 
-          <div class="forum-input">
-            <textarea
-              v-model="newPost"
-              class="forum-textarea"
-              rows="3"
-              :placeholder="userStore.isLoggedIn ? 'Share your thoughts...' : 'Log in to post...'"
-              :disabled="!userStore.isLoggedIn || isPosting"
-            ></textarea>
-            <button
-              class="forum-submit"
-              :disabled="!canSubmitPost"
-              @click="submitPost"
-            >
-              Post
-            </button>
+          <ReplyInput
+            :is-logged-in="userStore.isLoggedIn"
+            :loading="isPostingExperience"
+            :rows="6"
+            placeholder="Share a longer review, recap, or experience from this event..."
+            submit-label="Share Experience"
+            login-heading="Log in to share your experience"
+            login-text="Log in to share your experience."
+            login-button-label="Log in"
+            @submit="submitExperiencePost"
+            @login="goToLogin"
+          />
+
+          <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
+
+          <div v-if="experiencePosts.length === 0" class="forum-empty">
+            No experiences yet. Share the first recap or review.
           </div>
+
+          <div v-else class="forum-list">
+            <ExperiencePostCard
+              v-for="post in experiencePosts"
+              :key="post.id"
+              :post="post"
+              :is-logged-in="userStore.isLoggedIn"
+              :compact="true"
+              :on-login="goToLogin"
+              :on-toggle-like="toggleExperienceLike"
+            />
+          </div>
+        </div>
+
+        <!-- Comments -->
+        <div id="comments-section" ref="commentsSectionRef" class="forum-card">
+          <div class="forum-header">
+            <h2 class="section-title">Comments</h2>
+            <span class="forum-count">{{ posts.length }} comments</span>
+          </div>
+
+          <ReplyInput
+            :is-logged-in="userStore.isLoggedIn"
+            :loading="isPosting"
+            placeholder="Add a quick comment..."
+            submit-label="Comment"
+            login-heading="Log in to join the conversation"
+            login-text="Log in to join the conversation."
+            login-button-label="Log in"
+            @submit="submitPost"
+            @login="goToLogin"
+          />
 
           <p v-if="postError" class="forum-error">{{ postError }}</p>
 
           <div v-if="posts.length === 0" class="forum-empty">
-            No posts yet. Be the first to post!
+            No comments yet. Be the first to comment!
           </div>
 
           <div v-else class="forum-list">
-            <div v-for="post in posts" :key="post.id" class="forum-item">
-              <div class="forum-item-header">
-                <span class="forum-email">{{ post.userEmail || 'Unknown' }}</span>
-              </div>
-              <p class="forum-text">{{ post.text }}</p>
-            </div>
+            <ForumPostCard
+              v-for="post in posts"
+              :key="post.id"
+              :post="post"
+              :is-logged-in="userStore.isLoggedIn"
+              :compact="true"
+              tag-label="Comment"
+              :highlighted="highlightedPostId === post.id"
+              :on-login="goToLogin"
+              :on-toggle-post-like="togglePostLike"
+              :on-toggle-reply-like="toggleReplyLike"
+              :on-submit-reply="submitReply"
+            />
           </div>
         </div>
       </div>
@@ -126,9 +201,22 @@ import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule, type Event } from '../types/event';
+import type { DiscussionPost, ExperiencePost } from '../types/forum';
+import ExperiencePostCard from '../components/ExperiencePostCard.vue';
+import ForumPostCard from '../components/ForumPostCard.vue';
+import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { downloadIcs } from '../utils/icsUtils';
+import {
+  createDiscussionReply,
+  createEventDiscussionPost,
+  createEventExperiencePost,
+  subscribeToEventDiscussionPosts,
+  subscribeToEventExperiencePosts,
+  toggleDiscussionPostLike,
+  toggleDiscussionReplyLike,
+  toggleExperiencePostLike,
+} from '../api/forums';
 
 const route = useRoute();
 const router = useRouter();
@@ -138,11 +226,26 @@ const userStore = useUserStore();
 const eventId = computed(() => route.params.id as string);
 const event = ref<Event | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
-const posts = ref<Array<{ id: string; text: string; userEmail?: string | null }>>([]);
-const newPost = ref('');
+const commentsSectionRef = ref<HTMLElement | null>(null);
+const experienceSectionRef = ref<HTMLElement | null>(null);
+const posts = ref<DiscussionPost[]>([]);
+const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
+const isPostingExperience = ref(false);
+const isSavingEvent = ref(false);
 const postError = ref('');
+const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+let unsubscribeExperiencePosts: (() => void) | null = null;
+const highlightedPostId = computed(() => {
+  const postId = route.query.postId;
+  return typeof postId === 'string' ? postId : '';
+});
+
+const isSavedEvent = computed(() => {
+  if (!event.value?.id) return false;
+  return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
+});
 
 const descriptionSummary = computed(() => {
   const raw = event.value?.description?.trim();
@@ -152,8 +255,26 @@ const descriptionSummary = computed(() => {
   return (firstLine ?? plain).trim();
 });
 
+const returnTo = computed(() => {
+  const target = route.query.returnTo;
+  if (typeof target !== 'string') return '/events';
+  if (!target.startsWith('/') || target.startsWith('//')) return '/events';
+  return target;
+});
+
 const goBack = () => {
-  router.push('/events');
+  router.push(returnTo.value);
+
+};
+
+const goToLogin = () => {
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      prompt: 'Please log in to join the event conversation.'
+    }
+  });
 };
 
 const formatDescription = (desc: string) => {
@@ -162,14 +283,12 @@ const formatDescription = (desc: string) => {
 };
 
 const loadEventData = async () => {
-  // Load events if not already loaded
   if (eventStore.events.length === 0) {
     await eventStore.fetchEvents();
   }
 
   event.value = eventStore.events.find(e => e.id === eventId.value) || null;
 
-  // Initialize map
   await nextTick();
   initMap();
 };
@@ -181,15 +300,11 @@ const subscribePosts = (id: string) => {
     unsubscribePosts = null;
   }
 
-  const postsRef = collection(db, 'events', id, 'posts');
-  const postsQuery = query(postsRef, orderBy('createdAt', 'desc'));
-  unsubscribePosts = onSnapshot(
-    postsQuery,
-    (snapshot) => {
-      posts.value = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as { text: string; userEmail?: string | null }),
-      }));
+  unsubscribePosts = subscribeToEventDiscussionPosts(
+    id,
+    userStore.userProfile?.uid,
+    (nextPosts) => {
+      posts.value = nextPosts;
     },
     (error) => {
       console.error('Failed to load posts:', error);
@@ -198,30 +313,42 @@ const subscribePosts = (id: string) => {
   );
 };
 
-const canSubmitPost = computed(() => {
-  return userStore.isLoggedIn && !isPosting.value && newPost.value.trim().length > 0;
-});
-
-const submitPost = async () => {
-  if (!userStore.isLoggedIn || !userStore.userProfile?.email) {
-    alert('Please log in to post.');
-    return;
+const subscribeExperiencePosts = (id: string) => {
+  if (!id) return;
+  if (unsubscribeExperiencePosts) {
+    unsubscribeExperiencePosts();
+    unsubscribeExperiencePosts = null;
   }
 
-  const text = newPost.value.trim();
-  if (!text || !eventId.value) return;
+  unsubscribeExperiencePosts = subscribeToEventExperiencePosts(
+    id,
+    userStore.userProfile?.uid,
+    (nextPosts) => {
+      experiencePosts.value = nextPosts;
+    },
+    (error) => {
+      console.error('Failed to load experience posts:', error);
+      experienceError.value = 'Failed to load experience posts.';
+    }
+  );
+};
+
+const submitPost = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value) return;
 
   isPosting.value = true;
   postError.value = '';
 
   try {
-    await addDoc(collection(db, 'events', eventId.value, 'posts'), {
-      text,
-      userId: userStore.userProfile.uid,
-      userEmail: userStore.userProfile.email,
-      createdAt: serverTimestamp(),
-    });
-    newPost.value = '';
+    await createEventDiscussionPost(
+      eventId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
   } catch (error) {
     console.error('Failed to post message:', error);
     postError.value = 'Failed to post. Please try again.';
@@ -230,6 +357,91 @@ const submitPost = async () => {
   }
 };
 
+const submitExperiencePost = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value) return;
+
+  isPostingExperience.value = true;
+  experienceError.value = '';
+
+  try {
+    await createEventExperiencePost(
+      eventId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+  } catch (error) {
+    console.error('Failed to post experience:', error);
+    experienceError.value = 'Failed to share experience. Please try again.';
+  } finally {
+    isPostingExperience.value = false;
+  }
+};
+
+
+const submitReply = async (postId: string, text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value) return;
+
+  try {
+    await createDiscussionReply(
+      eventId.value,
+      postId,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+    subscribePosts(eventId.value);
+  } catch (error) {
+    console.error('Failed to post reply:', error);
+    postError.value = 'Failed to post reply. Please try again.';
+  }
+};
+
+const togglePostLike = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  try {
+    await toggleDiscussionPostLike(eventId.value, postId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle post like:', error);
+  }
+};
+
+const toggleReplyLike = async (postId: string, replyId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  try {
+    await toggleDiscussionReplyLike(eventId.value, postId, replyId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle reply like:', error);
+  }
+};
+
+const toggleExperienceLike = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  try {
+    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle experience like:', error);
+  }
+};
+
+const scrollToForum = async () => {
+  if (!route.query.postId && route.query.section !== 'forum' && route.query.section !== 'comments') return;
+  await nextTick();
+  if (route.query.section === 'comments') {
+    commentsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  experienceSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 const initMap = async () => {
   const el = mapContainer.value;
@@ -264,14 +476,30 @@ const initMap = async () => {
 
 onMounted(() => {
   loadEventData();
+  scrollToForum();
 });
 
 watch(eventId, (id) => {
-  if (id) subscribePosts(id);
+  if (id) {
+    subscribePosts(id);
+    subscribeExperiencePosts(id);
+  }
 }, { immediate: true });
+
+watch(() => userStore.userProfile?.uid, () => {
+  if (eventId.value) {
+    subscribePosts(eventId.value);
+    subscribeExperiencePosts(eventId.value);
+  }
+});
+
+watch(() => route.query, () => {
+  scrollToForum();
+});
 
 onBeforeUnmount(() => {
   if (unsubscribePosts) unsubscribePosts();
+  if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
 </script>
 
@@ -348,44 +576,6 @@ onBeforeUnmount(() => {
   color: var(--color-gray-500);
 }
 
-.forum-input {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: flex-start;
-  margin-bottom: var(--spacing-lg);
-}
-
-.forum-textarea {
-  flex: 1;
-  resize: vertical;
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  font-size: var(--font-size-md);
-  background: var(--color-gray-50);
-}
-
-.forum-textarea:disabled {
-  background: var(--color-gray-100);
-  color: var(--color-gray-500);
-}
-
-.forum-submit {
-  background: var(--color-gray-900);
-  color: var(--color-white);
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 0.75rem 1.25rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.forum-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .forum-error {
   color: #c0392b;
   margin-bottom: var(--spacing-md);
@@ -400,31 +590,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-}
-
-.forum-item {
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  background: var(--color-gray-50);
-}
-
-.forum-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-xs);
-}
-
-.forum-email {
-  font-size: var(--font-size-sm);
-  color: var(--color-gray-700);
-  font-weight: 600;
-}
-
-.forum-text {
-  margin: 0;
-  color: var(--color-gray-800);
 }
 
 .event-header-section {
@@ -484,11 +649,56 @@ onBeforeUnmount(() => {
   gap: var(--spacing-md);
 }
 
+.event-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+}
+
 .event-title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-gray-900);
   margin: 0;
+}
+
+.save-event-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.save-event-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.save-event-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.save-event-button.saved {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: var(--color-white);
+  border-color: transparent;
+  box-shadow: 0 14px 30px rgba(99, 102, 241, 0.22);
+}
+
+.save-event-button svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .event-summary {
@@ -522,6 +732,7 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-base);
   color: var(--color-gray-900);
   line-height: var(--line-height-normal);
+  white-space: pre-line;
 }
 
 .event-tags {
@@ -579,6 +790,17 @@ onBeforeUnmount(() => {
   font-weight: var(--font-weight-bold);
   color: var(--color-gray-900);
   margin: 0 0 var(--spacing-lg) 0;
+}
+
+.forum-header .section-title {
+  margin-bottom: 0;
+}
+
+.section-helper {
+  margin: var(--spacing-xs) 0 0;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .event-description {

@@ -27,6 +27,13 @@ const routes = [
     path: '/profile/edit',
     name: 'EditProfile',
     component: () => import('@/components/EditProfile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/views/Onboarding.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/events',
@@ -41,11 +48,37 @@ const routes = [
     component: () => import('@/views/Forum.vue')
   },
   {
+    path: '/forum/new',
+    name: 'ForumNewPost',
+    component: () => import('@/views/ForumNewPost.vue')
+  },
+  {
+    path: '/events/:id/edit',
+    name: 'EditEvent',
+    component: () => import('@/views/EditEvent.vue'),
+    meta: {
+      requiresAuth: true,
+      authPrompt: 'Please log in to edit your event.'
+    },
+    props: true
+  },
+  {
     path: '/events/:id',
     name: 'EventDetail',
     component: isMobile()
       ? () => import('@/components/mobile/MobileEventDetail.vue')
       : () => import('@/views/EventDetail.vue'),
+    props: true
+  },
+  {
+    path: '/forums',
+    name: 'Forums',
+    component: () => import('@/views/Forums.vue')
+  },
+  {
+    path: '/forums/:id',
+    name: 'ForumDetail',
+    component: () => import('@/views/ForumDetail.vue'),
     props: true
   },
   {
