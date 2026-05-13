@@ -54,6 +54,21 @@ function isRecurring(event: Event): boolean {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
+/* ---------------- NEW: filter past events ---------------- */
+
+function filterPastEvents(events: Event[]): Event[] {
+  const now = new Date();
+
+  return events.filter(event => {
+    // Always keep recurring events
+    if (isRecurring(event)) return true;
+
+    // Only keep one-time events that are in the future
+    const start = toDate(event.startTime);
+    return start >= now;
+  });
+}
+
 /* ---------------- sorting ---------------- */
 
 function sortEvents(events: Event[]): Event[] {
@@ -98,24 +113,22 @@ function applySearch(events: Event[]): Event[] {
 async function refreshEvents() {
   isLoading.value = true;
 
-  // DEBUG: THIS IS WHERE YOUR "ONLY 4 EVENTS" ISSUE SHOWS UP
-  console.log('[DEBUG] store events:', eventStore.events.length);
-
   let events: Event[] = props.category
     ? eventStore.events.filter(e =>
         e.category.toUpperCase() === props.category?.toUpperCase()
       )
     : [...eventStore.events];
 
-  console.log('[DEBUG] after category filter:', events.length);
+  // 1. remove past one-time events (IMPORTANT FIX)
+  events = filterPastEvents(events);
 
-  // NO HARD LIMIT, NO SLICING, NO LOSS OF DATA
+  // 2. search
   events = applySearch(events);
+
+  // 3. sort
   events = sortEvents(events);
 
   filteredEvents.value = events;
-
-  console.log('[DEBUG] final rendered events:', filteredEvents.value.length);
 
   isLoading.value = false;
 }
