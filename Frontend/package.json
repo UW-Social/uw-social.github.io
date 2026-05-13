@@ -10,6 +10,7 @@
     "migrate:forums": "node --env-file=.env.local ./scripts/migrate-forums.mjs"
   },
   "dependencies": {
+    "@google/genai": "^2.2.0",
     "@googlemaps/js-api-loader": "^2.0.1",
     "@huggingface/transformers": "^3.7.2",
     "@vueuse/core": "^10.7.0",
