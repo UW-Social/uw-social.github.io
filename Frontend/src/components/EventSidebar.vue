@@ -124,4 +124,35 @@ const handleSortChange = () => {
   font-size: 0.95rem;
   cursor: pointer;
 }
+
+@media (max-width: 768px) {
+  .event-sidebar {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--spacing-md);
+    flex-direction: row;
+    align-items: flex-end;
+    gap: var(--spacing-md);
+  }
+
+  .sidebar-search {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+
+  .sidebar-sort {
+    flex: 0 0 136px;
+  }
+}
+
+@media (max-width: 480px) {
+  .event-sidebar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sidebar-sort {
+    flex: none;
+  }
+}
 </style>

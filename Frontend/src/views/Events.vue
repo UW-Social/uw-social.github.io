@@ -119,10 +119,18 @@ const handleEventClick = (event: Event) => {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .overlapping-page {
+    padding-top: 0;
+  }
+
+  .events-page-with-search {
+    flex-direction: column;
+  }
+
   .events-main-content {
     margin-left: 0;
     width: 100%;
-    padding: var(--spacing-md);
+    padding: 0 var(--spacing-md) var(--spacing-xl);
   }
 }
 </style>
