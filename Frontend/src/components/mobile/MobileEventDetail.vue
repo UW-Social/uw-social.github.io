@@ -1,66 +1,85 @@
 <template>
   <div class="mobile-event-detail">
-    <!-- Event Header -->
-    <div class="event-header">
-      <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <button
-        class="bookmark-button"
-        type="button"
-        :class="{ saved: isSavedEvent }"
-        :disabled="isSavingEvent"
-        @click="toggleSavedEvent"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
-        </svg>
-      </button>
-    </div>
-
-    <!-- Event Info Bento Layout -->
-    <div class="bento-container">
-      <!-- Left: Event Image -->
-      <div class="bento-image">
-        <img 
-          :src="event?.imageUrl || '/images/wavingdog.jpg'" 
-          :alt="event?.title"
-          class="event-image"
+    <!-- Event Header Section -->
+    <div class="event-hero-card">
+      <div class="event-hero-image-wrap">
+        <img
+          :src="event?.imageUrl || '/images/wavingdog.jpg'"
+          :alt="event?.title || 'Event image'"
+          class="event-hero-image"
           @error="handleImageError"
-        />
+        >
+        <div class="event-badges">
+          <span class="category-badge">{{ primaryBadge }}</span>
+          <span v-if="secondaryBadge" class="tag-badge">#{{ secondaryBadge }}</span>
+        </div>
       </div>
 
-      <!-- Right: Event Details -->
-      <div class="bento-details">
-        <!-- Time -->
-        <div class="detail-item">
-          <div class="detail-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12,6 12,12 16,14"></polyline>
-            </svg>
+      <div class="event-hero-info">
+        <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
+        <p class="event-summary">{{ eventSummary }}</p>
+
+        <div class="logistics-grid">
+          <div class="logistic-card">
+            <div class="logistic-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="logistic-copy">
+              <p class="logistic-label">When</p>
+              <p class="logistic-primary">{{ schedulePrimary }}</p>
+              <p class="logistic-secondary">{{ scheduleSecondary }}</p>
+            </div>
           </div>
-          <span class="detail-text">{{ formattedTime }}</span>
+
+          <div class="logistic-card">
+            <div class="logistic-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+            </div>
+            <div class="logistic-copy">
+              <p class="logistic-label">Where</p>
+              <p class="logistic-primary">{{ locationPrimary }}</p>
+              <p class="logistic-secondary">{{ locationSecondary }}</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Location -->
-        <div class="detail-item">
-          <div class="detail-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </div>
-          <span class="detail-text">{{ event?.location || 'Location TBD' }}</span>
-        </div>
-
-        <!-- Tags -->
-        <div class="tags-section">
-          <span 
-            v-for="tag in displayTags" 
-            :key="tag" 
-            class="tag"
+        <div class="event-actions">
+          <button
+            class="register-button"
+            type="button"
+            :disabled="!event?.link"
+            @click="openRegistration"
           >
-            #{{ tag }}
-          </span>
+            Register Now
+          </button>
+          <button class="download-button" type="button" aria-label="Download event details">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14,2 14,8 20,8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <polyline points="9,15 12,18 15,15"></polyline>
+            </svg>
+          </button>
+          <button
+            class="save-button"
+            type="button"
+            :class="{ saved: isSavedEvent }"
+            :disabled="isSavingEvent"
+            @click="toggleSavedEvent"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+            </svg>
+            {{ isSavedEvent ? 'Saved' : 'Save' }}
+          </button>
         </div>
       </div>
     </div>
@@ -241,6 +260,20 @@ const isSavedEvent = computed(() => {
   return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
 });
 
+const primaryBadge = computed(() => event.value?.category?.trim() || 'Academic');
+
+const secondaryBadge = computed(() => {
+  const tags = event.value?.tags ?? [];
+  return tags.find((tag) => tag && tag.trim())?.trim() || '';
+});
+
+const eventSummary = computed(() => {
+  const description = event.value?.description?.trim();
+  if (!description) return 'Witness the convergence of cutting-edge technology and visionary minds.';
+  const firstLine = description.split(/\n+/).find(Boolean) || description;
+  return firstLine.length > 108 ? `${firstLine.slice(0, 105).trim()}...` : firstLine;
+});
+
 // Load event data when component mounts
 onMounted(async () => {
   try {
@@ -344,6 +377,88 @@ const formattedTime = computed(() => {
     });
   }
 });
+
+const scheduleDetails = computed(() => {
+  const fallback = formattedTime.value || 'Schedule TBD';
+  const lines = fallback.split('\n').map((line) => line.trim()).filter(Boolean);
+  const getValue = (label: string) => {
+    const match = lines.find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`));
+    return match ? match.split(':').slice(1).join(':').trim() : '';
+  };
+
+  const startDate = getValue('Start Date');
+  const endDate = getValue('End Date');
+  const time = getValue('Time');
+
+  if (startDate || endDate || time) {
+    return {
+      primary: startDate && endDate ? `${startDate} - ${endDate}` : startDate || endDate || 'Schedule TBD',
+      secondary: time || lines.find((line) => line.toLowerCase().startsWith('repeats:'))?.replace(/^Repeats:\s*/i, '') || 'Time TBD',
+    };
+  }
+
+  if (fallback.includes(' - ')) {
+    const [primary, ...rest] = fallback.split(' - ');
+    return {
+      primary: primary.trim(),
+      secondary: rest.join(' - ').trim() || 'Time TBD',
+    };
+  }
+
+  return {
+    primary: fallback,
+    secondary: 'Time TBD',
+  };
+});
+
+const schedulePrimary = computed(() => scheduleDetails.value.primary);
+const scheduleSecondary = computed(() => scheduleDetails.value.secondary);
+
+const locationPrimary = computed(() => {
+  const location = event.value?.location?.trim();
+  if (!location) return 'Location TBD';
+  return location.split(',')[0]?.trim() || location;
+});
+
+const locationSecondary = computed(() => {
+  const location = event.value?.location?.trim();
+  if (!location) return 'Details to be announced';
+  const [, ...rest] = location.split(',');
+  return rest.join(',').trim() || location;
+});
+
+const openRegistration = () => {
+  if (!event.value?.link) return;
+  window.open(event.value.link, '_blank', 'noopener,noreferrer');
+};
+
+const toggleSavedEvent = async () => {
+  if (!event.value?.id) return;
+  if (!userStore.isLoggedIn || !userStore.userProfile?.uid) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  isSavingEvent.value = true;
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== event.value?.id)
+      : [...new Set([...currentSaved, event.value.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved event:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+};
 
 const submitPost = async (text: string) => {
   const eventId = route.params.id as string;
@@ -460,12 +575,6 @@ const scrollToForum = () => {
   experienceSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-// Display limited number of tags
-const displayTags = computed(() => {
-  if (!event.value?.tags || event.value.tags.length === 0) return [];
-  return event.value.tags.slice(0, 5); // Show up to 5 tags
-});
-
 watch(
   () => route.params.id as string,
   (id) => {
@@ -508,50 +617,250 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
-.event-header {
+.event-hero-card {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
+  align-items: stretch;
+  gap: 30px;
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.event-hero-image-wrap {
+  position: relative;
+  flex: 0 0 49%;
+  min-height: 354px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.event-hero-image {
+  width: 100%;
+  height: 100%;
+  min-height: 354px;
+  object-fit: cover;
+  display: block;
+}
+
+.event-badges {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+}
+
+.category-badge,
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 170px;
+  min-height: 24px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-badge {
+  color: #fff;
+  text-transform: uppercase;
+  background: #6c48d1;
+  letter-spacing: 0.02em;
+}
+
+.tag-badge {
+  color: #344054;
+  background: #f1f5f9;
+}
+
+.event-hero-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0 0 2px;
 }
 
 .event-title {
-  font-size: 24px;
-  font-weight: 300;
-  color: #333;
   margin: 0;
-  line-height: 1.3;
-  flex: 1;
+  color: #0f172a;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
 }
 
-.bookmark-button {
-  background: white;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
+.event-summary {
+  margin: 12px 0 24px;
+  color: #667085;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.logistics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 36px;
+}
+
+.logistic-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(108, 72, 209, 0.16);
+  border-radius: 14px;
+  background: rgba(108, 72, 209, 0.07);
+}
+
+.logistic-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #fff;
+  background: #6c48d1;
+  border-radius: 10px;
+}
+
+.logistic-copy {
+  min-width: 0;
+}
+
+.logistic-label,
+.logistic-primary,
+.logistic-secondary {
+  margin: 0;
+}
+
+.logistic-label {
+  color: #6c48d1;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.logistic-primary {
+  color: #101828;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logistic-secondary {
+  margin-top: 2px;
+  color: #475467;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.register-button,
+.download-button,
+.save-button {
+  border: 0;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
-.bookmark-button:hover {
-  background: #f5f5f5;
+.register-button {
+  min-height: 50px;
+  padding: 0 30px;
+  color: #fff;
+  background: #6c48d1;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 10px 18px rgba(108, 72, 209, 0.24);
 }
 
-.bookmark-button.saved {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
-  border-color: transparent;
+.register-button:hover {
+  background: #5d3fc0;
 }
 
-.bookmark-button:disabled {
+.register-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.download-button {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475467;
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.download-button:hover {
+  background: #f8fafc;
+}
+
+.save-button {
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 22px;
+  color: #6c48d1;
+  border-radius: 999px;
+  background: rgba(108, 72, 209, 0.1);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.save-button.saved {
+  background: rgba(108, 72, 209, 0.12);
+}
+
+.save-button:hover {
+  background: rgba(108, 72, 209, 0.18);
+}
+
+.save-button:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+.register-button:active,
+.download-button:active,
+.save-button:active {
+  transform: scale(0.97);
 }
 
 .forum-card {
@@ -591,81 +900,6 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-.bento-container {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.bento-image {
-  background: white;
-  border-radius: 16px;
-  padding: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1.5px solid #333;
-  flex-shrink: 0;
-}
-
-.event-image {
-  width: 140px;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.bento-details {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1.5px solid #333;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-}
-
-.detail-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.detail-icon {
-  color: #ad8ae6;
-  flex-shrink: 0;
-}
-
-.detail-text {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.3;
-  white-space: pre-line;
-}
-
-.tags-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.tag {
-  background: #f0f0f0;
-  color: #666;
-  font-size: 10px;
-  font-weight: 300;
-  padding: 4px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
-.tag:first-child {
-  background: rgba(173, 138, 230, 0.95);
-  color: white;
-}
-
 .description-card {
   background: white;
   border-radius: 16px;
@@ -681,7 +915,7 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 
-.bento-container + .description-card {
+.event-hero-card + .description-card {
   margin-top: 0;
 }
 
@@ -817,24 +1051,43 @@ onBeforeUnmount(() => {
   .mobile-event-detail {
     padding: 16px 12px 80px;
   }
+
+  .event-hero-card {
+    flex-direction: column;
+    gap: 18px;
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .event-hero-image-wrap {
+    flex-basis: auto;
+    min-height: 240px;
+    aspect-ratio: 4 / 3;
+  }
+
+  .event-hero-image {
+    min-height: 240px;
+  }
   
   .event-title {
-    font-size: 20px;
+    font-size: 28px;
   }
-  
-  .event-info-card {
-    flex-direction: column;
-    text-align: center;
+
+  .event-summary {
+    margin-bottom: 18px;
+    font-size: 15px;
   }
-  
-  .event-image-section {
-    width: 100%;
-    height: 180px;
-    margin-bottom: 8px;
+
+  .logistics-grid {
+    grid-template-columns: 1fr;
+    margin-bottom: 22px;
   }
-  
-  .event-details {
-    gap: 10px;
+
+  .register-button,
+  .save-button {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding-inline: 18px;
   }
 }
 </style>
