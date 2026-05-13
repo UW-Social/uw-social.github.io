@@ -29,6 +29,21 @@
         <option value="oldest">Oldest</option>
       </select>
     </div>
+
+    <div class="sidebar-sort">
+      <label class="sidebar-label">Category</label>
+
+      <select v-model="localCategory" class="sidebar-select" @change="handleCategoryChange">
+  <option :value="null">All</option>
+  <option value="ACADEMIC">Academic</option>
+  <option value="CLUB">Club</option>
+  <option value="SPORTS">Sports</option>
+  <option value="GAMES">Games</option>
+  <option value="CULTURE">Culture</option>
+  <option value="INTEREST">Interest</option>
+  <option value="HFS">HFS</option>
+</select>
+    </div>
   </div>
 </template>
 
@@ -40,32 +55,42 @@ type SortType = 'newest' | 'oldest';
 const props = defineProps<{
   search?: string;
   sort?: SortType;
+  category?: string | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:search', value: string): void;
   (e: 'update:sort', value: SortType): void;
+  (e: 'update:category', value: string | null): void;
 }>();
+
+/* ---------------- state ---------------- */
 
 const localSearch = ref(props.search ?? '');
 const localSort = ref<SortType>(props.sort ?? 'newest');
+const localCategory = ref<string | null>(props.category ?? null);
 
-/* Sync props → local state */
-watch(() => props.search, (v) => {
-  localSearch.value = v ?? '';
-});
+/* ---------------- sync props ---------------- */
 
-watch(() => props.sort, (v) => {
-  if (v) localSort.value = v;
-});
+watch(() => props.search, v => (localSearch.value = v ?? ''));
+watch(() => props.sort, v => v && (localSort.value = v));
+watch(() => props.category, v => (localCategory.value = v ?? null));
 
-/* Emits */
+/* ---------------- handlers ---------------- */
+
 const handleSearchChange = () => {
   emit('update:search', localSearch.value);
 };
 
 const handleSortChange = () => {
   emit('update:sort', localSort.value);
+};
+
+const handleCategoryChange = () => {
+  emit(
+    'update:category',
+    localCategory.value === '' ? null : localCategory.value
+  );
 };
 </script>
 
@@ -103,6 +128,7 @@ const handleSortChange = () => {
   pointer-events: none;
 }
 
+/* SAME STYLE USED FOR BOTH SELECTS */
 .sidebar-sort {
   display: flex;
   flex-direction: column;
@@ -123,36 +149,5 @@ const handleSortChange = () => {
   background: var(--color-white);
   font-size: 0.95rem;
   cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  .event-sidebar {
-    width: 100%;
-    box-sizing: border-box;
-    padding: var(--spacing-md);
-    flex-direction: row;
-    align-items: flex-end;
-    gap: var(--spacing-md);
-  }
-
-  .sidebar-search {
-    flex: 1 1 220px;
-    min-width: 0;
-  }
-
-  .sidebar-sort {
-    flex: 0 0 136px;
-  }
-}
-
-@media (max-width: 480px) {
-  .event-sidebar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .sidebar-sort {
-    flex: none;
-  }
 }
 </style>
