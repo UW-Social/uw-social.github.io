@@ -41,7 +41,7 @@ const router = useRouter();
 
 const categoryFilter = ref('');
 const searchQuery = ref('');
-const sortType = ref('recommended'); // 默认为推荐排序
+const sortType = ref<'newest' | 'oldest'>('newest');
 const isUpdatingFromUrl = ref(false); // 标记是否正在从 URL 更新
 
 // 监听路由查询参数变化
@@ -119,10 +119,18 @@ const handleEventClick = (event: Event) => {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .overlapping-page {
+    padding-top: 0;
+  }
+
+  .events-page-with-search {
+    flex-direction: column;
+  }
+
   .events-main-content {
     margin-left: 0;
     width: 100%;
-    padding: var(--spacing-md);
+    padding: 0 var(--spacing-md) var(--spacing-xl);
   }
 }
 </style>

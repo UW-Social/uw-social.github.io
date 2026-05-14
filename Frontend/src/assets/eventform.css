@@ -18,6 +18,65 @@
   overflow: hidden;
 }
 
+.quick-import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-xl);
+  background: var(--color-gray-50);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.quick-import label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  margin-left: 2px;
+}
+
+.quick-import-row {
+  display: flex;
+  gap: 10px;
+}
+
+.quick-import input {
+  flex: 1;
+}
+
+.quick-import button {
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.25);
+}
+
+
+.quick-import button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(99, 102, 241, 0.35);
+  background: var(--color-primary-hover);
+}
+
+
+.quick-import button:active:not(:disabled) {
+  transform: translateY(0px) scale(0.97);
+  box-shadow: 0 3px 6px rgba(99, 102, 241, 0.2);
+}
+
+.quick-import button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 /* Step Indicator */
 .step-indicator {
   display: flex;
