@@ -3,10 +3,11 @@
     <!-- Event Header -->
     <div class="event-header">
       <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <div class="header-actions" style="display: flex; gap: 0.5rem;">
+      <div class="header-actions">
         <button
           class="bookmark-button download-ics-button"
           type="button"
+          aria-label="Download calendar (.ics)"
           @click="event ? downloadIcs(event) : null"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -531,6 +532,11 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin-bottom: 24px;
   gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .event-title {

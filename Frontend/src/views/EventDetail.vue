@@ -22,10 +22,11 @@
           <div class="event-info-header">
             <div class="event-title-row">
               <h1 class="event-title">{{ event.title }}</h1>
-              <div class="action-buttons" style="display: flex; gap: 0.5rem; align-items: center;">
+              <div class="action-buttons">
                 <button
                   class="save-event-button download-ics-button"
                   type="button"
+                  aria-label="Download calendar (.ics)"
                   @click="downloadIcs(event)"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -654,6 +655,12 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--spacing-lg);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .event-title {
