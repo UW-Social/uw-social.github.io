@@ -16,7 +16,7 @@
       </svg>
     </div>
 
-    <!-- Sort -->
+    <!-- Sort --->
     <div class="sidebar-sort">
       <label class="sidebar-label">Sort by</label>
 
