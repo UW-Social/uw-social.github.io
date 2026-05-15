@@ -72,14 +72,17 @@
             <button
               class="download-button"
               type="button"
-              aria-label="Download event details"
-              @click="downloadEventDetails"
+              aria-label="Download calendar file"
+              title="Download calendar file"
+              @click="downloadCalendarFile"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14,2 14,8 20,8"></polyline>
-                <line x1="12" y1="18" x2="12" y2="12"></line>
-                <polyline points="9,15 12,18 15,15"></polyline>
+                <rect x="3" y="4" width="18" height="17" rx="2"></rect>
+                <path d="M16 2v4"></path>
+                <path d="M8 2v4"></path>
+                <path d="M3 10h18"></path>
+                <path d="M12 13v5"></path>
+                <path d="m9 16 3 3 3-3"></path>
               </svg>
             </button>
             <button
@@ -98,102 +101,95 @@
         </div>
       </div>
 
-      <!-- Description and Social Sections -->
-      <div class="content-section">
-        <div class="description-card">
-          <h2 class="section-title">About this event</h2>
-          <p class="event-description" v-html="formatDescription(event.description || '')"></p>
-        </div>
+      <div class="event-content-layout">
+        <div class="event-main-column">
+          <div class="description-card">
+            <h2 class="section-title">About this event</h2>
+            <p class="event-description" v-html="formatDescription(event.description || '')"></p>
+          </div>
 
-        <!-- Experience Sharing -->
-        <div id="forum-section" ref="experienceSectionRef" class="forum-card experience-section">
-          <div class="forum-header">
-            <div>
-              <h2 class="section-title">Experience Sharing</h2>
-              <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
+          <div id="forum-section" ref="experienceSectionRef" class="review-card">
+            <div class="review-header">
+              <div>
+                <h2 class="section-title">Review</h2>
+                <p class="section-helper">Scores and recommendation signals will appear here after reviews are collected.</p>
+              </div>
+              <span class="review-status">Placeholder</span>
             </div>
-            <span class="forum-count">{{ experiencePosts.length }} posts</span>
+
+            <div class="review-metrics">
+              <div class="review-metric">
+                <span class="metric-label">Display score</span>
+                <strong>--</strong>
+                <span class="metric-helper">Pending reviews</span>
+              </div>
+              <div class="review-metric">
+                <span class="metric-label">Recommendation index</span>
+                <strong>--%</strong>
+                <span class="metric-helper">Coming soon</span>
+              </div>
+            </div>
           </div>
 
-          <ReplyInput
-            :is-logged-in="userStore.isLoggedIn"
-            :loading="isPostingExperience"
-            :rows="6"
-            placeholder="Share a longer review, recap, or experience from this event..."
-            submit-label="Share Experience"
-            login-heading="Log in to share your experience"
-            login-text="Log in to share your experience."
-            login-button-label="Log in"
-            @submit="submitExperiencePost"
-            @login="goToLogin"
-          />
-
-          <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
-
-          <div v-if="experiencePosts.length === 0" class="forum-empty">
-            No experiences yet. Share the first recap or review.
-          </div>
-
-          <div v-else class="forum-list">
-            <ExperiencePostCard
-              v-for="post in experiencePosts"
-              :key="post.id"
-              :post="post"
-              :is-logged-in="userStore.isLoggedIn"
-              :compact="true"
-              :on-login="goToLogin"
-              :on-toggle-like="toggleExperienceLike"
-            />
+          <div class="map-card">
+            <div class="section-header-row">
+              <h2 class="section-title">Location</h2>
+              <a
+                v-if="event.location"
+                class="map-open-link"
+                :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in Maps →
+              </a>
+            </div>
+            <div class="google-map" ref="mapContainer"></div>
           </div>
         </div>
 
-        <!-- Comments -->
-        <div id="comments-section" ref="commentsSectionRef" class="forum-card">
-          <div class="forum-header">
-            <h2 class="section-title">Comments</h2>
-            <span class="forum-count">{{ posts.length }} comments</span>
-          </div>
+        <aside class="event-side-column">
+          <div id="comments-section" ref="commentsSectionRef" class="forum-card comments-card">
+            <div class="forum-header">
+              <h2 class="section-title">Comments</h2>
+              <span class="forum-count">{{ posts.length }} comments</span>
+            </div>
 
-          <ReplyInput
-            :is-logged-in="userStore.isLoggedIn"
-            :loading="isPosting"
-            placeholder="Add a quick comment..."
-            submit-label="Comment"
-            login-heading="Log in to join the conversation"
-            login-text="Log in to join the conversation."
-            login-button-label="Log in"
-            @submit="submitPost"
-            @login="goToLogin"
-          />
-
-          <p v-if="postError" class="forum-error">{{ postError }}</p>
-
-          <div v-if="posts.length === 0" class="forum-empty">
-            No comments yet. Be the first to comment!
-          </div>
-
-          <div v-else class="forum-list">
-            <ForumPostCard
-              v-for="post in posts"
-              :key="post.id"
-              :post="post"
+            <ReplyInput
               :is-logged-in="userStore.isLoggedIn"
-              :compact="true"
-              tag-label="Comment"
-              :highlighted="highlightedPostId === post.id"
-              :on-login="goToLogin"
-              :on-toggle-post-like="togglePostLike"
-              :on-toggle-reply-like="toggleReplyLike"
-              :on-submit-reply="submitReply"
+              :loading="isPosting"
+              placeholder="Add a quick comment..."
+              submit-label="Comment"
+              login-heading="Log in to join the conversation"
+              login-text="Log in to join the conversation."
+              login-button-label="Log in"
+              @submit="submitPost"
+              @login="goToLogin"
             />
-          </div>
-        </div>
-      </div>
 
-      <!-- Location -->
-      <div class="map-card">
-        <h2 class="section-title">Location</h2>
-        <div class="google-map" ref="mapContainer"></div>
+            <p v-if="postError" class="forum-error">{{ postError }}</p>
+
+            <div v-if="posts.length === 0" class="forum-empty">
+              No comments yet. Be the first to comment!
+            </div>
+
+            <div v-else class="forum-list">
+              <ForumPostCard
+                v-for="post in posts"
+                :key="post.id"
+                :post="post"
+                :is-logged-in="userStore.isLoggedIn"
+                :compact="true"
+                tag-label="Comment"
+                :highlighted="highlightedPostId === post.id"
+                :on-login="goToLogin"
+                :on-toggle-post-like="togglePostLike"
+                :on-toggle-reply-like="toggleReplyLike"
+                :on-submit-reply="submitReply"
+              />
+            </div>
+          </div>
+        </aside>
       </div>
 
     </template>
@@ -205,21 +201,17 @@ import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
-import { formatEventSchedule, type Event } from '../types/event';
-import type { DiscussionPost, ExperiencePost } from '../types/forum';
-import ExperiencePostCard from '../components/ExperiencePostCard.vue';
+import { RecurrenceType, formatEventSchedule, type Event } from '../types/event';
+import type { DiscussionPost } from '../types/forum';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
-  createEventExperiencePost,
   subscribeToEventDiscussionPosts,
-  subscribeToEventExperiencePosts,
   toggleDiscussionPostLike,
   toggleDiscussionReplyLike,
-  toggleExperiencePostLike,
 } from '../api/forums';
 
 const route = useRoute();
@@ -233,14 +225,10 @@ const mapContainer = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
-const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
-const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
 const postError = ref('');
-const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
-let unsubscribeExperiencePosts: (() => void) | null = null;
 const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
@@ -351,23 +339,161 @@ const openRegistration = () => {
   window.open(event.value.link, '_blank', 'noopener,noreferrer');
 };
 
-const downloadEventDetails = () => {
-  if (!event.value) return;
-  const details = [
-    event.value.title,
-    '',
-    `When: ${formatEventSchedule(event.value)}`,
-    `Where: ${event.value.location || 'Location TBD'}`,
-    '',
-    event.value.description || '',
-    event.value.link ? `\nEvent page: ${event.value.link}` : '',
-  ].join('\n');
+const toDateValue = (date: any): Date | null => {
+  if (!date) return null;
+  if (typeof date.toDate === 'function') return date.toDate();
+  if (typeof date.seconds === 'number') return new Date(date.seconds * 1000);
 
-  const blob = new Blob([details], { type: 'text/plain;charset=utf-8' });
+  const parsed = date instanceof Date ? date : new Date(date);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const withTimeOfDay = (date: Date, time?: string): Date => {
+  const next = new Date(date);
+  if (!time) return next;
+
+  const [rawHours, rawMinutes = '00'] = time.split(':');
+  const hours = Number(rawHours);
+  const minutes = Number(rawMinutes);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return next;
+
+  next.setHours(hours, minutes, 0, 0);
+  return next;
+};
+
+const formatIcsDateTime = (date: Date): string => (
+  date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+);
+
+const escapeIcsText = (value: string): string => (
+  value
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n')
+);
+
+const foldIcsLine = (line: string): string => {
+  if (line.length <= 74) return line;
+  const parts = [];
+  for (let index = 0; index < line.length; index += 74) {
+    parts.push(`${index === 0 ? '' : ' '}${line.slice(index, index + 74)}`);
+  }
+  return parts.join('\r\n');
+};
+
+const slugifyFileName = (value: string): string => (
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'event'
+);
+
+interface CalendarTiming {
+  start: Date | null;
+  end: Date | null;
+  recurrenceEnd?: Date | null;
+}
+
+const getCalendarTiming = (calendarEvent: Event): CalendarTiming => {
+  const schedule = calendarEvent.schedule;
+
+  if (schedule?.type === RecurrenceType.ONE_TIME) {
+    const start = toDateValue(schedule.startDatetime);
+    const end = toDateValue(schedule.endDatetime);
+    return { start, end };
+  }
+
+  if (
+    schedule?.type === RecurrenceType.DAILY
+    || schedule?.type === RecurrenceType.WEEKLY
+    || schedule?.type === RecurrenceType.MONTHLY
+  ) {
+    const startDate = toDateValue(schedule.startDate);
+    const endDate = toDateValue(schedule.endDate);
+    const start = startDate ? withTimeOfDay(startDate, schedule.startTimeOfDay) : null;
+    const end = startDate
+      ? withTimeOfDay(startDate, schedule.endTimeOfDay || schedule.startTimeOfDay)
+      : null;
+
+    return {
+      start,
+      end: end && start && end.getTime() > start.getTime() ? end : start ? new Date(start.getTime() + 60 * 60 * 1000) : null,
+      recurrenceEnd: endDate,
+    };
+  }
+
+  const start = toDateValue(calendarEvent.startTime);
+  const end = toDateValue(calendarEvent.endtime);
+  return { start, end };
+};
+
+const getCalendarRRule = (calendarEvent: Event, recurrenceEnd?: Date | null): string => {
+  const schedule = calendarEvent.schedule;
+  if (!schedule || schedule.type === RecurrenceType.ONE_TIME) return '';
+
+  const frequencyByType = {
+    [RecurrenceType.DAILY]: 'DAILY',
+    [RecurrenceType.WEEKLY]: 'WEEKLY',
+    [RecurrenceType.MONTHLY]: 'MONTHLY',
+  } as const;
+  const frequency = frequencyByType[schedule.type];
+  const parts = [`FREQ=${frequency}`];
+
+  if (schedule.type === RecurrenceType.WEEKLY && Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0) {
+    const dayLabels = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+    const days = schedule.daysOfWeek.map(day => dayLabels[Number(day)]).filter(Boolean);
+    if (days.length > 0) parts.push(`BYDAY=${days.join(',')}`);
+  }
+
+  if (schedule.type === RecurrenceType.MONTHLY && Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0) {
+    const days = schedule.daysOfMonth.map(Number).filter(day => day >= 1 && day <= 31);
+    if (days.length > 0) parts.push(`BYMONTHDAY=${days.join(',')}`);
+  }
+
+  if (recurrenceEnd) parts.push(`UNTIL=${formatIcsDateTime(recurrenceEnd)}`);
+  return `RRULE:${parts.join(';')}`;
+};
+
+const downloadCalendarFile = () => {
+  if (!event.value) return;
+  const timing = getCalendarTiming(event.value);
+  const start = timing.start ?? new Date();
+  const end = timing.end && timing.end.getTime() > start.getTime()
+    ? timing.end
+    : new Date(start.getTime() + 60 * 60 * 1000);
+  const uid = `${event.value.id || Date.now()}@uw-social.github.io`;
+  const description = [
+    event.value.description || '',
+    event.value.link ? `Event page: ${event.value.link}` : '',
+  ].filter(Boolean).join('\n\n');
+  const rrule = getCalendarRRule(event.value, timing.recurrenceEnd);
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//UW Social//Event Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${escapeIcsText(uid)}`,
+    `DTSTAMP:${formatIcsDateTime(new Date())}`,
+    `DTSTART:${formatIcsDateTime(start)}`,
+    `DTEND:${formatIcsDateTime(end)}`,
+    `SUMMARY:${escapeIcsText(event.value.title || 'UW Social Event')}`,
+    `DESCRIPTION:${escapeIcsText(description)}`,
+    `LOCATION:${escapeIcsText(event.value.location || '')}`,
+    ...(rrule ? [rrule] : []),
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+
+  const blob = new Blob([lines.map(foldIcsLine).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${event.value.title || 'event'}-details.txt`;
+  link.download = `${slugifyFileName(event.value.title || 'event')}.ics`;
   link.click();
   URL.revokeObjectURL(url);
 };
@@ -408,26 +534,6 @@ const subscribePosts = (id: string) => {
   );
 };
 
-const subscribeExperiencePosts = (id: string) => {
-  if (!id) return;
-  if (unsubscribeExperiencePosts) {
-    unsubscribeExperiencePosts();
-    unsubscribeExperiencePosts = null;
-  }
-
-  unsubscribeExperiencePosts = subscribeToEventExperiencePosts(
-    id,
-    userStore.userProfile?.uid,
-    (nextPosts) => {
-      experiencePosts.value = nextPosts;
-    },
-    (error) => {
-      console.error('Failed to load experience posts:', error);
-      experienceError.value = 'Failed to load experience posts.';
-    }
-  );
-};
-
 const submitPost = async (text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;
 
@@ -451,31 +557,6 @@ const submitPost = async (text: string) => {
     isPosting.value = false;
   }
 };
-
-const submitExperiencePost = async (text: string) => {
-  if (!userStore.userProfile?.email || !eventId.value) return;
-
-  isPostingExperience.value = true;
-  experienceError.value = '';
-
-  try {
-    await createEventExperiencePost(
-      eventId.value,
-      {
-        uid: userStore.userProfile.uid,
-        email: userStore.userProfile.email,
-        displayName: userStore.userProfile.displayName,
-      },
-      text
-    );
-  } catch (error) {
-    console.error('Failed to post experience:', error);
-    experienceError.value = 'Failed to share experience. Please try again.';
-  } finally {
-    isPostingExperience.value = false;
-  }
-};
-
 
 const submitReply = async (postId: string, text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;
@@ -515,16 +596,6 @@ const toggleReplyLike = async (postId: string, replyId: string) => {
     await toggleDiscussionReplyLike(eventId.value, postId, replyId, userStore.userProfile.uid);
   } catch (error) {
     console.error('Failed to toggle reply like:', error);
-  }
-};
-
-const toggleExperienceLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
-
-  try {
-    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
-  } catch (error) {
-    console.error('Failed to toggle experience like:', error);
   }
 };
 
@@ -577,14 +648,12 @@ onMounted(() => {
 watch(eventId, (id) => {
   if (id) {
     subscribePosts(id);
-    subscribeExperiencePosts(id);
   }
 }, { immediate: true });
 
 watch(() => userStore.userProfile?.uid, () => {
   if (eventId.value) {
     subscribePosts(eventId.value);
-    subscribeExperiencePosts(eventId.value);
   }
 });
 
@@ -594,7 +663,6 @@ watch(() => route.query, () => {
 
 onBeforeUnmount(() => {
   if (unsubscribePosts) unsubscribePosts();
-  if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
 </script>
 
@@ -756,12 +824,13 @@ onBeforeUnmount(() => {
 }
 
 .event-info-card {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 0 0 2px;
+  padding: 0 64px 0 2px;
 }
 
 .event-info-header {
@@ -892,6 +961,9 @@ onBeforeUnmount(() => {
 }
 
 .download-button {
+  position: absolute;
+  right: 0;
+  bottom: 0;
   width: 50px;
   height: 50px;
   display: inline-flex;
@@ -948,31 +1020,95 @@ onBeforeUnmount(() => {
   transform: scale(0.97);
 }
 
-.content-section {
+.event-content-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.95fr);
+  gap: 30px;
+  align-items: start;
+}
+
+.event-main-column,
+.event-side-column {
+  min-width: 0;
+}
+
+.event-main-column {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
+  gap: 30px;
+}
+
+.event-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
 }
 
 .description-card,
-.map-card {
+.review-card,
+.map-card,
+.comments-card {
   background: var(--color-white);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: var(--radius-xl);
+  border: 1px solid #e8eaf0;
+  border-radius: 24px;
   padding: var(--spacing-2xl);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .section-title {
+  position: relative;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-gray-900);
   margin: 0 0 var(--spacing-lg) 0;
+  padding-left: 20px;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.16em;
+  width: 6px;
+  height: 1.15em;
+  border-radius: 999px;
+  background: #6c48d1;
 }
 
 .forum-header .section-title {
   margin-bottom: 0;
+}
+
+.forum-header .section-title::before {
+  display: none;
+}
+
+.comments-card .section-title {
+  padding-left: 0;
+}
+
+.comments-card .section-title::before {
+  display: none;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header-row .section-title {
+  margin-bottom: 0;
+}
+
+.map-open-link {
+  color: #5d2fd6;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .section-helper {
@@ -989,10 +1125,73 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
+.review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.review-header .section-title {
+  margin-bottom: 0;
+}
+
+.review-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #6c48d1;
+  background: rgba(108, 72, 209, 0.1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.review-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.review-metric {
+  min-height: 128px;
+  padding: var(--spacing-xl);
+  border: 1px solid rgba(108, 72, 209, 0.14);
+  border-radius: 18px;
+  background: rgba(108, 72, 209, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.metric-label {
+  color: #6c48d1;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.review-metric strong {
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.metric-helper {
+  margin-top: 8px;
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+}
+
 .google-map {
   width: 100%;
-  height: 400px;
-  border-radius: var(--radius-md);
+  height: 320px;
+  border-radius: 16px;
   overflow: hidden;
   border: var(--border-width) solid var(--border-color);
 }
@@ -1057,7 +1256,7 @@ onBeforeUnmount(() => {
     padding: 0;
   }
 
-  .content-section {
+  .event-content-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1105,6 +1304,14 @@ onBeforeUnmount(() => {
   .save-event-button {
     flex: 1 1 auto;
     justify-content: center;
+  }
+
+  .download-button {
+    position: static;
+  }
+
+  .review-metrics {
+    grid-template-columns: 1fr;
   }
 }
 
