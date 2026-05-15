@@ -21,14 +21,13 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
 import Fuse from 'fuse.js';
-import { useRoute } from 'vue-router';
 import EventCard from './EventCard.vue';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import type { Event } from '../types/event';
 
 const props = defineProps<{
-  category?: string;
+  category?: string | null;
   search?: string;
   sort?: 'newest' | 'oldest';
 }>();
@@ -39,130 +38,108 @@ defineEmits<{
 
 const eventStore = useEventStore();
 const userStore = useUserStore();
-const route = useRoute();
 
 const filteredEvents = ref<Event[]>([]);
 const isLoading = ref(true);
 
-/* ---------------- helpers ---------------- */
+const VALID_CATEGORIES = new Set([
+  'ACADEMIC',
+  'CLUB',
+  'SPORTS',
+  'GAMES',
+  'CULTURE',
+  'INTEREST',
+  'HFS',
+]);
+
+function normalizeCategory(cat?: string | null) {
+  if (!cat) return null;
+  const c = cat.toUpperCase();
+  return VALID_CATEGORIES.has(c) ? c : null;
+}
 
 function toDate(val: any): Date {
   return val?.toDate ? val.toDate() : new Date(val);
 }
 
-function isRecurring(event: Event): boolean {
+function isRecurring(event: Event) {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
-/* ---------------- sorting ---------------- */
+/* ---- FILTER ---- */
 
-function sortEvents(events: Event[]): Event[] {
-  const normal = events.filter(e => !isRecurring(e));
-  const recurring = events.filter(e => isRecurring(e));
+function filterPast(events: Event[]) {
+  const now = new Date();
 
-  normal.sort((a, b) => {
-    const tA = toDate(a.startTime).getTime();
-    const tB = toDate(b.startTime).getTime();
-
-    return props.sort === 'oldest'
-      ? tA - tB
-      : tB - tA;
+  return events.filter(e => {
+    if (isRecurring(e)) return true;
+    return toDate(e.startTime) >= now;
   });
-
-  return [...normal, ...recurring];
 }
 
-/* ---------------- search ---------------- */
+function filterCategory(events: Event[]) {
+  const cat = normalizeCategory(props.category);
+  if (!cat) return events;
 
-function applySearch(events: Event[]): Event[] {
-  const q = (props.search || (route.query.q as string) || '').trim();
+  return events.filter(e => (e.category || '').toUpperCase() === cat);
+}
+
+/* ---- SEARCH ---- */
+
+function applySearch(events: Event[]) {
+  const q = (props.search ?? '').trim();
   if (!q) return events;
 
   const fuse = new Fuse(events, {
-    keys: [
-      { name: 'title', weight: 2 },
-      { name: 'tags', weight: 1.5 },
-      { name: 'organizerName', weight: 1.2 },
-      { name: 'description', weight: 1 },
-      { name: 'location', weight: 0.8 },
-    ],
+    keys: ['title', 'tags', 'organizerName', 'description', 'location'],
     threshold: 0.3,
-    ignoreLocation: true,
   });
 
   return fuse.search(q).map(r => r.item);
 }
 
-/* ---------------- core pipeline ---------------- */
+/* ---- SORT ---- */
 
-async function refreshEvents() {
+function sortEvents(events: Event[]) {
+  const normal = events.filter(e => !isRecurring(e));
+  const recurring = events.filter(isRecurring);
+
+  normal.sort((a, b) => {
+    const tA = toDate(a.startTime).getTime();
+    const tB = toDate(b.startTime).getTime();
+    return props.sort === 'oldest' ? tA - tB : tB - tA;
+  });
+
+  return [...normal, ...recurring];
+}
+
+/* ---- PIPELINE ---- */
+
+async function refresh() {
   isLoading.value = true;
 
-  // DEBUG: THIS IS WHERE YOUR "ONLY 4 EVENTS" ISSUE SHOWS UP
-  console.log('[DEBUG] store events:', eventStore.events.length);
+  let events = [...eventStore.events];
 
-  let events: Event[] = props.category
-    ? eventStore.events.filter(e =>
-        e.category.toUpperCase() === props.category?.toUpperCase()
-      )
-    : [...eventStore.events];
-
-  console.log('[DEBUG] after category filter:', events.length);
-
-  // NO HARD LIMIT, NO SLICING, NO LOSS OF DATA
+  events = filterCategory(events);
+  events = filterPast(events);
   events = applySearch(events);
   events = sortEvents(events);
 
   filteredEvents.value = events;
 
-  console.log('[DEBUG] final rendered events:', filteredEvents.value.length);
-
   isLoading.value = false;
 }
 
-/* ---------------- watchers ---------------- */
-
 watch(
-  [
-    () => props.category,
-    () => props.search,
-    () => props.sort,
-    () => route.query.q,
-    () => eventStore.events.length,
-  ],
-  () => {
-    void refreshEvents();
-  },
+  () => [props.category, props.search, props.sort, eventStore.events.length],
+  refresh,
   { immediate: true }
 );
-
-/* ---------------- init ---------------- */
 
 onMounted(async () => {
   if (eventStore.events.length === 0) {
     await eventStore.fetchEvents();
   }
-
-  await refreshEvents();
+  await refresh();
 });
 </script>
-
-<style scoped>
-.event-list {
-  padding: 0;
-  margin: 0;
-}
-
-.loading,
-.no-events {
-  text-align: center;
-  padding: var(--spacing-3xl);
-  color: var(--color-gray-600);
-}
-
-.events-grid {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-</style>
