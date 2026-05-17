@@ -630,7 +630,7 @@ const publishPost = async () => {
         subtitle: subtitle.value.trim(),
         body: bodyText.value.trim(),
         bodyHtml: bodyHtml.value,
-        mediaUrls: [],
+        mediaUrls: uploadedMediaUrl.value ? [uploadedMediaUrl.value] : [],
       }
     );
 
