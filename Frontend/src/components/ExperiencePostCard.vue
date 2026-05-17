@@ -11,16 +11,24 @@
         <p v-if="post.subtitle" class="experience-subtitle">{{ post.subtitle }}</p>
         <p class="experience-text">{{ previewText }}</p>
         <div v-if="post.mediaUrls?.length" class="experience-media-grid">
+        <template v-for="url in post.mediaUrls" :key="url">
+          <video
+            v-if="isVideoUrl(url)"
+            :src="url"
+            class="experience-media-video"
+            controls
+            preload="metadata"
+          ></video>
+
           <img
-            v-for="url in post.mediaUrls"
-            :key="url"
+            v-else
             :src="url"
             class="experience-media-image"
             alt="Forum post media"
           />
-        </div>
+        </template>
       </div>
-
+    </div>
       <div v-if="showEventContext" class="event-context">
         <p class="context-label">Event</p>
         <router-link :to="eventLink" class="context-link">
@@ -65,6 +73,10 @@ const props = withDefaults(defineProps<{
   compact: false,
   previewLimit: 360,
 });
+
+const isVideoUrl = (url: string) => {
+  return /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url);
+};
 
 const eventLink = computed(() => ({
   path: `/events/${props.post.eventId}`,
@@ -205,6 +217,14 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid rgba(31, 39, 64, 0.1);
+}
+
+.experience-media-video {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 39, 64, 0.1);
+  background: #000;
 }
 
 .event-context {

@@ -165,7 +165,7 @@
             ref="mediaInputRef"
             class="hidden-file-input"
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             @change="handleMediaSelected"
           />
 
@@ -175,7 +175,7 @@
             :disabled="isUploadingMedia"
             @click="openMediaPicker"
           >
-            {{ isUploadingMedia ? 'Uploading...' : uploadedMediaUrl ? 'Change image' : 'Select image' }}
+            {{ isUploadingMedia ? 'Uploading...' : uploadedMediaUrl ? 'Change image' : 'Select image or video' }}
           </button>
           <p v-if="uploadedMediaUrl" class="selected-file-name">
             Uploaded successfully.
@@ -316,7 +316,6 @@ const mediaInputRef = ref<HTMLInputElement | null>(null);
 const selectedMediaFile = ref<File | null>(null);
 const uploadedMediaUrl = ref('');
 const isUploadingMedia = ref(false);
-
 
 
 
