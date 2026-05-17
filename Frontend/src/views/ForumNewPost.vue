@@ -169,16 +169,13 @@
             @change="handleMediaSelected"
           />
 
-          <button type="button" class="secondary-button" @click="openMediaPicker">
-            Select image
-          </button>
           <button
             type="button"
             class="secondary-button"
-            :disabled="!selectedMediaFile || isUploadingMedia"
-            @click="uploadSelectedMedia"
+            :disabled="isUploadingMedia"
+            @click="openMediaPicker"
           >
-            {{ isUploadingMedia ? 'Uploading...' : 'Upload selected image' }}
+            {{ isUploadingMedia ? 'Uploading...' : uploadedMediaUrl ? 'Change image' : 'Select image' }}
           </button>
           <p v-if="uploadedMediaUrl" class="selected-file-name">
             Uploaded successfully.
@@ -373,7 +370,8 @@ const eventResults = computed<UWEvent[]>(() => {
 const canPublish = computed(() =>
   title.value.trim().length > 0 &&
   selectedEventId.value.length > 0 &&
-  bodyText.value.trim().length > 0
+  bodyText.value.trim().length > 0 &&
+  !isUploadingMedia.value
 );
 
 const isSelectionInsideEditor = (selection: Selection | null) => {
@@ -530,24 +528,29 @@ const openMediaPicker = () => {
   mediaInputRef.value?.click();
 };
 
-const handleMediaSelected = (event: Event) => {
+const handleMediaSelected = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  
+
   selectedMediaFile.value = file;
+  uploadedMediaUrl.value = '';
+
   console.log('Selected file:', file);
+
+  if (file) {
+    await uploadSelectedMedia(file);
+  }
 };
-const uploadSelectedMedia = async () => {
-  if (!selectedMediaFile.value || !userStore.userProfile?.uid) return;
+const uploadSelectedMedia = async (fileToUpload = selectedMediaFile.value) => {
+  if (!fileToUpload || !userStore.userProfile?.uid) return;
 
   isUploadingMedia.value = true;
 
   try {
-    const file = selectedMediaFile.value;
-    const path = `forum-media/${userStore.userProfile.uid}/${Date.now()}-${file.name}`;
+    const path = `forum-media/${userStore.userProfile.uid}/${Date.now()}-${fileToUpload.name}`;
     const fileRef = storageRef(storage, path);
 
-    await uploadBytes(fileRef, file);
+    await uploadBytes(fileRef, fileToUpload);
 
     uploadedMediaUrl.value = await getDownloadURL(fileRef);
 

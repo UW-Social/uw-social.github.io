@@ -10,6 +10,15 @@
         <h3 class="experience-title">{{ derivedTitle }}</h3>
         <p v-if="post.subtitle" class="experience-subtitle">{{ post.subtitle }}</p>
         <p class="experience-text">{{ previewText }}</p>
+        <div v-if="post.mediaUrls?.length" class="experience-media-grid">
+          <img
+            v-for="url in post.mediaUrls"
+            :key="url"
+            :src="url"
+            class="experience-media-image"
+            alt="Forum post media"
+          />
+        </div>
       </div>
 
       <div v-if="showEventContext" class="event-context">
@@ -181,6 +190,21 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   color: #44506a;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.experience-media-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.experience-media-image {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 39, 64, 0.1);
 }
 
 .event-context {
