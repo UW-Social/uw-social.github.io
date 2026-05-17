@@ -618,7 +618,7 @@ const publishPost = async () => {
   syncBody();
 
   try {
-    await createEventExperiencePost(
+    const postId = await createEventExperiencePost(
       selectedEventId.value,
       {
         uid: userStore.userProfile.uid,
@@ -633,6 +633,13 @@ const publishPost = async () => {
         mediaUrls: uploadedMediaUrl.value ? [uploadedMediaUrl.value] : [],
       }
     );
+
+    console.log('Created forum experience post:', {
+      eventId: selectedEventId.value,
+      postId,
+      firestorePath: `events/${selectedEventId.value}/forumPosts/${postId}`,
+      mediaUrls: uploadedMediaUrl.value ? [uploadedMediaUrl.value] : [],
+    });
 
     router.push('/forum');
   } catch (error) {
