@@ -40,6 +40,23 @@
                   <span>Download .ics</span>
                 </button>
                 <button
+                  class="save-event-button google-calendar-button"
+                  type="button"
+                  aria-label="Add event to Google Calendar"
+                  :disabled="isAddingToGoogleCalendar"
+                  @click="addToGoogleCalendar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                    <line x1="12" y1="13" x2="12" y2="18"></line>
+                    <line x1="9.5" y1="15.5" x2="14.5" y2="15.5"></line>
+                  </svg>
+                  <span>{{ isAddingToGoogleCalendar ? 'Adding...' : 'Add to Google' }}</span>
+                </button>
+                <button
                   class="save-event-button"
                   type="button"
                   :class="{ saved: isSavedEvent }"
@@ -208,6 +225,7 @@ import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import { downloadIcs } from '../utils/icsUtils';
+import { addEventToGoogleCalendar } from '../utils/googleCalendar';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
@@ -234,6 +252,7 @@ const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
 const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
+const isAddingToGoogleCalendar = ref(false);
 const postError = ref('');
 const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
@@ -276,6 +295,40 @@ const goToLogin = () => {
       prompt: 'Please log in to join the event conversation.'
     }
   });
+};
+
+const addToGoogleCalendar = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to add events to your Google Calendar.',
+      },
+    });
+    return;
+  }
+
+  if (!event.value || isAddingToGoogleCalendar.value) {
+    return;
+  }
+
+  isAddingToGoogleCalendar.value = true;
+
+  try {
+    const created = await addEventToGoogleCalendar(event.value);
+    if (created.htmlLink) {
+      window.open(created.htmlLink, '_blank', 'noopener,noreferrer');
+    }
+  } catch (error) {
+    console.error('Failed to add event to Google Calendar:', error);
+    const message = error instanceof Error
+      ? error.message
+      : 'Unable to add this event to Google Calendar.';
+    window.alert(message);
+  } finally {
+    isAddingToGoogleCalendar.value = false;
+  }
 };
 
 const formatDescription = (desc: string) => {
@@ -700,6 +753,16 @@ onBeforeUnmount(() => {
   color: var(--color-white);
   border-color: transparent;
   box-shadow: 0 14px 30px rgba(99, 102, 241, 0.22);
+}
+
+.save-event-button.google-calendar-button {
+  border-color: rgba(15, 157, 88, 0.22);
+  background: rgba(15, 157, 88, 0.1);
+  color: #0f9d58;
+}
+
+.save-event-button.google-calendar-button:hover:not(:disabled) {
+  background: rgba(15, 157, 88, 0.18);
 }
 
 .save-event-button svg {
