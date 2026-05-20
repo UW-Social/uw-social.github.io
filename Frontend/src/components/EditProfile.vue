@@ -5,7 +5,7 @@
         <div class="header-background"></div>
         <div class="profile-avatar-section">
           <AvatarUpload />
-          <h2>{{ userStore.userProfile?.displayName || (isOnboardingFlow ? 'Set Up Your Profile' : 'Edit Your Profile') }}</h2>
+          <h2>{{ userStore.userProfile?.displayName || (isOnboardingFlow ? 'Set Up Your Profile ' : 'Edit Your Profile') }}</h2>
           <p>{{ headerDescription }}</p>
         </div>
       </div>
