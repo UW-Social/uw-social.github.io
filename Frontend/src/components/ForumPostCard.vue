@@ -1,13 +1,16 @@
 <template>
-  <article :class="['discussion-card', { compact, highlighted }]">
+  <article :class="['discussion-card', { compact, highlighted, 'comment-style': commentStyle }]">
     <div class="discussion-top">
+      <div v-if="commentStyle" class="discussion-avatar">
+        {{ authorInitials }}
+      </div>
       <div class="discussion-main">
-        <span class="discussion-tag">{{ tagLabel }}</span>
+        <span v-if="!commentStyle" class="discussion-tag">{{ tagLabel }}</span>
         <p class="discussion-meta">
           <span class="discussion-author">{{ post.authorName || post.userEmail || 'Anonymous User' }}</span>
           <span>{{ formatTimestamp(post.createdAt) }}</span>
         </p>
-        <h3 v-if="derivedTitle" class="discussion-title">{{ derivedTitle }}</h3>
+        <h3 v-if="!commentStyle && derivedTitle" class="discussion-title">{{ derivedTitle }}</h3>
         <p class="discussion-text">{{ post.content }}</p>
       </div>
 
@@ -26,14 +29,14 @@
 
     <div class="discussion-actions">
       <button class="discussion-action-button" type="button" @click="handleTogglePostLike">
-        <span :class="['like-indicator', { active: post.hasLiked }]"></span>
+        <span v-if="!commentStyle" :class="['like-indicator', { active: post.hasLiked }]"></span>
         Like
       </button>
-      <span>{{ post.likeCount }} likes</span>
+      <span v-if="!commentStyle">{{ post.likeCount }} likes</span>
       <button class="discussion-action-button" type="button" @click="isReplying = !isReplying">
         Reply
       </button>
-      <span>{{ post.replyCount }} replies</span>
+      <span v-if="!commentStyle">{{ post.replyCount }} replies</span>
     </div>
 
     <ReplyInput
@@ -42,6 +45,7 @@
       :loading="replySubmitting"
       :rows="2"
       :compact="true"
+      :submit-on-enter="commentStyle"
       placeholder="Write a reply..."
       submit-label="Reply"
       login-heading="Join the discussion"
@@ -55,6 +59,7 @@
       v-if="post.replies.length > 0"
       :replies="displayedReplies"
       :is-logged-in="isLoggedIn"
+      :comment-style="commentStyle"
       :on-toggle-like="handleToggleReplyLike"
       :on-login="onLogin"
     />
@@ -84,6 +89,7 @@ const props = withDefaults(defineProps<{
   compact?: boolean;
   highlighted?: boolean;
   tagLabel?: string;
+  commentStyle?: boolean;
   onLogin: () => void;
   onTogglePostLike: (postId: string) => Promise<void> | void;
   onToggleReplyLike: (postId: string, replyId: string) => Promise<void> | void;
@@ -94,6 +100,7 @@ const props = withDefaults(defineProps<{
   compact: false,
   highlighted: false,
   tagLabel: 'Discussion',
+  commentStyle: false,
 });
 
 const isReplying = ref(false);
@@ -112,6 +119,13 @@ const displayedReplies = computed(() => {
   }
 
   return props.post.replies.slice(-props.replyPreviewCount);
+});
+
+const authorInitials = computed(() => {
+  const value = props.post.authorName || props.post.userEmail || 'Anonymous User';
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return (words[0]?.slice(0, 2) || 'U').toUpperCase();
 });
 
 const handleSubmitReply = async (text: string) => {
@@ -174,6 +188,14 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   padding: 16px;
 }
 
+.discussion-card.comment-style {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .discussion-card.highlighted {
   border-color: rgba(108, 99, 255, 0.28);
   box-shadow: 0 16px 36px rgba(108, 99, 255, 0.12);
@@ -183,6 +205,38 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   display: flex;
   justify-content: space-between;
   gap: 20px;
+}
+
+.discussion-card.comment-style .discussion-top {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.discussion-avatar {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c48d1;
+  background: #f1edff;
+  border: 1px solid #ddd5ff;
+  border-radius: 999px;
+  font-size: 12px !important;
+  font-weight: 700;
+}
+
+.discussion-card.comment-style:nth-child(3n + 1) .discussion-avatar {
+  color: #ea580c;
+  background: #ffedd5;
+  border-color: transparent;
+}
+
+.discussion-card.comment-style:nth-child(3n + 2) .discussion-avatar {
+  color: #2563eb;
+  background: #dbeafe;
+  border-color: transparent;
 }
 
 .discussion-main {
@@ -212,6 +266,20 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   font-size: 0.9rem;
 }
 
+.discussion-card.comment-style .discussion-meta {
+  align-items: baseline;
+  gap: 7px;
+  margin: 1px 0 4px;
+  color: #9ca3af;
+  font-size: 10px !important;
+}
+
+.discussion-card.comment-style .discussion-author {
+  color: #111827;
+  font-size: 11px !important;
+  font-weight: 800;
+}
+
 .discussion-author {
   font-weight: 700;
   color: #24304a;
@@ -229,6 +297,13 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   color: #44506a;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.discussion-card.comment-style .discussion-text {
+  margin-top: 0;
+  color: #374151;
+  font-size: 11px !important;
+  line-height: 1.35;
 }
 
 .event-context {
@@ -270,6 +345,40 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   align-items: center;
   color: #667089;
   font-size: 0.92rem;
+}
+
+.discussion-card.comment-style .discussion-actions {
+  margin-top: 8px;
+  gap: 16px;
+  color: #9ca3af;
+  font-size: 10px !important;
+}
+
+.discussion-card.comment-style .discussion-action-button {
+  font-weight: 800;
+}
+
+.discussion-card.comment-style :deep(.reply-input) {
+  display: block;
+  width: 50%;
+  margin-top: 10px;
+  margin-left: 50px;
+}
+
+.discussion-card.comment-style :deep(.reply-textarea) {
+  width: 100%;
+  min-height: 34px;
+  height: 34px;
+  resize: none;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 11px !important;
+  line-height: 18px;
+}
+
+.discussion-card.comment-style :deep(.reply-submit) {
+  display: none;
 }
 
 .discussion-action-button {

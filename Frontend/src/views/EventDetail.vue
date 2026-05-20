@@ -108,29 +108,6 @@
             <p class="event-description" v-html="formatDescription(event.description || '')"></p>
           </div>
 
-          <div id="forum-section" ref="experienceSectionRef" class="review-card">
-            <div class="review-header">
-              <div>
-                <h2 class="section-title">Review</h2>
-                <p class="section-helper">Scores and recommendation signals will appear here after reviews are collected.</p>
-              </div>
-              <span class="review-status">Placeholder</span>
-            </div>
-
-            <div class="review-metrics">
-              <div class="review-metric">
-                <span class="metric-label">Display score</span>
-                <strong>--</strong>
-                <span class="metric-helper">Pending reviews</span>
-              </div>
-              <div class="review-metric">
-                <span class="metric-label">Recommendation index</span>
-                <strong>--%</strong>
-                <span class="metric-helper">Coming soon</span>
-              </div>
-            </div>
-          </div>
-
           <div class="map-card">
             <div class="section-header-row">
               <h2 class="section-title">Location</h2>
@@ -149,23 +126,49 @@
         </div>
 
         <aside class="event-side-column">
+          <div id="forum-section" ref="experienceSectionRef" class="ratings-review-card">
+            <div class="ratings-review-header">
+              <h2 class="ratings-review-title">Ratings &amp; Reviews</h2>
+              <div class="ratings-review-score">
+                <strong>4.8</strong>
+                <span>/ 5</span>
+              </div>
+            </div>
+
+            <div class="ratings-review-summary">
+              <div class="ratings-stars" aria-label="4.8 out of 5 stars">
+                <span>★</span>
+                <span>★</span>
+                <span>★</span>
+                <span>★</span>
+                <span class="muted">★</span>
+              </div>
+            </div>
+          </div>
+
           <div id="comments-section" ref="commentsSectionRef" class="forum-card comments-card">
             <div class="forum-header">
               <h2 class="section-title">Comments</h2>
               <span class="forum-count">{{ posts.length }} comments</span>
             </div>
 
-            <ReplyInput
-              :is-logged-in="userStore.isLoggedIn"
-              :loading="isPosting"
-              placeholder="Add a quick comment..."
-              submit-label="Comment"
-              login-heading="Log in to join the conversation"
-              login-text="Log in to join the conversation."
-              login-button-label="Log in"
-              @submit="submitPost"
-              @login="goToLogin"
-            />
+            <div class="comment-input-row">
+              <div class="comment-current-avatar">{{ currentUserInitials }}</div>
+              <ReplyInput
+                :is-logged-in="userStore.isLoggedIn"
+                :loading="isPosting"
+                :compact="true"
+                :rows="1"
+                :submit-on-enter="true"
+                placeholder="Add a comment..."
+                submit-label="Comment"
+                login-heading="Log in to join the conversation"
+                login-text="Log in to join the conversation."
+                login-button-label="Log in"
+                @submit="submitPost"
+                @login="goToLogin"
+              />
+            </div>
 
             <p v-if="postError" class="forum-error">{{ postError }}</p>
 
@@ -181,6 +184,7 @@
                 :is-logged-in="userStore.isLoggedIn"
                 :compact="true"
                 tag-label="Comment"
+                :comment-style="true"
                 :highlighted="highlightedPostId === post.id"
                 :on-login="goToLogin"
                 :on-toggle-post-like="togglePostLike"
@@ -232,6 +236,14 @@ let unsubscribePosts: (() => void) | null = null;
 const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
+});
+
+const currentUserInitials = computed(() => {
+  const profile = userStore.userProfile;
+  const value = profile?.displayName || profile?.email || 'Y';
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return (words[0]?.slice(0, 2) || 'Y').toUpperCase();
 });
 
 const isSavedEvent = computed(() => {
@@ -1091,6 +1103,110 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.comments-card {
+  padding: 22px;
+  border: 1px solid #e8eaf0;
+  border-radius: 28px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.comments-card .forum-header {
+  margin-bottom: 18px;
+}
+
+.comments-card .section-title {
+  color: #111827;
+  font-size: 19px !important;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.comments-card .forum-count {
+  color: #9ca3af;
+  font-size: 11px !important;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.comment-input-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.comment-current-avatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c48d1;
+  background: #f6f2ff;
+  border: 1px solid #ded6ff;
+  border-radius: 999px;
+  font-size: 11px !important;
+  font-weight: 700;
+}
+
+.comment-input-row :deep(.reply-input) {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.comment-input-row :deep(.reply-input.compact .reply-textarea) {
+  flex: 1;
+  width: 100%;
+  min-height: 34px !important;
+  height: 34px !important;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid #edf0f4;
+  border-radius: 999px;
+  padding: 7px 32px 7px 14px;
+  color: #6b7280;
+  background: #f8fafc;
+  font-size: 11px !important;
+  line-height: 18px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.01);
+}
+
+.comment-input-row :deep(.reply-textarea::placeholder) {
+  color: #6b7280;
+}
+
+.comment-input-row :deep(.reply-submit) {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  padding: 0;
+  background: #6c48d1;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0;
+}
+
+.comment-input-row :deep(.reply-submit::before) {
+  content: '➜';
+  font-size: 11px !important;
+  line-height: 1;
+}
+
+.comments-card .forum-list {
+  gap: 18px;
+}
+
 .section-header-row {
   display: flex;
   align-items: center;
@@ -1165,6 +1281,71 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.ratings-review-card {
+  padding: 20px;
+  color: #fff;
+  background: #6841c9;
+  border-radius: 24px;
+  box-shadow: 0 18px 34px rgba(108, 72, 209, 0.22);
+}
+
+.ratings-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.ratings-review-title {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.ratings-review-score {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ratings-review-score strong {
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 0.95;
+}
+
+.ratings-review-score span {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.ratings-review-summary {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.ratings-stars {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffd51f;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.ratings-stars .muted {
+  color: #b68f8c;
 }
 
 .metric-label {

@@ -1,17 +1,22 @@
 <template>
-  <div v-if="replies.length > 0" class="reply-list">
+  <div v-if="replies.length > 0" :class="['reply-list', { 'comment-style': commentStyle }]">
     <article v-for="reply in replies" :key="reply.id" class="reply-card">
-      <div class="reply-header">
-        <span class="reply-author">{{ reply.authorName || reply.userEmail || 'Anonymous User' }}</span>
-        <span class="reply-time">{{ formatTimestamp(reply.createdAt) }}</span>
+      <div v-if="commentStyle" class="reply-avatar">
+        {{ getInitials(reply.authorName || reply.userEmail || 'Anonymous User') }}
       </div>
-      <p class="reply-text">{{ reply.content }}</p>
-      <div class="reply-actions">
-        <button class="reply-action-button" type="button" @click="handleToggleLike(reply.id)">
-          <span :class="['reply-like-dot', { active: reply.hasLiked }]"></span>
-          Like
-        </button>
-        <span>{{ reply.likeCount }} likes</span>
+      <div class="reply-content">
+        <div class="reply-header">
+          <span class="reply-author">{{ reply.authorName || reply.userEmail || 'Anonymous User' }}</span>
+          <span v-if="!commentStyle" class="reply-time">{{ formatTimestamp(reply.createdAt) }}</span>
+        </div>
+        <p class="reply-text">{{ reply.content }}</p>
+        <div v-if="!commentStyle" class="reply-actions">
+          <button class="reply-action-button" type="button" @click="handleToggleLike(reply.id)">
+            <span :class="['reply-like-dot', { active: reply.hasLiked }]"></span>
+            Like
+          </button>
+          <span>{{ reply.likeCount }} likes</span>
+        </div>
       </div>
     </article>
   </div>
@@ -23,6 +28,7 @@ import type { DiscussionReply } from '../types/forum';
 const props = defineProps<{
   replies: DiscussionReply[];
   isLoggedIn: boolean;
+  commentStyle?: boolean;
   onToggleLike: (replyId: string) => Promise<void> | void;
   onLogin: () => void;
 }>();
@@ -58,6 +64,12 @@ const formatTimestamp = (value: DiscussionReply['createdAt']) => {
     return 'Just now';
   }
 };
+
+const getInitials = (value: string) => {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return (words[0]?.slice(0, 2) || 'U').toUpperCase();
+};
 </script>
 
 <style scoped>
@@ -74,6 +86,43 @@ const formatTimestamp = (value: DiscussionReply['createdAt']) => {
   border-radius: 16px;
   border: 1px solid rgba(99, 102, 241, 0.1);
   background: rgba(248, 249, 255, 0.9);
+}
+
+.reply-list.comment-style {
+  gap: 8px;
+  margin-top: 10px;
+  margin-left: 22px;
+  padding-left: 18px;
+  border-left: 1px solid #f1f3f7;
+}
+
+.reply-list.comment-style .reply-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.reply-avatar {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  background: #ffedd5;
+  border-radius: 999px;
+  font-size: 9px !important;
+  font-weight: 500;
+}
+
+.reply-content {
+  min-width: 0;
 }
 
 .reply-header {
@@ -100,6 +149,23 @@ const formatTimestamp = (value: DiscussionReply['createdAt']) => {
   color: #39445d;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.reply-list.comment-style .reply-header {
+  justify-content: flex-start;
+  margin-bottom: 1px;
+}
+
+.reply-list.comment-style .reply-author {
+  color: #111827;
+  font-size: 10px !important;
+  font-weight: 700;
+}
+
+.reply-list.comment-style .reply-text {
+  color: #6b7280;
+  font-size: 10px !important;
+  line-height: 1.4;
 }
 
 .reply-actions {

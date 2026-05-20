@@ -6,6 +6,7 @@
       class="reply-textarea"
       :placeholder="placeholder"
       :disabled="loading"
+      @keydown.enter.exact="handleEnter"
     ></textarea>
     <button class="reply-submit" type="button" :disabled="!canSubmit" @click="handleSubmit">
       {{ submitLabel }}
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<{
   loginHeading?: string;
   loginText?: string;
   loginButtonLabel?: string;
+  submitOnEnter?: boolean;
 }>(), {
   loading: false,
   rows: 3,
@@ -43,6 +45,7 @@ const props = withDefaults(defineProps<{
   loginHeading: 'Join the discussion',
   loginText: 'Log in to share your thoughts about this event.',
   loginButtonLabel: 'Log in to post',
+  submitOnEnter: false,
 });
 
 const emit = defineEmits<{
@@ -58,6 +61,12 @@ const handleSubmit = () => {
   if (!text) return;
   emit('submit', text);
   draft.value = '';
+};
+
+const handleEnter = (event: KeyboardEvent) => {
+  if (!props.submitOnEnter) return;
+  event.preventDefault();
+  handleSubmit();
 };
 
 watch(() => props.isLoggedIn, (isLoggedIn) => {
