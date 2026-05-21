@@ -94,7 +94,9 @@ watch(() => props.isLoggedIn, (isLoggedIn) => {
   border: 1px solid rgba(99, 102, 241, 0.16);
   border-radius: 14px;
   padding: 12px 14px;
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--reply-textarea-font-size, inherit);
+  line-height: var(--reply-textarea-line-height, normal);
   color: #20263a;
   background: rgba(255, 255, 255, 0.92);
 }

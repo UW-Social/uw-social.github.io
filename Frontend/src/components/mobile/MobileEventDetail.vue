@@ -140,19 +140,22 @@
       <div class="ratings-review-header">
         <h2 class="ratings-review-title">Ratings &amp; Reviews</h2>
         <div class="ratings-review-score">
-          <strong>4.8</strong>
+          <strong>{{ reviewDisplay.starsText }}</strong>
           <span>/ 5</span>
         </div>
       </div>
 
       <div class="ratings-review-summary">
-        <div class="ratings-stars" aria-label="4.8 out of 5 stars">
-          <span>★</span>
-          <span>★</span>
-          <span>★</span>
-          <span>★</span>
-          <span class="muted">★</span>
+        <div class="ratings-stars" :aria-label="`${reviewDisplay.starsText} out of 5 stars`">
+          <span
+            v-for="star in 5"
+            :key="star"
+            :class="{ muted: star > reviewDisplay.fullStars }"
+          >★</span>
         </div>
+      </div>
+      <div class="ratings-review-detail">
+        <p>{{ reviewDisplay.sentence }}</p>
       </div>
     </div>
 
@@ -300,6 +303,23 @@ const primaryBadge = computed(() => event.value?.category?.trim() || 'Academic')
 const secondaryBadge = computed(() => {
   const tags = event.value?.tags ?? [];
   return tags.find((tag) => tag && tag.trim())?.trim() || '';
+});
+
+const reviewDisplay = computed(() => {
+  const review = event.value?.review;
+  const stars = typeof review?.stars === 'number'
+    ? Math.min(5, Math.max(0, Math.round(review.stars)))
+    : 0;
+  const score = typeof review?.score === 'number'
+    ? Math.min(5, Math.max(0, review.score))
+    : 0;
+  const sentence = review?.sentence?.trim() || 'Review details coming soon';
+
+  return {
+    starsText: score > 0 ? score.toFixed(1) : '--',
+    fullStars: stars,
+    sentence,
+  };
 });
 
 const eventSummary = computed(() => {
@@ -956,7 +976,7 @@ onBeforeUnmount(() => {
 .ratings-review-summary {
   display: flex;
   align-items: center;
-  margin-bottom: 0;
+  margin-bottom: 14px;
 }
 
 .ratings-stars {
@@ -970,6 +990,20 @@ onBeforeUnmount(() => {
 
 .ratings-stars .muted {
   color: #b68f8c;
+}
+
+.ratings-review-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ratings-review-detail p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .forum-header {
@@ -1014,14 +1048,14 @@ onBeforeUnmount(() => {
 
 .comments-card .section-title {
   color: #111827;
-  font-size: 19px !important;
+  font-size: 23px !important;
   font-weight: 800;
   line-height: 1.1;
 }
 
 .comments-card .forum-count {
   color: #9ca3af;
-  font-size: 11px !important;
+  font-size: 13px !important;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1044,7 +1078,7 @@ onBeforeUnmount(() => {
   background: #f6f2ff;
   border: 1px solid #ded6ff;
   border-radius: 999px;
-  font-size: 11px !important;
+  font-size: 13px !important;
   font-weight: 700;
 }
 
@@ -1053,6 +1087,8 @@ onBeforeUnmount(() => {
   align-items: center;
   position: relative;
   width: 100%;
+  --reply-textarea-font-size: 13px;
+  --reply-textarea-line-height: 18px;
 }
 
 .comment-input-row :deep(.reply-input.compact .reply-textarea) {
@@ -1068,7 +1104,7 @@ onBeforeUnmount(() => {
   padding: 7px 32px 7px 14px;
   color: #6b7280;
   background: #f8fafc;
-  font-size: 11px !important;
+  font-size: 13px !important;
   line-height: 18px;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.01);
 }
@@ -1097,7 +1133,7 @@ onBeforeUnmount(() => {
 
 .comment-input-row :deep(.reply-submit::before) {
   content: '➜';
-  font-size: 11px !important;
+  font-size: 13px !important;
   line-height: 1;
 }
 

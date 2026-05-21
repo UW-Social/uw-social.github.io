@@ -1,17 +1,26 @@
 <template>
   <article :class="['discussion-card', { compact, highlighted, 'comment-style': commentStyle }]">
     <div class="discussion-top">
-      <div v-if="commentStyle" class="discussion-avatar">
+      <div
+        v-if="commentStyle"
+        class="discussion-avatar"
+        :style="{ fontSize: '14px' }"
+      >
         {{ authorInitials }}
       </div>
       <div class="discussion-main">
         <span v-if="!commentStyle" class="discussion-tag">{{ tagLabel }}</span>
-        <p class="discussion-meta">
-          <span class="discussion-author">{{ post.authorName || post.userEmail || 'Anonymous User' }}</span>
+        <p class="discussion-meta" :style="commentStyle ? { fontSize: '12px' } : undefined">
+          <span
+            class="discussion-author"
+            :style="commentStyle ? { fontSize: '13px' } : undefined"
+          >
+            {{ post.authorName || post.userEmail || 'Anonymous User' }}
+          </span>
           <span>{{ formatTimestamp(post.createdAt) }}</span>
         </p>
         <h3 v-if="!commentStyle && derivedTitle" class="discussion-title">{{ derivedTitle }}</h3>
-        <p class="discussion-text">{{ post.content }}</p>
+        <p class="discussion-text" :style="commentStyle ? { fontSize: '13px' } : undefined">{{ post.content }}</p>
       </div>
 
       <div v-if="showEventContext" class="event-context">
@@ -27,7 +36,7 @@
       </div>
     </div>
 
-    <div class="discussion-actions">
+    <div class="discussion-actions" :style="commentStyle ? { fontSize: '12px' } : undefined">
       <button class="discussion-action-button" type="button" @click="handleTogglePostLike">
         <span v-if="!commentStyle" :class="['like-indicator', { active: post.hasLiked }]"></span>
         Like
@@ -223,7 +232,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   background: #f1edff;
   border: 1px solid #ddd5ff;
   border-radius: 999px;
-  font-size: 12px !important;
+  font-size: 14px !important;
   font-weight: 700;
 }
 
@@ -271,12 +280,12 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   gap: 7px;
   margin: 1px 0 4px;
   color: #9ca3af;
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 
 .discussion-card.comment-style .discussion-author {
   color: #111827;
-  font-size: 11px !important;
+  font-size: 13px !important;
   font-weight: 800;
 }
 
@@ -302,7 +311,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
 .discussion-card.comment-style .discussion-text {
   margin-top: 0;
   color: #374151;
-  font-size: 11px !important;
+  font-size: 13px !important;
   line-height: 1.35;
 }
 
@@ -351,7 +360,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   margin-top: 8px;
   gap: 16px;
   color: #9ca3af;
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 
 .discussion-card.comment-style .discussion-action-button {
@@ -373,7 +382,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   overflow: hidden;
   border-radius: 999px;
   padding: 7px 14px;
-  font-size: 11px !important;
+  font-size: 13px !important;
   line-height: 18px;
 }
 

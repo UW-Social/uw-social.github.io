@@ -23,6 +23,10 @@
           </div>
           <div class="step" :class="{ active: currentStep >= 4 }" @click="currentStep = 4">
             <span class="step-number">4</span>
+            <span class="step-title">Review</span>
+          </div>
+          <div class="step" :class="{ active: currentStep >= 5 }" @click="currentStep = 5">
+            <span class="step-number">5</span>
             <span class="step-title">Preview</span>
           </div>
         </div>
@@ -275,11 +279,66 @@
 
             <div class="step-navigation">
               <button type="button" class="nav-btn prev" @click="currentStep = 2">← Previous</button>
-              <button type="button" class="nav-btn next" @click="currentStep = 4">Preview →</button>
+              <button type="button" class="nav-btn next" @click="currentStep = 4">Review →</button>
             </div>
           </div>
 
           <div v-show="currentStep === 4" class="step-content">
+            <div class="bento-grid">
+              <div class="bento-card large">
+                <div class="card-header">
+                  <h3>Review</h3>
+                  <p>Update the rating shown on this event detail page</p>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="reviewStars">Stars</label>
+                    <input
+                      id="reviewStars"
+                      v-model.number="formData.reviewStars"
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="1"
+                      placeholder="e.g., 4"
+                    >
+                  </div>
+
+                  <div class="form-group">
+                    <label for="reviewScore">Score</label>
+                    <input
+                      id="reviewScore"
+                      v-model.number="formData.reviewScore"
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      placeholder="e.g., 4.8"
+                    >
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="reviewSentence">Short sentence of review</label>
+                  <input
+                    id="reviewSentence"
+                    v-model="formData.reviewSentence"
+                    type="text"
+                    maxlength="80"
+                    placeholder="e.g., Helpful for networking"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="step-navigation">
+              <button type="button" class="nav-btn prev" @click="currentStep = 3">← Previous</button>
+              <button type="button" class="nav-btn next" @click="currentStep = 5">Preview →</button>
+            </div>
+          </div>
+
+          <div v-show="currentStep === 5" class="step-content">
             <div class="preview-card">
               <div class="card-header">
                 <h3>Ready to Save?</h3>
@@ -299,11 +358,18 @@
                 <div v-if="formData.tags.length" class="preview-tags">
                   <span v-for="tag in formData.tags" :key="tag" class="tag-chip">#{{ tag }}</span>
                 </div>
+                <div class="preview-details">
+                  <template v-if="hasReviewInput">
+                    <span class="detail-chip">★ {{ normalizedReviewStars }} / 5</span>
+                    <span class="detail-chip">{{ normalizedReviewScore }} / 5 score</span>
+                    <span v-if="formData.reviewSentence.trim()" class="detail-chip">{{ formData.reviewSentence }}</span>
+                  </template>
+                </div>
               </div>
             </div>
 
             <div class="step-navigation">
-              <button type="button" class="nav-btn prev" @click="currentStep = 3">← Edit Details</button>
+              <button type="button" class="nav-btn prev" @click="currentStep = 4">← Edit Review</button>
               <button type="submit" class="submit-btn" :disabled="isSubmitting">
                 {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
               </button>
@@ -362,10 +428,35 @@ const formData = ref({
   createdAt: '',
   hasStartTime: false,
   hasEndTime: false,
+  reviewStars: null as number | null,
+  reviewScore: null as number | null,
+  reviewSentence: '',
 });
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const tagsInputValue = ref('');
+
+const clampNumber = (value: number, min: number, max: number) => (
+  Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
+);
+
+const normalizedReviewStars = computed(() => (
+  Math.round(clampNumber(Number(formData.value.reviewStars ?? 4), 1, 5))
+));
+
+const normalizedReviewScore = computed(() => (
+  Math.round(clampNumber(Number(formData.value.reviewScore ?? 4.8), 0, 5) * 10) / 10
+));
+
+const hasNumberInput = (value: number | null) => (
+  value !== null && Number.isFinite(Number(value))
+);
+
+const hasReviewInput = computed(() => (
+  formData.value.reviewSentence.trim().length > 0
+  || hasNumberInput(formData.value.reviewStars)
+  || hasNumberInput(formData.value.reviewScore)
+));
 
 const descriptionPlaceholder = computed(() =>
   formData.value.title
@@ -473,6 +564,13 @@ function hydrateFormFromEvent(event: SocialEvent) {
   formData.value.createdAt = event.createdAt || '';
   formData.value.hasStartTime = Boolean(event._hasStartTime);
   formData.value.hasEndTime = Boolean(event._hasEndTime);
+  formData.value.reviewStars = typeof event.review?.stars === 'number'
+    ? Math.round(clampNumber(event.review.stars, 1, 5))
+    : null;
+  formData.value.reviewScore = typeof event.review?.score === 'number'
+    ? Math.round(clampNumber(event.review.score, 0, 5) * 10) / 10
+    : null;
+  formData.value.reviewSentence = event.review?.sentence?.trim() || '';
 
   if (!schedule || schedule.type === RecurrenceType.ONE_TIME) {
     const startValue = schedule?.type === RecurrenceType.ONE_TIME ? schedule.startDatetime : event.startTime;
@@ -554,6 +652,8 @@ async function handleSubmit() {
   isSubmitting.value = true;
 
   try {
+    const reviewSentence = formData.value.reviewSentence.trim();
+
     let schedule;
     const recurrenceType = formData.value.recurrenceType;
 
@@ -706,6 +806,13 @@ async function handleSubmit() {
       participants: formData.value.participants,
       link: formData.value.link,
       imageUrl,
+      review: hasReviewInput.value
+        ? {
+            stars: normalizedReviewStars.value,
+            score: normalizedReviewScore.value,
+            sentence: reviewSentence,
+          }
+        : null,
       startTime,
       endtime,
       _hasStartTime: !!formData.value.startTime,

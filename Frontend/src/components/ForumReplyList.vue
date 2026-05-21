@@ -1,15 +1,20 @@
 <template>
   <div v-if="replies.length > 0" :class="['reply-list', { 'comment-style': commentStyle }]">
     <article v-for="reply in replies" :key="reply.id" class="reply-card">
-      <div v-if="commentStyle" class="reply-avatar">
+      <div v-if="commentStyle" class="reply-avatar" :style="{ fontSize: '11px' }">
         {{ getInitials(reply.authorName || reply.userEmail || 'Anonymous User') }}
       </div>
       <div class="reply-content">
         <div class="reply-header">
-          <span class="reply-author">{{ reply.authorName || reply.userEmail || 'Anonymous User' }}</span>
+          <span
+            class="reply-author"
+            :style="commentStyle ? { fontSize: '12px' } : undefined"
+          >
+            {{ reply.authorName || reply.userEmail || 'Anonymous User' }}
+          </span>
           <span v-if="!commentStyle" class="reply-time">{{ formatTimestamp(reply.createdAt) }}</span>
         </div>
-        <p class="reply-text">{{ reply.content }}</p>
+        <p class="reply-text" :style="commentStyle ? { fontSize: '12px' } : undefined">{{ reply.content }}</p>
         <div v-if="!commentStyle" class="reply-actions">
           <button class="reply-action-button" type="button" @click="handleToggleLike(reply.id)">
             <span :class="['reply-like-dot', { active: reply.hasLiked }]"></span>
@@ -117,7 +122,7 @@ const getInitials = (value: string) => {
   color: #111827;
   background: #ffedd5;
   border-radius: 999px;
-  font-size: 9px !important;
+  font-size: 11px !important;
   font-weight: 500;
 }
 
@@ -158,13 +163,13 @@ const getInitials = (value: string) => {
 
 .reply-list.comment-style .reply-author {
   color: #111827;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 700;
 }
 
 .reply-list.comment-style .reply-text {
   color: #6b7280;
-  font-size: 10px !important;
+  font-size: 12px !important;
   line-height: 1.4;
 }
 
