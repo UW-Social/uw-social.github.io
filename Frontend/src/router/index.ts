@@ -53,6 +53,11 @@ const routes = [
     component: () => import('@/views/ForumNewPost.vue')
   },
   {
+    path: '/score-framework',
+    name: 'ScoreFramework',
+    component: () => import('@/views/ScoreFramework.vue')
+  },
+  {
     path: '/events/:id/edit',
     name: 'EditEvent',
     component: () => import('@/views/EditEvent.vue'),

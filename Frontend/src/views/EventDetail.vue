@@ -108,6 +108,47 @@
             <p class="event-description" v-html="formatDescription(event.description || '')"></p>
           </div>
 
+          <div id="forum-section" ref="experienceSectionRef" class="experience-sharing-card">
+            <div class="experience-sharing-header">
+              <div>
+                <h2 class="section-title">Experience Sharing</h2>
+                <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
+              </div>
+              <span class="forum-count">{{ experiencePosts.length }} posts</span>
+            </div>
+
+            <ReplyInput
+              :is-logged-in="userStore.isLoggedIn"
+              :loading="isPostingExperience"
+              :rows="6"
+              placeholder="Share a longer review, recap, or experience from this event..."
+              submit-label="Share Experience"
+              login-heading="Log in to share your experience"
+              login-text="Log in to share your experience."
+              login-button-label="Log in"
+              @submit="submitExperiencePost"
+              @login="goToLogin"
+            />
+
+            <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
+
+            <div v-if="experiencePosts.length === 0" class="forum-empty">
+              No experiences yet. Share the first recap or review.
+            </div>
+
+            <div v-else class="forum-list">
+              <ExperiencePostCard
+                v-for="post in experiencePosts"
+                :key="post.id"
+                :post="post"
+                :is-logged-in="userStore.isLoggedIn"
+                :compact="true"
+                :on-login="goToLogin"
+                :on-toggle-like="toggleExperienceLike"
+              />
+            </div>
+          </div>
+
           <div class="map-card">
             <div class="section-header-row">
               <h2 class="section-title">Location</h2>
@@ -126,7 +167,7 @@
         </div>
 
         <aside class="event-side-column">
-          <div id="forum-section" ref="experienceSectionRef" class="ratings-review-card">
+          <div class="ratings-review-card">
             <div class="ratings-review-header">
               <h2 class="ratings-review-title">Ratings &amp; Reviews</h2>
               <div class="ratings-review-score">
@@ -147,6 +188,9 @@
             <div class="ratings-review-detail">
               <p>{{ reviewDisplay.sentence }}</p>
             </div>
+            <router-link class="score-framework-link" to="/score-framework">
+              How We Assign This Score?
+            </router-link>
           </div>
 
           <div id="comments-section" ref="commentsSectionRef" class="forum-card comments-card">
@@ -209,16 +253,20 @@ import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { RecurrenceType, formatEventSchedule, type Event } from '../types/event';
-import type { DiscussionPost } from '../types/forum';
+import type { DiscussionPost, ExperiencePost } from '../types/forum';
+import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
+  createEventExperiencePost,
   subscribeToEventDiscussionPosts,
+  subscribeToEventExperiencePosts,
   toggleDiscussionPostLike,
   toggleDiscussionReplyLike,
+  toggleExperiencePostLike,
 } from '../api/forums';
 
 const route = useRoute();
@@ -232,10 +280,14 @@ const mapContainer = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
+const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
+const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
 const postError = ref('');
+const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
+let unsubscribeExperiencePosts: (() => void) | null = null;
 const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
@@ -566,6 +618,26 @@ const subscribePosts = (id: string) => {
   );
 };
 
+const subscribeExperiencePosts = (id: string) => {
+  if (!id) return;
+  if (unsubscribeExperiencePosts) {
+    unsubscribeExperiencePosts();
+    unsubscribeExperiencePosts = null;
+  }
+
+  unsubscribeExperiencePosts = subscribeToEventExperiencePosts(
+    id,
+    userStore.userProfile?.uid,
+    (nextPosts) => {
+      experiencePosts.value = nextPosts;
+    },
+    (error) => {
+      console.error('Failed to load experience posts:', error);
+      experienceError.value = 'Failed to load experience posts.';
+    }
+  );
+};
+
 const submitPost = async (text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;
 
@@ -587,6 +659,30 @@ const submitPost = async (text: string) => {
     postError.value = 'Failed to post. Please try again.';
   } finally {
     isPosting.value = false;
+  }
+};
+
+const submitExperiencePost = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value) return;
+
+  isPostingExperience.value = true;
+  experienceError.value = '';
+
+  try {
+    await createEventExperiencePost(
+      eventId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+  } catch (error) {
+    console.error('Failed to post experience:', error);
+    experienceError.value = 'Failed to share experience. Please try again.';
+  } finally {
+    isPostingExperience.value = false;
   }
 };
 
@@ -628,6 +724,16 @@ const toggleReplyLike = async (postId: string, replyId: string) => {
     await toggleDiscussionReplyLike(eventId.value, postId, replyId, userStore.userProfile.uid);
   } catch (error) {
     console.error('Failed to toggle reply like:', error);
+  }
+};
+
+const toggleExperienceLike = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  try {
+    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
+  } catch (error) {
+    console.error('Failed to toggle experience like:', error);
   }
 };
 
@@ -680,12 +786,14 @@ onMounted(() => {
 watch(eventId, (id) => {
   if (id) {
     subscribePosts(id);
+    subscribeExperiencePosts(id);
   }
 }, { immediate: true });
 
 watch(() => userStore.userProfile?.uid, () => {
   if (eventId.value) {
     subscribePosts(eventId.value);
+    subscribeExperiencePosts(eventId.value);
   }
 });
 
@@ -695,6 +803,7 @@ watch(() => route.query, () => {
 
 onBeforeUnmount(() => {
   if (unsubscribePosts) unsubscribePosts();
+  if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
 </script>
 
@@ -1229,6 +1338,93 @@ onBeforeUnmount(() => {
   gap: 18px;
 }
 
+.experience-sharing-card {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 24px;
+  padding: 48px 56px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.experience-sharing-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.experience-sharing-card .section-title {
+  margin-bottom: 8px;
+  padding-left: 0;
+  color: #111827;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.experience-sharing-card .section-title::before {
+  display: none;
+}
+
+.experience-sharing-card .section-helper {
+  margin: 0;
+  color: #6b7280;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.experience-sharing-card .forum-count {
+  margin-top: 24px;
+  color: #6b7280;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.experience-sharing-card :deep(.reply-input) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.experience-sharing-card :deep(.reply-textarea) {
+  min-height: 174px;
+  border: 1px solid #ddd9ff;
+  border-radius: 14px;
+  padding: 18px;
+  color: #4b5563;
+  background: #fff;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.experience-sharing-card :deep(.reply-textarea::placeholder) {
+  color: #9ca3af;
+}
+
+.experience-sharing-card :deep(.reply-submit) {
+  min-height: 50px;
+  margin-top: 0;
+  padding: 0 26px;
+  border-radius: 12px;
+  background: #9ca3af;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.experience-sharing-card .forum-empty {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 18px;
+}
+
+.experience-sharing-card .forum-list {
+  margin-top: 24px;
+  gap: 16px;
+}
+
 .section-header-row {
   display: flex;
   align-items: center;
@@ -1384,6 +1580,21 @@ onBeforeUnmount(() => {
   line-height: 1.35;
 }
 
+.score-framework-link {
+  min-height: 34px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #6c48d1;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .metric-label {
   color: #6c48d1;
   font-size: var(--font-size-xs);
@@ -1529,6 +1740,18 @@ onBeforeUnmount(() => {
 
   .review-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .experience-sharing-card {
+    padding: 28px;
+  }
+
+  .experience-sharing-card :deep(.reply-input) {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-sharing-card :deep(.reply-submit) {
+    width: 100%;
   }
 }
 

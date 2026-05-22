@@ -157,6 +157,9 @@
       <div class="ratings-review-detail">
         <p>{{ reviewDisplay.sentence }}</p>
       </div>
+      <router-link class="score-framework-link" to="/score-framework">
+        How We Assign This Score?
+      </router-link>
     </div>
 
     <!-- Comments -->
@@ -1004,6 +1007,21 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.score-framework-link {
+  min-height: 34px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #6c48d1;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .forum-header {
