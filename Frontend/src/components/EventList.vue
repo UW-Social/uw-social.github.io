@@ -44,6 +44,12 @@ const userStore = useUserStore();
 const filteredEvents = ref<Event[]>([]);
 const isLoading = ref(true);
 const RECENCY_WINDOW_DAYS = 30;
+const FUSE_WORST_SCORE = 1;
+const PERSONALIZED_SEMANTIC_WEIGHT = 0.6;
+const PERSONALIZED_RECENCY_WEIGHT = 0.3;
+const PERSONALIZED_POP_WEIGHT = 0.1;
+const TRENDING_RECENCY_WEIGHT = 0.6;
+const TRENDING_POP_WEIGHT = 0.4;
 
 const VALID_CATEGORIES = new Set([
   'ACADEMIC',
@@ -162,8 +168,6 @@ async function refresh() {
     }
   } else if (props.recommendationMode === 'trending') {
     events = scoreByTrending(events);
-  } else if (props.recommendationMode === 'latest') {
-    // already date-sorted above
   }
 
   // Apply limit if supplied
@@ -216,7 +220,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     const results = fuse.search(tag, { limit: candidates.length });
     for (const r of results) {
       const id = r.item.id;
-      const sim = 1 - (typeof r.score === 'number' ? r.score : 1); // Fuse: 0=best, 1=worst; invert so higher is better
+      const sim = FUSE_WORST_SCORE - (typeof r.score === 'number' ? r.score : FUSE_WORST_SCORE); // Fuse: 0=best, 1=worst; invert so higher is better
       if (sim > (semanticScores[id] ?? 0)) semanticScores[id] = sim;
     }
   }
@@ -230,11 +234,6 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     if (popCounts[e.id] > maxPop) maxPop = popCounts[e.id];
   }
 
-  // Combine scores
-  const SEMANTIC_WEIGHT = 0.6;
-  const RECENCY_WEIGHT = 0.3;
-  const POP_WEIGHT = 0.1;
-
   const scored = events.map((e) => {
     const sem = semanticScores[e.id] ?? 0;
 
@@ -243,7 +242,10 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
 
     const pop = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
 
-    const finalScore = SEMANTIC_WEIGHT * sem + RECENCY_WEIGHT * recencyScore + POP_WEIGHT * pop;
+    const finalScore =
+      PERSONALIZED_SEMANTIC_WEIGHT * sem +
+      PERSONALIZED_RECENCY_WEIGHT * recencyScore +
+      PERSONALIZED_POP_WEIGHT * pop;
 
     return { event: e, score: finalScore };
   });
@@ -267,7 +269,7 @@ function scoreByTrending(events: Event[]) {
   const scored = events.map((e) => {
     const recencyScore = calculateRecencyScore(e, now);
     const popularityScore = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
-    const score = recencyScore * 0.6 + popularityScore * 0.4;
+    const score = recencyScore * TRENDING_RECENCY_WEIGHT + popularityScore * TRENDING_POP_WEIGHT;
     return { event: e, score };
   });
 
