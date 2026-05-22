@@ -68,6 +68,12 @@ function isRecurring(event: Event) {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
+interface Candidate {
+  id: string;
+  event: Event;
+  candidate: string;
+}
+
 /* ---- FILTER ---- */
 
 function filterPast(events: Event[]) {
@@ -129,20 +135,24 @@ async function refresh() {
   // Base sort by date (newest/oldest)
   events = sortEvents(events);
 
-  // If recommendation mode is personalized and user has tags, apply Fuse-based ranking
-  if (
-    props.recommendationMode === 'personalized' &&
-    userStore.isLoggedIn &&
-    Array.isArray(userStore.userProfile?.tags) &&
-    userStore.userProfile.tags.length > 0
-  ) {
-    try {
-      const personalized = scoreByPersonalization(events, userStore.userProfile.tags || []);
-      events = personalized;
-    } catch (err) {
-      // Fall back to date-sorted events on error
-      console.error('Personalized ranking failed, falling back to date sort:', err);
+  if (props.recommendationMode === 'personalized') {
+    if (
+      userStore.isLoggedIn &&
+      Array.isArray(userStore.userProfile?.tags) &&
+      userStore.userProfile.tags.length > 0
+    ) {
+      try {
+        const personalized = scoreByPersonalization(events, userStore.userProfile.tags || []);
+        events = personalized;
+      } catch (err) {
+        // Fall back to date-sorted events on error
+        console.error('Personalized ranking failed, falling back to date sort:', err);
+      }
     }
+  } else if (props.recommendationMode === 'trending') {
+    events = scoreByTrending(events);
+  } else if (props.recommendationMode === 'latest') {
+    events = sortEvents(events);
   }
 
   // Apply limit if supplied
@@ -166,7 +176,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   const msPerDay = 1000 * 60 * 60 * 24;
 
   // Build candidate string for each event
-  const candidates = events.map((e) => {
+  const candidates: Candidate[] = events.map((e) => {
     const tagsStr = Array.isArray(e.tags) ? e.tags.join(' ') : '';
     const title = e.title || '';
     const desc = e.description || '';
@@ -178,7 +188,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   });
 
   // Fuse index over event candidates
-  const fuse = new Fuse(candidates, {
+  const fuse = new Fuse<Candidate>(candidates, {
     keys: ['candidate'],
     threshold: 0.4,
     ignoreLocation: true,
@@ -195,7 +205,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     if (!tag) continue;
     const results = fuse.search(tag, { limit: candidates.length });
     for (const r of results) {
-      const id = (r.item as any).id as string;
+      const id = r.item.id;
       const sim = 1 - (typeof r.score === 'number' ? r.score : 1); // convert Fuse score -> similarity
       if (sim > (semanticScores[id] ?? 0)) semanticScores[id] = sim;
     }
@@ -205,7 +215,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   let maxPop = 0;
   const popCounts: Record<string, number> = {};
   for (const e of events) {
-    const count = (e as any).attendeeCount ?? (e as any).interestedCount ?? (e as any).memberCount ?? 0;
+    const count = Array.isArray(e.participants) ? e.participants.length : 0;
     popCounts[e.id] = Math.max(0, count);
     if (popCounts[e.id] > maxPop) maxPop = popCounts[e.id];
   }
@@ -218,7 +228,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   const scored = events.map((e) => {
     const sem = semanticScores[e.id] ?? 0;
 
-    // Recency: prefer near-future events. If recurring, boost slightly.
+    // Recency: prefer near-future events. Recurring events receive max recency score.
     const startMs = toDate(e.startTime).getTime();
     const daysUntil = (startMs - now) / msPerDay;
     const isRec = isRecurring(e);
@@ -241,6 +251,31 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   });
 
   // Sort by descending score
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.event);
+}
+
+function scoreByTrending(events: Event[]) {
+  const now = Date.now();
+  const msPerDay = 1000 * 60 * 60 * 24;
+  let maxPop = 0;
+  const popCounts: Record<string, number> = {};
+
+  for (const e of events) {
+    const count = Array.isArray(e.participants) ? e.participants.length : 0;
+    popCounts[e.id] = Math.max(0, count);
+    if (popCounts[e.id] > maxPop) maxPop = popCounts[e.id];
+  }
+
+  const scored = events.map((e) => {
+    const startMs = toDate(e.startTime).getTime();
+    const daysUntil = (startMs - now) / msPerDay;
+    const recencyScore = isRecurring(e) ? 1 : daysUntil <= 0 ? 0.2 : 1 / (1 + daysUntil / 30);
+    const popularityScore = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
+    const score = recencyScore * 0.6 + popularityScore * 0.4;
+    return { event: e, score };
+  });
+
   scored.sort((a, b) => b.score - a.score);
   return scored.map((s) => s.event);
 }
