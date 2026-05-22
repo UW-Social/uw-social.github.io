@@ -71,7 +71,7 @@ function isRecurring(event: Event) {
 interface Candidate {
   id: string;
   event: Event;
-  candidate: string;
+  searchableText: string;
 }
 
 /* ---- FILTER ---- */
@@ -183,13 +183,13 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     return {
       id: e.id,
       event: e,
-      candidate: `${tagsStr} ${title} ${desc}`.trim(),
+      searchableText: `${tagsStr} ${title} ${desc}`.trim(),
     };
   });
 
   // Fuse index over event candidates
   const fuse = new Fuse<Candidate>(candidates, {
-    keys: ['candidate'],
+    keys: ['searchableText'],
     threshold: 0.4,
     ignoreLocation: true,
     useExtendedSearch: false,
@@ -270,7 +270,14 @@ function scoreByTrending(events: Event[]) {
   const scored = events.map((e) => {
     const startMs = toDate(e.startTime).getTime();
     const daysUntil = (startMs - now) / msPerDay;
-    const recencyScore = isRecurring(e) ? 1 : daysUntil <= 0 ? 0.2 : 1 / (1 + daysUntil / 30);
+    let recencyScore = 0;
+    if (isRecurring(e)) {
+      recencyScore = 1;
+    } else if (daysUntil <= 0) {
+      recencyScore = 0.2;
+    } else {
+      recencyScore = 1 / (1 + daysUntil / 30);
+    }
     const popularityScore = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
     const score = recencyScore * 0.6 + popularityScore * 0.4;
     return { event: e, score };
