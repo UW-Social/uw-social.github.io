@@ -43,6 +43,7 @@ const userStore = useUserStore();
 
 const filteredEvents = ref<Event[]>([]);
 const isLoading = ref(true);
+const RECENCY_WINDOW_DAYS = 30;
 
 const VALID_CATEGORIES = new Set([
   'ACADEMIC',
@@ -142,7 +143,7 @@ async function refresh() {
       userStore.userProfile.tags.length > 0
     ) {
       try {
-        const personalized = scoreByPersonalization(events, userStore.userProfile.tags || []);
+        const personalized = scoreByPersonalization(events, userStore.userProfile.tags);
         events = personalized;
       } catch (err) {
         // Fall back to date-sorted events on error
@@ -206,7 +207,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     const results = fuse.search(tag, { limit: candidates.length });
     for (const r of results) {
       const id = r.item.id;
-      const sim = 1 - (typeof r.score === 'number' ? r.score : 1); // convert Fuse score -> similarity
+      const sim = 1 - (typeof r.score === 'number' ? r.score : 1); // Fuse: 0=best, 1=worst; invert so higher is better
       if (sim > (semanticScores[id] ?? 0)) semanticScores[id] = sim;
     }
   }
@@ -240,7 +241,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
       recencyScore = 0.2;
     } else {
       // events soon get higher score; scale by 30 days window
-      recencyScore = 1 / (1 + daysUntil / 30);
+      recencyScore = 1 / (1 + daysUntil / RECENCY_WINDOW_DAYS);
     }
 
     const pop = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
@@ -276,7 +277,7 @@ function scoreByTrending(events: Event[]) {
     } else if (daysUntil <= 0) {
       recencyScore = 0.2;
     } else {
-      recencyScore = 1 / (1 + daysUntil / 30);
+      recencyScore = 1 / (1 + daysUntil / RECENCY_WINDOW_DAYS);
     }
     const popularityScore = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
     const score = recencyScore * 0.6 + popularityScore * 0.4;
