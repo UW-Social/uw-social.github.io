@@ -152,7 +152,7 @@ async function refresh() {
   } else if (props.recommendationMode === 'trending') {
     events = scoreByTrending(events);
   } else if (props.recommendationMode === 'latest') {
-    events = sortEvents(events);
+    // already date-sorted above
   }
 
   // Apply limit if supplied
@@ -228,7 +228,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   const scored = events.map((e) => {
     const sem = semanticScores[e.id] ?? 0;
 
-    // Recency: prefer near-future events. Recurring events receive max recency score.
+    // Recency: prefer near-future events. Recurring events always receive 1.0.
     const startMs = toDate(e.startTime).getTime();
     const daysUntil = (startMs - now) / msPerDay;
     const isRec = isRecurring(e);
