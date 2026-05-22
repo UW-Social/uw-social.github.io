@@ -69,6 +69,16 @@ function isRecurring(event: Event) {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
+function calculateRecencyScore(event: Event, now: number): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const startMs = toDate(event.startTime).getTime();
+  const daysUntil = (startMs - now) / msPerDay;
+
+  if (isRecurring(event)) return 1;
+  if (daysUntil <= 0) return 0.2;
+  return 1 / (1 + daysUntil / RECENCY_WINDOW_DAYS);
+}
+
 interface Candidate {
   id: string;
   event: Event;
@@ -174,7 +184,6 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   if (!events || events.length === 0) return events;
 
   const now = Date.now();
-  const msPerDay = 1000 * 60 * 60 * 24;
 
   // Build candidate string for each event
   const candidates: Candidate[] = events.map((e) => {
@@ -230,19 +239,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     const sem = semanticScores[e.id] ?? 0;
 
     // Recency: prefer near-future events. Recurring events always receive 1.0.
-    const startMs = toDate(e.startTime).getTime();
-    const daysUntil = (startMs - now) / msPerDay;
-    const isRec = isRecurring(e);
-    let recencyScore = 0;
-    if (isRec) {
-      recencyScore = 1.0;
-    } else if (daysUntil <= 0) {
-      // past one-time events deprioritized
-      recencyScore = 0.2;
-    } else {
-      // events soon get higher score; scale by 30 days window
-      recencyScore = 1 / (1 + daysUntil / RECENCY_WINDOW_DAYS);
-    }
+    const recencyScore = calculateRecencyScore(e, now);
 
     const pop = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
 
@@ -258,7 +255,6 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
 
 function scoreByTrending(events: Event[]) {
   const now = Date.now();
-  const msPerDay = 1000 * 60 * 60 * 24;
   let maxPop = 0;
   const popCounts: Record<string, number> = {};
 
@@ -269,16 +265,7 @@ function scoreByTrending(events: Event[]) {
   }
 
   const scored = events.map((e) => {
-    const startMs = toDate(e.startTime).getTime();
-    const daysUntil = (startMs - now) / msPerDay;
-    let recencyScore = 0;
-    if (isRecurring(e)) {
-      recencyScore = 1;
-    } else if (daysUntil <= 0) {
-      recencyScore = 0.2;
-    } else {
-      recencyScore = 1 / (1 + daysUntil / RECENCY_WINDOW_DAYS);
-    }
+    const recencyScore = calculateRecencyScore(e, now);
     const popularityScore = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
     const score = recencyScore * 0.6 + popularityScore * 0.4;
     return { event: e, score };
