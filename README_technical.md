@@ -10,7 +10,7 @@ Primary architecture characteristics:
 
 - Frontend-first app in `Frontend/`.
 - Uses Firebase services directly from the client:
-	- Firebase Authentication for sign-in/session.
+	- Firebase Authentication for sign-in/session and acquiring short-lived Google OAuth tokens (e.g., Google Calendar API).
 	- Cloud Firestore for events, users, forums, and post data.
 	- Firebase Storage for media assets (for example profile/event images).
 - Uses Pinia for client-side state management.
@@ -72,7 +72,7 @@ Main application (`Frontend/`):
 - `src/firebase/`: Firebase initialization and exported service handles.
 - `src/types/`: shared TypeScript interfaces and model helpers.
 - `src/assets/`: CSS files and design system styles.
-- `src/utils/`: utility modules (event helpers, Google Maps helper).
+- `src/utils/`: utility modules (ICS calendar generation, Google Calendar API integration, event helpers, Google Maps helper).
 - `scripts/migrate-forums.mjs`: Firestore migration utility for old event-post data to forums.
 - `firestore.rules`: Firestore security rules.
 - `firestore.indexes.json`: Firestore indexes config.
@@ -104,6 +104,7 @@ Auxiliary packages present in codebase:
 
 - Axios (API wrapper)
 - Google Maps JavaScript API loader/types
+- Google Calendar REST API integration (via Firebase Auth)
 - Fuse.js
 - Transformer/ONNX-related libraries (`@huggingface/transformers`, `@xenova/transformers`, `onnxruntime-web`, `tokenizers`)
 

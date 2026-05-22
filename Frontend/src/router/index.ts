@@ -38,9 +38,7 @@ const routes = [
   {
     path: '/events',
     name: 'Events',
-    component: isMobile()
-      ? () => import('@/components/mobile/MobileEvent.vue')
-      : () => import('../views/Events.vue')
+    component: () => import('../views/Events.vue')
   },
   {
     path: '/forum',

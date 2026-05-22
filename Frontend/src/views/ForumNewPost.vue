@@ -1,3 +1,4 @@
+
 <template>
   <div class="editor-page">
     <div class="editor-shell">
@@ -149,14 +150,39 @@
           </div>
 
           <div class="media-placeholder">
-            <div>
-              <h3>Media and attachments</h3>
-              <p>Images, video, and file attachments will live here.</p>
-            </div>
-            <button type="button" class="secondary-button" disabled>
-              Upload coming soon
-            </button>
+
+          <div>
+            <h3>Media and attachments</h3>
+            <p v-if="selectedMediaFile">
+              Selected: {{ selectedMediaFile.name }}
+            </p>
+            <p v-else>
+              Select an image to attach to your post.
+            </p>
           </div>
+
+          <input
+            ref="mediaInputRef"
+            class="hidden-file-input"
+            type="file"
+            accept="image/*,video/*"
+            @change="handleMediaSelected"
+          />
+
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="isUploadingMedia"
+            @click="openMediaPicker"
+          >
+            {{ isUploadingMedia ? 'Uploading...' : uploadedMediaUrl ? 'Change image' : 'Select image or video' }}
+          </button>
+          <p v-if="uploadedMediaUrl" class="selected-file-name">
+            Uploaded successfully.
+          </p>
+
+        </div>
+
 
           <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
         </main>
@@ -255,6 +281,10 @@ import { createEventExperiencePost } from '../api/forums';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule, type Event as UWEvent } from '../types/event';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase/config';
+
+
 
 const route = useRoute();
 const router = useRouter();
@@ -282,6 +312,12 @@ const textColor = ref('#24304a');
 const visibleEventCount = ref(12);
 const bodyPlaceholder = 'Share your experience, thoughts, highlights, or advice...';
 const EVENT_BATCH_SIZE = 12;
+const mediaInputRef = ref<HTMLInputElement | null>(null);
+const selectedMediaFile = ref<File | null>(null);
+const uploadedMediaUrl = ref('');
+const isUploadingMedia = ref(false);
+
+
 
 type PainterStyle = {
   bold: boolean;
@@ -333,7 +369,8 @@ const eventResults = computed<UWEvent[]>(() => {
 const canPublish = computed(() =>
   title.value.trim().length > 0 &&
   selectedEventId.value.length > 0 &&
-  bodyText.value.trim().length > 0
+  bodyText.value.trim().length > 0 &&
+  !isUploadingMedia.value
 );
 
 const isSelectionInsideEditor = (selection: Selection | null) => {
@@ -486,6 +523,46 @@ const insertLink = () => {
   linkUrl.value = '';
 };
 
+const openMediaPicker = () => {
+  mediaInputRef.value?.click();
+};
+
+const handleMediaSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] ?? null;
+
+  selectedMediaFile.value = file;
+  uploadedMediaUrl.value = '';
+
+  console.log('Selected file:', file);
+
+  if (file) {
+    await uploadSelectedMedia(file);
+  }
+};
+const uploadSelectedMedia = async (fileToUpload = selectedMediaFile.value) => {
+  if (!fileToUpload || !userStore.userProfile?.uid) return;
+
+  isUploadingMedia.value = true;
+
+  try {
+    const path = `forum-media/${userStore.userProfile.uid}/${Date.now()}-${fileToUpload.name}`;
+    const fileRef = storageRef(storage, path);
+
+    await uploadBytes(fileRef, fileToUpload);
+
+    uploadedMediaUrl.value = await getDownloadURL(fileRef);
+
+    console.log('Uploaded media URL:', uploadedMediaUrl.value);
+  } catch (error) {
+    console.error('Failed to upload media:', error);
+  } finally {
+    isUploadingMedia.value = false;
+  }
+};
+
+
+
 const openEventSelector = async () => {
   isEventSelectorOpen.value = true;
   visibleEventCount.value = EVENT_BATCH_SIZE;
@@ -543,7 +620,7 @@ const publishPost = async () => {
   syncBody();
 
   try {
-    await createEventExperiencePost(
+    const postId = await createEventExperiencePost(
       selectedEventId.value,
       {
         uid: userStore.userProfile.uid,
@@ -555,9 +632,16 @@ const publishPost = async () => {
         subtitle: subtitle.value.trim(),
         body: bodyText.value.trim(),
         bodyHtml: bodyHtml.value,
-        mediaUrls: [],
+        mediaUrls: uploadedMediaUrl.value ? [uploadedMediaUrl.value] : [],
       }
     );
+
+    console.log('Created forum experience post:', {
+      eventId: selectedEventId.value,
+      postId,
+      firestorePath: `events/${selectedEventId.value}/forumPosts/${postId}`,
+      mediaUrls: uploadedMediaUrl.value ? [uploadedMediaUrl.value] : [],
+    });
 
     router.push('/forum');
   } catch (error) {
@@ -981,6 +1065,10 @@ watch(eventSearch, async () => {
   border-radius: 18px;
   padding: 18px;
   background: rgba(247, 248, 255, 0.82);
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 .media-placeholder h3,

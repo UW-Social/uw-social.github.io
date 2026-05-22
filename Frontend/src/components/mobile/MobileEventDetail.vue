@@ -60,7 +60,13 @@
           >
             Register Now
           </button>
-          <button class="download-button" type="button" aria-label="Download event details">
+          <button
+            class="download-button"
+            type="button"
+            aria-label="Download calendar (.ics)"
+            :disabled="!event"
+            @click="event ? downloadIcs(event) : null"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14,2 14,8 20,8"></polyline>
@@ -254,6 +260,8 @@ import ExperiencePostCard from '../ExperiencePostCard.vue';
 import ForumPostCard from '../ForumPostCard.vue';
 import ReplyInput from '../ReplyInput.vue';
 import { loadGoogleMaps } from '../../utils/googleMaps';
+import { downloadIcs } from '../../utils/icsUtils';
+import { addEventToGoogleCalendar } from '../../utils/googleCalendar';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
@@ -279,6 +287,7 @@ const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
 const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
+const isAddingToGoogleCalendar = ref(false);
 const postError = ref('');
 const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
@@ -409,6 +418,44 @@ const goToLogin = () => {
     }
   });
 };
+
+const addToGoogleCalendar = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to add events to your Google Calendar.',
+      },
+    });
+    return;
+  }
+
+  if (!event.value || isAddingToGoogleCalendar.value) {
+    return;
+  }
+
+  isAddingToGoogleCalendar.value = true;
+
+  try {
+    const created = await addEventToGoogleCalendar(event.value);
+    if (created.htmlLink) {
+      window.open(created.htmlLink, '_blank', 'noopener,noreferrer');
+    }
+  } catch (error) {
+    console.error('Failed to add event to Google Calendar:', error);
+    const message = error instanceof Error
+      ? error.message
+      : 'Unable to add this event to Google Calendar.';
+    window.alert(message);
+  } finally {
+    isAddingToGoogleCalendar.value = false;
+  }
+};
+
+defineExpose({
+  addToGoogleCalendar,
+});
 
 // Handle image loading errors
 const handleImageError = (event: any) => {
@@ -752,6 +799,11 @@ onBeforeUnmount(() => {
   padding: 0 0 0 2px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .event-title {
   margin: 0;
   color: #0f172a;
@@ -910,6 +962,7 @@ onBeforeUnmount(() => {
   background: rgba(108, 72, 209, 0.18);
 }
 
+.download-button:disabled,
 .save-button:disabled {
   opacity: 0.7;
   cursor: wait;

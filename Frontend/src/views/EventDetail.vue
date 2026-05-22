@@ -72,9 +72,9 @@
             <button
               class="download-button"
               type="button"
-              aria-label="Download calendar file"
-              title="Download calendar file"
-              @click="downloadCalendarFile"
+              aria-label="Download calendar (.ics)"
+              title="Download calendar (.ics)"
+              @click="downloadIcs(event)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="17" rx="2"></rect>
@@ -252,12 +252,14 @@ import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
-import { RecurrenceType, formatEventSchedule, type Event } from '../types/event';
+import { formatEventSchedule, type Event } from '../types/event';
 import type { DiscussionPost, ExperiencePost } from '../types/forum';
 import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
+import { downloadIcs } from '../utils/icsUtils';
+import { addEventToGoogleCalendar } from '../utils/googleCalendar';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
@@ -284,6 +286,7 @@ const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
 const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
+const isAddingToGoogleCalendar = ref(false);
 const postError = ref('');
 const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
@@ -423,164 +426,43 @@ const openRegistration = () => {
   window.open(event.value.link, '_blank', 'noopener,noreferrer');
 };
 
-const toDateValue = (date: any): Date | null => {
-  if (!date) return null;
-  if (typeof date.toDate === 'function') return date.toDate();
-  if (typeof date.seconds === 'number') return new Date(date.seconds * 1000);
-
-  const parsed = date instanceof Date ? date : new Date(date);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const withTimeOfDay = (date: Date, time?: string): Date => {
-  const next = new Date(date);
-  if (!time) return next;
-
-  const [rawHours, rawMinutes = '00'] = time.split(':');
-  const hours = Number(rawHours);
-  const minutes = Number(rawMinutes);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return next;
-
-  next.setHours(hours, minutes, 0, 0);
-  return next;
-};
-
-const formatIcsDateTime = (date: Date): string => (
-  date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
-);
-
-const escapeIcsText = (value: string): string => (
-  value
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n')
-);
-
-const foldIcsLine = (line: string): string => {
-  if (line.length <= 74) return line;
-  const parts = [];
-  for (let index = 0; index < line.length; index += 74) {
-    parts.push(`${index === 0 ? '' : ' '}${line.slice(index, index + 74)}`);
-  }
-  return parts.join('\r\n');
-};
-
-const slugifyFileName = (value: string): string => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'event'
-);
-
-interface CalendarTiming {
-  start: Date | null;
-  end: Date | null;
-  recurrenceEnd?: Date | null;
-}
-
-const getCalendarTiming = (calendarEvent: Event): CalendarTiming => {
-  const schedule = calendarEvent.schedule;
-
-  if (schedule?.type === RecurrenceType.ONE_TIME) {
-    const start = toDateValue(schedule.startDatetime);
-    const end = toDateValue(schedule.endDatetime);
-    return { start, end };
+const addToGoogleCalendar = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to add events to your Google Calendar.',
+      },
+    });
+    return;
   }
 
-  if (
-    schedule?.type === RecurrenceType.DAILY
-    || schedule?.type === RecurrenceType.WEEKLY
-    || schedule?.type === RecurrenceType.MONTHLY
-  ) {
-    const startDate = toDateValue(schedule.startDate);
-    const endDate = toDateValue(schedule.endDate);
-    const start = startDate ? withTimeOfDay(startDate, schedule.startTimeOfDay) : null;
-    const end = startDate
-      ? withTimeOfDay(startDate, schedule.endTimeOfDay || schedule.startTimeOfDay)
-      : null;
-
-    return {
-      start,
-      end: end && start && end.getTime() > start.getTime() ? end : start ? new Date(start.getTime() + 60 * 60 * 1000) : null,
-      recurrenceEnd: endDate,
-    };
+  if (!event.value || isAddingToGoogleCalendar.value) {
+    return;
   }
 
-  const start = toDateValue(calendarEvent.startTime);
-  const end = toDateValue(calendarEvent.endtime);
-  return { start, end };
-};
+  isAddingToGoogleCalendar.value = true;
 
-const getCalendarRRule = (calendarEvent: Event, recurrenceEnd?: Date | null): string => {
-  const schedule = calendarEvent.schedule;
-  if (!schedule || schedule.type === RecurrenceType.ONE_TIME) return '';
-
-  const frequencyByType = {
-    [RecurrenceType.DAILY]: 'DAILY',
-    [RecurrenceType.WEEKLY]: 'WEEKLY',
-    [RecurrenceType.MONTHLY]: 'MONTHLY',
-  } as const;
-  const frequency = frequencyByType[schedule.type];
-  const parts = [`FREQ=${frequency}`];
-
-  if (schedule.type === RecurrenceType.WEEKLY && Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0) {
-    const dayLabels = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-    const days = schedule.daysOfWeek.map(day => dayLabels[Number(day)]).filter(Boolean);
-    if (days.length > 0) parts.push(`BYDAY=${days.join(',')}`);
+  try {
+    const created = await addEventToGoogleCalendar(event.value);
+    if (created.htmlLink) {
+      window.open(created.htmlLink, '_blank', 'noopener,noreferrer');
+    }
+  } catch (error) {
+    console.error('Failed to add event to Google Calendar:', error);
+    const message = error instanceof Error
+      ? error.message
+      : 'Unable to add this event to Google Calendar.';
+    window.alert(message);
+  } finally {
+    isAddingToGoogleCalendar.value = false;
   }
-
-  if (schedule.type === RecurrenceType.MONTHLY && Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0) {
-    const days = schedule.daysOfMonth.map(Number).filter(day => day >= 1 && day <= 31);
-    if (days.length > 0) parts.push(`BYMONTHDAY=${days.join(',')}`);
-  }
-
-  if (recurrenceEnd) parts.push(`UNTIL=${formatIcsDateTime(recurrenceEnd)}`);
-  return `RRULE:${parts.join(';')}`;
 };
 
-const downloadCalendarFile = () => {
-  if (!event.value) return;
-  const timing = getCalendarTiming(event.value);
-  const start = timing.start ?? new Date();
-  const end = timing.end && timing.end.getTime() > start.getTime()
-    ? timing.end
-    : new Date(start.getTime() + 60 * 60 * 1000);
-  const uid = `${event.value.id || Date.now()}@uw-social.github.io`;
-  const description = [
-    event.value.description || '',
-    event.value.link ? `Event page: ${event.value.link}` : '',
-  ].filter(Boolean).join('\n\n');
-  const rrule = getCalendarRRule(event.value, timing.recurrenceEnd);
-
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//UW Social//Event Calendar//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    `UID:${escapeIcsText(uid)}`,
-    `DTSTAMP:${formatIcsDateTime(new Date())}`,
-    `DTSTART:${formatIcsDateTime(start)}`,
-    `DTEND:${formatIcsDateTime(end)}`,
-    `SUMMARY:${escapeIcsText(event.value.title || 'UW Social Event')}`,
-    `DESCRIPTION:${escapeIcsText(description)}`,
-    `LOCATION:${escapeIcsText(event.value.location || '')}`,
-    ...(rrule ? [rrule] : []),
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ];
-
-  const blob = new Blob([lines.map(foldIcsLine).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${slugifyFileName(event.value.title || 'event')}.ics`;
-  link.click();
-  URL.revokeObjectURL(url);
-};
+defineExpose({
+  addToGoogleCalendar,
+});
 
 const formatDescription = (desc: string) => {
   if (!desc) return '';
@@ -977,6 +859,12 @@ onBeforeUnmount(() => {
 .event-info-header {
   display: flex;
   flex-direction: column;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .event-title {

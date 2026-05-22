@@ -422,7 +422,7 @@ export async function createEventExperiencePost(
   const bodyHtml = typeof input === 'string' ? undefined : input.bodyHtml;
   const mediaUrls = typeof input === 'string' ? [] : input.mediaUrls ?? [];
 
-  await addDoc(collection(db, 'events', eventId, 'forumPosts'), {
+  const postRef = await addDoc(collection(db, 'events', eventId, 'forumPosts'), {
     eventId,
     content,
     text: content,
@@ -439,6 +439,8 @@ export async function createEventExperiencePost(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  return postRef.id;
 }
 
 export async function toggleExperiencePostLike(
