@@ -302,15 +302,7 @@ const addCustomTag = () => {
   }
 };
 
-// Toggle tag selection
-const toggleTag = (tag: string) => {
-  const index = selectedTags.value.indexOf(tag);
-  if (index > -1) {
-    selectedTags.value.splice(index, 1);
-  } else {
-    selectedTags.value.push(tag);
-  }
-};
+
 
 // Remove tag
 const removeTag = (tag: string) => {
@@ -318,7 +310,9 @@ const removeTag = (tag: string) => {
   if (index > -1) {
     selectedTags.value.splice(index, 1);
   }
-};
+}
+
+
 
 // Save profile
 const saveProfile = async () => {
