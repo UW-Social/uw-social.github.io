@@ -262,7 +262,6 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .featured-event-body p {
@@ -274,7 +273,6 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .event-detail-row {
@@ -334,7 +332,6 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .stack-meta {
