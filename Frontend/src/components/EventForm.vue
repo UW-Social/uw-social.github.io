@@ -400,7 +400,6 @@ import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Event as EventModel } from '../types/event';
 import { RecurrenceType } from '../types/event';
-import { GoogleGenAI } from "@google/genai";
 import '@/assets/eventform.css';
 
 const router = useRouter();
@@ -412,9 +411,9 @@ const storage = getStorage();
 const currentStep = ref(1);
 const importLink = ref('');
 const isImporting = ref(false);
-const ai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY
-});
+
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 const formData = ref({
   title: '',
@@ -604,9 +603,12 @@ const scraper = async (url: string) => {
 };
 
 const gemini = async (document: string) => {
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
-    contents: `
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
+  }
+
+  const prompt = `
 You are an information extraction system.
 
 Extract event details from the document.
@@ -645,10 +647,46 @@ Rules:
 
 DOCUMENT:
 ${document}
-    `.trim(),
+    `.trim();
+
+  const response = await fetch(`${GEMINI_ENDPOINT}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    }),
   });
 
-  const text = response.text;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          text?: string;
+        }>;
+      };
+    }>;
+  };
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini response did not include text content.');
+  }
 
   try {
     return JSON.parse(text);

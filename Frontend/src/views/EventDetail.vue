@@ -426,6 +426,36 @@ const openRegistration = () => {
   window.open(event.value.link, '_blank', 'noopener,noreferrer');
 };
 
+const toggleSavedEvent = async () => {
+  if (!event.value?.id) return;
+  if (!userStore.isLoggedIn || !userStore.userProfile?.uid) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  if (isSavingEvent.value) return;
+
+  isSavingEvent.value = true;
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== event.value?.id)
+      : [...new Set([...currentSaved, event.value.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved event:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+};
+
 const addToGoogleCalendar = async () => {
   if (!userStore.isLoggedIn) {
     router.push({
