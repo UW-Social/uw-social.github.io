@@ -51,6 +51,17 @@ const routes = [
     component: () => import('@/views/ForumNewPost.vue')
   },
   {
+    path: '/forum/posts/:eventId/:postId',
+    name: 'ExperiencePostDetail',
+    component: () => import('@/views/ExperiencePostDetail.vue'),
+    props: true
+  },
+  {
+    path: '/score-framework',
+    name: 'ScoreFramework',
+    component: () => import('@/views/ScoreFramework.vue')
+  },
+  {
     path: '/events/:id/edit',
     name: 'EditEvent',
     component: () => import('@/views/EditEvent.vue'),

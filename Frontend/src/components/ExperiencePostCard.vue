@@ -1,5 +1,12 @@
 <template>
-  <article :class="['experience-card', { compact }]">
+  <article
+    :class="['experience-card', { compact }]"
+    role="link"
+    tabindex="0"
+    @click="openPostDetail"
+    @keydown.enter.prevent="openPostDetail"
+    @keydown.space.prevent="openPostDetail"
+  >
     <div class="experience-body">
       <div class="experience-main">
         <span class="experience-tag">Experience</span>
@@ -18,6 +25,7 @@
             class="experience-media-video"
             controls
             preload="metadata"
+            @click.stop
           ></video>
 
           <img
@@ -31,7 +39,7 @@
     </div>
       <div v-if="showEventContext" class="event-context">
         <p class="context-label">Event</p>
-        <router-link :to="eventLink" class="context-link">
+        <router-link :to="eventLink" class="context-link" @click.stop>
           {{ post.eventTitle }}
         </router-link>
         <p v-if="post.eventSchedule" class="context-value">{{ post.eventSchedule }}</p>
@@ -40,7 +48,7 @@
     </div>
 
     <div class="experience-actions">
-      <button class="experience-action-button" type="button" @click="handleToggleLike">
+      <button class="experience-action-button" type="button" @click.stop="handleToggleLike">
         <span :class="['like-indicator', { active: post.hasLiked }]"></span>
         Like
       </button>
@@ -49,7 +57,7 @@
     </div>
 
     <div v-if="showEventContext" class="experience-footer">
-      <router-link :to="eventLink" class="view-event-button">
+      <router-link :to="eventLink" class="view-event-button" @click.stop>
         View Event Discussion
       </router-link>
     </div>
@@ -58,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import type { AggregatedExperiencePost, ExperiencePost } from '../types/forum';
 
 const props = withDefaults(defineProps<{
@@ -74,9 +83,15 @@ const props = withDefaults(defineProps<{
   previewLimit: 360,
 });
 
+const router = useRouter();
+
 const isVideoUrl = (url: string) => {
   return /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url);
 };
+
+const postDetailLink = computed(() => ({
+  path: `/forum/posts/${props.post.eventId}/${props.post.id}`,
+}));
 
 const eventLink = computed(() => ({
   path: `/events/${props.post.eventId}`,
@@ -106,6 +121,10 @@ const handleToggleLike = async () => {
   }
 
   await props.onToggleLike(props.post.id);
+};
+
+const openPostDetail = () => {
+  router.push(postDetailLink.value);
 };
 
 const formatTimestamp = (value: ExperiencePost['createdAt']) => {
@@ -139,6 +158,18 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.96));
   padding: 22px;
   box-shadow: 0 14px 34px rgba(31, 39, 64, 0.07);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.experience-card:hover {
+  border-color: rgba(108, 72, 209, 0.28);
+  box-shadow: 0 18px 40px rgba(31, 39, 64, 0.1);
+}
+
+.experience-card:focus-visible {
+  outline: 3px solid rgba(108, 72, 209, 0.22);
+  outline-offset: 3px;
 }
 
 .experience-card.compact {

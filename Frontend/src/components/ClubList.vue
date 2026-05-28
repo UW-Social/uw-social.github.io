@@ -19,7 +19,6 @@ import Fuse from 'fuse.js';
 import { useClubStore } from '../stores/club';
 import ClubCard from './ClubCard.vue';
 import { useUserStore } from '../stores/user';
-import { getPhraseVec } from './models/embedding_distance';
 import type { Club } from '../types/club';
 
 const props = defineProps<{ 
@@ -56,6 +55,8 @@ async function makeInterestTagClubsFirstSemantic(clubs: any[]) {
   const userTags = (userStore.userProfile?.tags ?? []).map(t => t.toLowerCase());
 
   if (!userTags.length) return clubs;
+
+  const { getPhraseVec } = await import('./models/embedding_distance');
 
   // Precompute embeddings for user tags
   const userTagEmbeddings = await Promise.all(

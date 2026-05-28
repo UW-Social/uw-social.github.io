@@ -1,99 +1,132 @@
 <template>
   <div class="mobile-event-detail">
-    <!-- Event Header -->
-    <div class="event-header">
-      <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
-      <div class="header-actions">
-        <button
-          class="bookmark-button download-ics-button"
-          type="button"
-          aria-label="Download calendar (.ics)"
-          @click="event ? downloadIcs(event) : null"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-            <path d="M12 12v6"></path>
-            <path d="M9 15l3 3 3-3"></path>
-          </svg>
-        </button>
-        <button
-          class="bookmark-button google-calendar-button"
-          type="button"
-          aria-label="Add event to Google Calendar"
-          :disabled="isAddingToGoogleCalendar"
-          @click="addToGoogleCalendar"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-            <line x1="12" y1="13" x2="12" y2="18"></line>
-            <line x1="9.5" y1="15.5" x2="14.5" y2="15.5"></line>
-          </svg>
-        </button>
-        <button
-          class="bookmark-button"
-          type="button"
-          :class="{ saved: isSavedEvent }"
-          :disabled="isSavingEvent"
-          @click="toggleSavedEvent"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Event Info Bento Layout -->
-    <div class="bento-container">
-      <!-- Left: Event Image -->
-      <div class="bento-image">
-        <img 
-          :src="event?.imageUrl || '/images/wavingdog.jpg'" 
-          :alt="event?.title"
-          class="event-image"
+    <!-- Event Header Section -->
+    <div class="event-hero-card">
+      <div class="event-hero-image-wrap">
+        <img
+          :src="event?.imageUrl || '/images/wavingdog.jpg'"
+          :alt="event?.title || 'Event image'"
+          class="event-hero-image"
           @error="handleImageError"
-        />
+        >
+        <div class="event-badges">
+          <span class="category-badge">{{ primaryBadge }}</span>
+          <span v-if="secondaryBadge" class="tag-badge">#{{ secondaryBadge }}</span>
+        </div>
       </div>
 
-      <!-- Right: Event Details -->
-      <div class="bento-details">
-        <!-- Time -->
-        <div class="detail-item">
-          <div class="detail-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12,6 12,12 16,14"></polyline>
-            </svg>
+      <div class="event-hero-info">
+        <h1 class="event-title">{{ event?.title || 'Loading...' }}</h1>
+        <p class="event-summary">{{ eventSummary }}</p>
+
+        <div class="logistics-grid">
+          <div class="logistic-card">
+            <div class="logistic-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="logistic-copy">
+              <p class="logistic-label">When</p>
+              <p class="logistic-primary">{{ schedulePrimary }}</p>
+              <p class="logistic-secondary">{{ scheduleSecondary }}</p>
+            </div>
           </div>
-          <span class="detail-text">{{ formattedTime }}</span>
+
+          <div class="logistic-card">
+            <div class="logistic-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+            </div>
+            <div class="logistic-copy">
+              <p class="logistic-label">Where</p>
+              <p class="logistic-primary">{{ locationPrimary }}</p>
+              <p class="logistic-secondary">{{ locationSecondary }}</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Location -->
-        <div class="detail-item">
-          <div class="detail-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </div>
-          <span class="detail-text">{{ event?.location || 'Location TBD' }}</span>
-        </div>
-
-        <!-- Tags -->
-        <div class="tags-section">
-          <span 
-            v-for="tag in displayTags" 
-            :key="tag" 
-            class="tag"
+        <div class="event-actions">
+          <button
+            class="register-button"
+            type="button"
+            :disabled="!event?.link"
+            @click="openRegistration"
           >
-            #{{ tag }}
-          </span>
+            Register Now
+          </button>
+          <button
+            class="save-button"
+            type="button"
+            :class="{ saved: isSavedEvent }"
+            :disabled="isSavingEvent"
+            @click="toggleSavedEvent"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+            </svg>
+            {{ isSavedEvent ? 'Saved' : 'Save' }}
+          </button>
+          <div ref="calendarMenuRef" class="calendar-menu">
+            <button
+              class="calendar-menu-button"
+              type="button"
+              aria-haspopup="menu"
+              :aria-expanded="isCalendarMenuOpen"
+              :disabled="!event"
+              @click="toggleCalendarMenu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="17" rx="2"></rect>
+                <path d="M16 2v4"></path>
+                <path d="M8 2v4"></path>
+                <path d="M3 10h18"></path>
+                <path d="M12 14v4"></path>
+                <path d="M10 16h4"></path>
+              </svg>
+              <span>Add to calendar</span>
+              <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+
+            <div v-if="isCalendarMenuOpen" class="calendar-menu-panel" role="menu">
+              <button
+                class="calendar-menu-item"
+                type="button"
+                role="menuitem"
+                :disabled="isAddingToGoogleCalendar"
+                @click="addEventToGoogleCalendarFromMenu"
+              >
+                <span class="calendar-menu-item-icon">G</span>
+                <span>
+                  <strong>Google Calendar</strong>
+                  <small>Open in Google Calendar</small>
+                </span>
+              </button>
+              <button
+                class="calendar-menu-item"
+                type="button"
+                role="menuitem"
+                @click="downloadEventCalendar"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <path d="M7 10l5 5 5-5"></path>
+                  <path d="M12 15V3"></path>
+                </svg>
+                <span>
+                  <strong>Download .ics file</strong>
+                  <small>Use with Apple Calendar or Outlook</small>
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -113,22 +146,13 @@
           <h2 class="section-title">Experience Sharing</h2>
           <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
         </div>
-        <span class="forum-count">{{ experiencePosts.length }} posts</span>
+        <div class="experience-actions-header">
+          <span class="forum-count">{{ experiencePosts.length }} posts</span>
+          <button class="share-experience-button" type="button" @click="goToExperienceEditor">
+            Share Experience
+          </button>
+        </div>
       </div>
-
-      <ReplyInput
-        :is-logged-in="userStore.isLoggedIn"
-        :loading="isPostingExperience"
-        :compact="true"
-        :rows="6"
-        placeholder="Share a longer review, recap, or experience from this event..."
-        submit-label="Share Experience"
-        login-heading="Log in to share your experience"
-        login-text="Log in to share your experience."
-        login-button-label="Log in"
-        @submit="submitExperiencePost"
-        @login="goToLogin"
-      />
 
       <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
 
@@ -149,25 +173,57 @@
       </div>
     </div>
 
+    <!-- Ratings & Reviews -->
+    <div id="review-section" class="ratings-review-card">
+      <div class="ratings-review-header">
+        <h2 class="ratings-review-title">Ratings &amp; Reviews</h2>
+        <div class="ratings-review-score">
+          <strong>{{ reviewDisplay.starsText }}</strong>
+          <span>/ 5</span>
+        </div>
+      </div>
+
+      <div class="ratings-review-summary">
+        <div class="ratings-stars" :aria-label="`${reviewDisplay.starsText} out of 5 stars`">
+          <span
+            v-for="star in 5"
+            :key="star"
+            :class="{ muted: star > reviewDisplay.fullStars }"
+          >★</span>
+        </div>
+      </div>
+      <div class="ratings-review-detail">
+        <p>{{ reviewDisplay.sentence }}</p>
+      </div>
+      <router-link class="score-framework-link" to="/score-framework">
+        How We Assign This Score?
+      </router-link>
+    </div>
+
     <!-- Comments -->
-    <div id="comments-section" ref="commentsSectionRef" class="forum-card">
+    <div id="comments-section" ref="commentsSectionRef" class="forum-card comments-card">
       <div class="forum-header">
         <h2 class="section-title">Comments</h2>
         <span class="forum-count">{{ posts.length }} comments</span>
       </div>
 
-      <ReplyInput
-        :is-logged-in="userStore.isLoggedIn"
-        :loading="isPosting"
-        :compact="true"
-        placeholder="Add a quick comment..."
-        submit-label="Comment"
-        login-heading="Log in to join the conversation"
-        login-text="Log in to join the conversation."
-        login-button-label="Log in"
-        @submit="submitPost"
-        @login="goToLogin"
-      />
+      <div class="comment-input-row">
+        <div class="comment-current-avatar">{{ currentUserInitials }}</div>
+        <ReplyInput
+          :is-logged-in="userStore.isLoggedIn"
+          :loading="isPosting"
+          :compact="true"
+          :rows="1"
+          :submit-on-enter="true"
+          placeholder="Add a comment..."
+          submit-label="Comment"
+          login-heading="Log in to join the conversation"
+          login-text="Log in to join the conversation."
+          login-button-label="Log in"
+          @submit="submitPost"
+          @login="goToLogin"
+        />
+      </div>
 
       <p v-if="postError" class="forum-error">{{ postError }}</p>
 
@@ -183,6 +239,7 @@
           :is-logged-in="userStore.isLoggedIn"
           :compact="true"
           tag-label="Comment"
+          :comment-style="true"
           :highlighted="highlightedPostId === post.id"
           :on-login="goToLogin"
           :on-toggle-post-like="togglePostLike"
@@ -240,7 +297,6 @@ import { addEventToGoogleCalendar } from '../../utils/googleCalendar';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
-  createEventExperiencePost,
   subscribeToEventDiscussionPosts,
   subscribeToEventExperiencePosts,
   toggleDiscussionPostLike,
@@ -257,12 +313,13 @@ const isLoading = ref(true);
 const mapEl = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);
+const calendarMenuRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
 const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
-const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
 const isAddingToGoogleCalendar = ref(false);
+const isCalendarMenuOpen = ref(false);
 const postError = ref('');
 const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
@@ -272,13 +329,53 @@ const highlightedPostId = computed(() => {
   return typeof postId === 'string' ? postId : '';
 });
 
+const currentUserInitials = computed(() => {
+  const profile = userStore.userProfile;
+  const value = profile?.displayName || profile?.email || 'Y';
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return (words[0]?.slice(0, 2) || 'Y').toUpperCase();
+});
+
 const isSavedEvent = computed(() => {
   if (!event.value?.id) return false;
   return (userStore.userProfile?.savedEventIds ?? []).includes(event.value.id);
 });
 
+const primaryBadge = computed(() => event.value?.category?.trim() || 'Academic');
+
+const secondaryBadge = computed(() => {
+  const tags = event.value?.tags ?? [];
+  return tags.find((tag) => tag && tag.trim())?.trim() || '';
+});
+
+const reviewDisplay = computed(() => {
+  const review = event.value?.review;
+  const stars = typeof review?.stars === 'number'
+    ? Math.min(5, Math.max(0, Math.round(review.stars)))
+    : 0;
+  const score = typeof review?.score === 'number'
+    ? Math.min(5, Math.max(0, review.score))
+    : 0;
+  const sentence = review?.sentence?.trim() || 'Review details coming soon';
+
+  return {
+    starsText: score > 0 ? score.toFixed(1) : '--',
+    fullStars: stars,
+    sentence,
+  };
+});
+
+const eventSummary = computed(() => {
+  const description = event.value?.description?.trim();
+  if (!description) return 'Witness the convergence of cutting-edge technology and visionary minds.';
+  const firstLine = description.split(/\n+/).find(Boolean) || description;
+  return firstLine.length > 108 ? `${firstLine.slice(0, 105).trim()}...` : firstLine;
+});
+
 // Load event data when component mounts
 onMounted(async () => {
+  document.addEventListener('click', handleCalendarClickOutside);
   try {
     const eventId = route.params.id as string;
     
@@ -355,6 +452,16 @@ const goToLogin = () => {
   });
 };
 
+const goToExperienceEditor = () => {
+  if (!event.value?.id) return;
+  router.push({
+    path: '/forum/new',
+    query: {
+      eventId: event.value.id,
+    },
+  });
+};
+
 const addToGoogleCalendar = async () => {
   if (!userStore.isLoggedIn) {
     router.push({
@@ -389,6 +496,43 @@ const addToGoogleCalendar = async () => {
   }
 };
 
+const closeCalendarMenu = () => {
+  isCalendarMenuOpen.value = false;
+};
+
+const toggleCalendarMenu = () => {
+  if (!event.value) return;
+  isCalendarMenuOpen.value = !isCalendarMenuOpen.value;
+};
+
+const handleCalendarClickOutside = (clickEvent: MouseEvent) => {
+  const target = clickEvent.target;
+  if (
+    !isCalendarMenuOpen.value ||
+    !(target instanceof Node) ||
+    calendarMenuRef.value?.contains(target)
+  ) {
+    return;
+  }
+
+  closeCalendarMenu();
+};
+
+const downloadEventCalendar = () => {
+  if (!event.value) return;
+  downloadIcs(event.value);
+  closeCalendarMenu();
+};
+
+const addEventToGoogleCalendarFromMenu = async () => {
+  closeCalendarMenu();
+  await addToGoogleCalendar();
+};
+
+defineExpose({
+  addToGoogleCalendar,
+});
+
 // Handle image loading errors
 const handleImageError = (event: any) => {
   const target = event.target as HTMLImageElement;
@@ -415,6 +559,88 @@ const formattedTime = computed(() => {
   }
 });
 
+const scheduleDetails = computed(() => {
+  const fallback = formattedTime.value || 'Schedule TBD';
+  const lines = fallback.split('\n').map((line) => line.trim()).filter(Boolean);
+  const getValue = (label: string) => {
+    const match = lines.find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`));
+    return match ? match.split(':').slice(1).join(':').trim() : '';
+  };
+
+  const startDate = getValue('Start Date');
+  const endDate = getValue('End Date');
+  const time = getValue('Time');
+
+  if (startDate || endDate || time) {
+    return {
+      primary: startDate && endDate ? `${startDate} - ${endDate}` : startDate || endDate || 'Schedule TBD',
+      secondary: time || lines.find((line) => line.toLowerCase().startsWith('repeats:'))?.replace(/^Repeats:\s*/i, '') || 'Time TBD',
+    };
+  }
+
+  if (fallback.includes(' - ')) {
+    const [primary, ...rest] = fallback.split(' - ');
+    return {
+      primary: primary.trim(),
+      secondary: rest.join(' - ').trim() || 'Time TBD',
+    };
+  }
+
+  return {
+    primary: fallback,
+    secondary: 'Time TBD',
+  };
+});
+
+const schedulePrimary = computed(() => scheduleDetails.value.primary);
+const scheduleSecondary = computed(() => scheduleDetails.value.secondary);
+
+const locationPrimary = computed(() => {
+  const location = event.value?.location?.trim();
+  if (!location) return 'Location TBD';
+  return location.split(',')[0]?.trim() || location;
+});
+
+const locationSecondary = computed(() => {
+  const location = event.value?.location?.trim();
+  if (!location) return 'Details to be announced';
+  const [, ...rest] = location.split(',');
+  return rest.join(',').trim() || location;
+});
+
+const openRegistration = () => {
+  if (!event.value?.link) return;
+  window.open(event.value.link, '_blank', 'noopener,noreferrer');
+};
+
+const toggleSavedEvent = async () => {
+  if (!event.value?.id) return;
+  if (!userStore.isLoggedIn || !userStore.userProfile?.uid) {
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        prompt: 'Please log in to save events.',
+      },
+    });
+    return;
+  }
+
+  isSavingEvent.value = true;
+  try {
+    const currentSaved = userStore.userProfile.savedEventIds ?? [];
+    const nextSaved = isSavedEvent.value
+      ? currentSaved.filter((id) => id !== event.value?.id)
+      : [...new Set([...currentSaved, event.value.id])];
+
+    await userStore.updateUserProfile({ savedEventIds: nextSaved });
+  } catch (error) {
+    console.error('Failed to update saved event:', error);
+  } finally {
+    isSavingEvent.value = false;
+  }
+};
+
 const submitPost = async (text: string) => {
   const eventId = route.params.id as string;
   if (!userStore.userProfile?.email || !text || !eventId) return;
@@ -439,32 +665,6 @@ const submitPost = async (text: string) => {
     isPosting.value = false;
   }
 };
-
-const submitExperiencePost = async (text: string) => {
-  const eventId = route.params.id as string;
-  if (!userStore.userProfile?.email || !text || !eventId) return;
-
-  isPostingExperience.value = true;
-  experienceError.value = '';
-
-  try {
-    await createEventExperiencePost(
-      eventId,
-      {
-        uid: userStore.userProfile.uid,
-        email: userStore.userProfile.email,
-        displayName: userStore.userProfile.displayName,
-      },
-      text
-    );
-  } catch (error) {
-    console.error('Failed to post experience:', error);
-    experienceError.value = 'Failed to share experience. Please try again.';
-  } finally {
-    isPostingExperience.value = false;
-  }
-};
-
 
 const submitReply = async (postId: string, text: string) => {
   const eventId = route.params.id as string;
@@ -530,12 +730,6 @@ const scrollToForum = () => {
   experienceSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-// Display limited number of tags
-const displayTags = computed(() => {
-  if (!event.value?.tags || event.value.tags.length === 0) return [];
-  return event.value.tags.slice(0, 5); // Show up to 5 tags
-});
-
 watch(
   () => route.params.id as string,
   (id) => {
@@ -560,6 +754,7 @@ watch(() => route.query, () => {
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', handleCalendarClickOutside);
   if (unsubscribePosts) unsubscribePosts();
   if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
@@ -578,12 +773,81 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
-.event-header {
+.event-hero-card {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
+  align-items: stretch;
+  gap: 30px;
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.event-hero-image-wrap {
+  position: relative;
+  flex: 0 0 49%;
+  min-height: 354px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.event-hero-image {
+  width: 100%;
+  height: 100%;
+  min-height: 354px;
+  object-fit: cover;
+  display: block;
+}
+
+.event-badges {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+}
+
+.category-badge,
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 170px;
+  min-height: 24px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-badge {
+  color: #fff;
+  text-transform: uppercase;
+  background: #6c48d1;
+  letter-spacing: 0.02em;
+}
+
+.tag-badge {
+  color: #344054;
+  background: #f1f5f9;
+}
+
+.event-hero-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0 0 2px;
 }
 
 .header-actions {
@@ -592,51 +856,262 @@ onBeforeUnmount(() => {
 }
 
 .event-title {
-  font-size: 24px;
-  font-weight: 300;
-  color: #333;
   margin: 0;
-  line-height: 1.3;
-  flex: 1;
+  color: #0f172a;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
 }
 
-.bookmark-button {
-  background: white;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
+.event-summary {
+  margin: 12px 0 24px;
+  color: #667085;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.logistics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 36px;
+}
+
+.logistic-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(108, 72, 209, 0.16);
+  border-radius: 14px;
+  background: rgba(108, 72, 209, 0.07);
+}
+
+.logistic-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #fff;
+  background: #6c48d1;
+  border-radius: 10px;
+}
+
+.logistic-copy {
+  min-width: 0;
+}
+
+.logistic-label,
+.logistic-primary,
+.logistic-secondary {
+  margin: 0;
+}
+
+.logistic-label {
+  color: #6c48d1;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.logistic-primary {
+  color: #101828;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logistic-secondary {
+  margin-top: 2px;
+  color: #475467;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.register-button,
+.calendar-menu-button,
+.calendar-menu-item,
+.save-button {
+  border: 0;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
-.bookmark-button:hover {
-  background: #f5f5f5;
+.register-button {
+  min-height: 50px;
+  padding: 0 30px;
+  color: #fff;
+  background: #6c48d1;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 10px 18px rgba(108, 72, 209, 0.24);
 }
 
-.bookmark-button.saved {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
-  border-color: transparent;
+.register-button:hover {
+  background: #5d3fc0;
 }
 
-.bookmark-button.google-calendar-button {
-  border-color: rgba(15, 157, 88, 0.22);
-  background: rgba(15, 157, 88, 0.1);
-  color: #0f9d58;
+.register-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-.bookmark-button.google-calendar-button:hover {
-  background: rgba(15, 157, 88, 0.18);
+.calendar-menu {
+  position: relative;
+  flex: 1 1 auto;
 }
 
-.bookmark-button:disabled {
+.calendar-menu-button {
+  min-height: 50px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 18px;
+  color: #475467;
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.calendar-menu-button:hover:not(:disabled),
+.calendar-menu-button[aria-expanded="true"] {
+  background: #f8fafc;
+  border-color: #d0d5dd;
+}
+
+.calendar-menu-button .chevron-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.calendar-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: var(--z-dropdown, 1000);
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.calendar-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: #101828;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+}
+
+.calendar-menu-item:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.calendar-menu-item svg,
+.calendar-menu-item-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c48d1;
+  border-radius: 10px;
+  background: rgba(108, 72, 209, 0.1);
+}
+
+.calendar-menu-item svg {
+  padding: 7px;
+}
+
+.calendar-menu-item-icon {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.calendar-menu-item span:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-menu-item strong {
+  color: #101828;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.calendar-menu-item small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.save-button {
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 22px;
+  color: #6c48d1;
+  border-radius: 999px;
+  background: rgba(108, 72, 209, 0.1);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.save-button.saved {
+  background: rgba(108, 72, 209, 0.12);
+}
+
+.save-button:hover {
+  background: rgba(108, 72, 209, 0.18);
+}
+
+.calendar-menu-button:disabled,
+.calendar-menu-item:disabled,
+.save-button:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+.register-button:active,
+.calendar-menu-button:active,
+.save-button:active {
+  transform: scale(0.97);
 }
 
 .forum-card {
@@ -647,16 +1122,137 @@ onBeforeUnmount(() => {
   border: 1.5px solid #333;
 }
 
+.ratings-review-card {
+  margin-top: 16px;
+  padding: 24px 20px;
+  color: #fff;
+  background: #6841c9;
+  border-radius: 28px;
+  box-shadow: 0 18px 34px rgba(108, 72, 209, 0.22);
+}
+
+.ratings-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ratings-review-title {
+  margin: 0;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.ratings-review-score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ratings-review-score strong {
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 0.95;
+}
+
+.ratings-review-score span {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.ratings-review-summary {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.ratings-stars {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffd51f;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.ratings-stars .muted {
+  color: #b68f8c;
+}
+
+.ratings-review-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ratings-review-detail p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.score-framework-link {
+  min-height: 34px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #6c48d1;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .forum-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
 .forum-count {
   font-size: 12px;
   color: #666;
+}
+
+.experience-actions-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.share-experience-button {
+  min-height: 36px;
+  padding: 0 14px;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  background: #6c48d1;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(108, 72, 209, 0.18);
+}
+
+.share-experience-button:active {
+  transform: scale(0.97);
 }
 
 .forum-error {
@@ -676,79 +1272,110 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-.bento-container {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+.comments-card {
+  padding: 22px 18px;
+  border: 1px solid #e8eaf0;
+  border-radius: 28px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-.bento-image {
-  background: white;
-  border-radius: 16px;
-  padding: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1.5px solid #333;
-  flex-shrink: 0;
+.comments-card .forum-header {
+  margin-bottom: 18px;
 }
 
-.event-image {
-  width: 140px;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 12px;
+.comments-card .section-title {
+  color: #111827;
+  font-size: 23px !important;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
-.bento-details {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1.5px solid #333;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-}
-
-.detail-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.detail-icon {
-  color: #ad8ae6;
-  flex-shrink: 0;
-}
-
-.detail-text {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.3;
-  white-space: pre-line;
-}
-
-.tags-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.tag {
-  background: #f0f0f0;
-  color: #666;
-  font-size: 10px;
-  font-weight: 300;
-  padding: 4px 8px;
-  border-radius: 12px;
+.comments-card .forum-count {
+  color: #9ca3af;
+  font-size: 13px !important;
+  font-weight: 800;
   white-space: nowrap;
 }
 
-.tag:first-child {
-  background: rgba(173, 138, 230, 0.95);
-  color: white;
+.comment-input-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.comment-current-avatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c48d1;
+  background: #f6f2ff;
+  border: 1px solid #ded6ff;
+  border-radius: 999px;
+  font-size: 13px !important;
+  font-weight: 700;
+}
+
+.comment-input-row :deep(.reply-input) {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  --reply-textarea-font-size: 13px;
+  --reply-textarea-line-height: 18px;
+}
+
+.comment-input-row :deep(.reply-input.compact .reply-textarea) {
+  flex: 1;
+  width: 100%;
+  min-height: 34px !important;
+  height: 34px !important;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid #edf0f4;
+  border-radius: 999px;
+  padding: 7px 32px 7px 14px;
+  color: #6b7280;
+  background: #f8fafc;
+  font-size: 13px !important;
+  line-height: 18px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.01);
+}
+
+.comment-input-row :deep(.reply-textarea::placeholder) {
+  color: #6b7280;
+}
+
+.comment-input-row :deep(.reply-submit) {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  padding: 0;
+  border-radius: 999px;
+  background: #6c48d1;
+  color: #fff;
+  font-size: 0;
+}
+
+.comment-input-row :deep(.reply-submit::before) {
+  content: '➜';
+  font-size: 13px !important;
+  line-height: 1;
+}
+
+.comments-card .forum-list {
+  gap: 18px;
 }
 
 .description-card {
@@ -766,7 +1393,7 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 
-.bento-container + .description-card {
+.event-hero-card + .description-card {
   margin-top: 0;
 }
 
@@ -902,24 +1529,73 @@ onBeforeUnmount(() => {
   .mobile-event-detail {
     padding: 16px 12px 80px;
   }
+
+  .event-hero-card {
+    flex-direction: column;
+    gap: 18px;
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .event-hero-image-wrap {
+    flex-basis: auto;
+    min-height: 240px;
+    aspect-ratio: 4 / 3;
+  }
+
+  .event-hero-image {
+    min-height: 240px;
+  }
   
   .event-title {
-    font-size: 20px;
+    font-size: 28px;
   }
-  
-  .event-info-card {
-    flex-direction: column;
-    text-align: center;
+
+  .event-summary {
+    margin-bottom: 18px;
+    font-size: 15px;
   }
-  
-  .event-image-section {
-    width: 100%;
-    height: 180px;
-    margin-bottom: 8px;
+
+  .logistics-grid {
+    grid-template-columns: 1fr;
+    margin-bottom: 22px;
   }
-  
-  .event-details {
-    gap: 10px;
+
+  .register-button,
+  .calendar-menu,
+  .save-button {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding-inline: 18px;
   }
+
+  .calendar-menu {
+    padding-inline: 0;
+  }
+
+  .ratings-review-card {
+    padding: 22px 18px;
+  }
+
+  .ratings-review-header {
+    gap: 12px;
+  }
+
+  .ratings-review-title {
+    font-size: 22px;
+  }
+
+  .ratings-review-score strong {
+    font-size: 31px;
+  }
+
+  .ratings-review-score span {
+    font-size: 17px;
+  }
+
+  .ratings-stars {
+    font-size: 23px;
+  }
+
 }
 </style>

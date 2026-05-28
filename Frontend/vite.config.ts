@@ -37,6 +37,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    optimizeDeps: {
+      exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+    },
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
