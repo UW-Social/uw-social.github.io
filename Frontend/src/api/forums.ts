@@ -443,6 +443,51 @@ export async function createEventExperiencePost(
   return postRef.id;
 }
 
+export async function getEventExperiencePost(
+  eventId: string,
+  postId: string,
+  currentUserId?: string | null
+): Promise<ExperiencePost | null> {
+  const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) return null;
+
+  return hydrateExperiencePost(
+    eventId,
+    postSnap.id,
+    postSnap.data() as Record<string, unknown>,
+    currentUserId
+  );
+}
+
+export async function listExperiencePostReplies(
+  eventId: string,
+  postId: string,
+  currentUserId?: string | null
+): Promise<DiscussionReply[]> {
+  const repliesRef = collection(db, 'events', eventId, 'forumPosts', postId, 'replies');
+  const repliesSnapshot = await getDocs(query(repliesRef, orderBy('createdAt', 'asc')));
+
+  return Promise.all(
+    repliesSnapshot.docs.map(async (replyDoc) => {
+      const [likesSnapshot, likedDoc] = await Promise.all([
+        getDocs(collection(db, 'events', eventId, 'forumPosts', postId, 'replies', replyDoc.id, 'likes')),
+        currentUserId
+          ? getDoc(doc(db, 'events', eventId, 'forumPosts', postId, 'replies', replyDoc.id, 'likes', currentUserId))
+          : Promise.resolve(null),
+      ]);
+
+      return {
+        id: replyDoc.id,
+        ...normalizeDiscussionReplyData(postId, eventId, replyDoc.data() as Record<string, unknown>),
+        likeCount: likesSnapshot.size || 0,
+        hasLiked: likedDoc?.exists?.() ?? false,
+      } satisfies DiscussionReply;
+    })
+  );
+}
+
 export async function toggleExperiencePostLike(
   eventId: string,
   postId: string,

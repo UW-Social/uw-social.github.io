@@ -70,22 +70,6 @@
               Register Now
             </button>
             <button
-              class="download-button"
-              type="button"
-              aria-label="Download calendar (.ics)"
-              title="Download calendar (.ics)"
-              @click="downloadIcs(event)"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="17" rx="2"></rect>
-                <path d="M16 2v4"></path>
-                <path d="M8 2v4"></path>
-                <path d="M3 10h18"></path>
-                <path d="M12 13v5"></path>
-                <path d="m9 16 3 3 3-3"></path>
-              </svg>
-            </button>
-            <button
               class="save-event-button"
               type="button"
               :class="{ saved: isSavedEvent }"
@@ -97,6 +81,61 @@
               </svg>
               <span>{{ isSavedEvent ? 'Saved' : 'Save' }}</span>
             </button>
+            <div ref="calendarMenuRef" class="calendar-menu">
+              <button
+                class="calendar-menu-button"
+                type="button"
+                aria-haspopup="menu"
+                :aria-expanded="isCalendarMenuOpen"
+                :disabled="!event"
+                @click="toggleCalendarMenu"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="17" rx="2"></rect>
+                  <path d="M16 2v4"></path>
+                  <path d="M8 2v4"></path>
+                  <path d="M3 10h18"></path>
+                  <path d="M12 14v4"></path>
+                  <path d="M10 16h4"></path>
+                </svg>
+                <span>Add to calendar</span>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </button>
+
+              <div v-if="isCalendarMenuOpen" class="calendar-menu-panel" role="menu">
+                <button
+                  class="calendar-menu-item"
+                  type="button"
+                  role="menuitem"
+                  :disabled="isAddingToGoogleCalendar"
+                  @click="addEventToGoogleCalendarFromMenu"
+                >
+                  <span class="calendar-menu-item-icon">G</span>
+                  <span>
+                    <strong>Google Calendar</strong>
+                    <small>Open in Google Calendar</small>
+                  </span>
+                </button>
+                <button
+                  class="calendar-menu-item"
+                  type="button"
+                  role="menuitem"
+                  @click="downloadEventCalendar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <path d="M7 10l5 5 5-5"></path>
+                    <path d="M12 15V3"></path>
+                  </svg>
+                  <span>
+                    <strong>Download .ics file</strong>
+                    <small>Use with Apple Calendar or Outlook</small>
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -113,22 +152,14 @@
               <div>
                 <h2 class="section-title">Experience Sharing</h2>
                 <p class="section-helper">Share a longer review, recap, or experience from this event.</p>
+                <span class="forum-count">{{ experiencePosts.length }} posts</span>
               </div>
-              <span class="forum-count">{{ experiencePosts.length }} posts</span>
+              <div class="experience-sharing-actions">
+                <button class="share-experience-button" type="button" @click="goToExperienceEditor">
+                  Share Experience
+                </button>
+              </div>
             </div>
-
-            <ReplyInput
-              :is-logged-in="userStore.isLoggedIn"
-              :loading="isPostingExperience"
-              :rows="6"
-              placeholder="Share a longer review, recap, or experience from this event..."
-              submit-label="Share Experience"
-              login-heading="Log in to share your experience"
-              login-text="Log in to share your experience."
-              login-button-label="Log in"
-              @submit="submitExperiencePost"
-              @login="goToLogin"
-            />
 
             <p v-if="experienceError" class="forum-error">{{ experienceError }}</p>
 
@@ -263,7 +294,6 @@ import { addEventToGoogleCalendar } from '../utils/googleCalendar';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
-  createEventExperiencePost,
   subscribeToEventDiscussionPosts,
   subscribeToEventExperiencePosts,
   toggleDiscussionPostLike,
@@ -281,12 +311,13 @@ const event = ref<Event | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);
+const calendarMenuRef = ref<HTMLElement | null>(null);
 const posts = ref<DiscussionPost[]>([]);
 const experiencePosts = ref<ExperiencePost[]>([]);
 const isPosting = ref(false);
-const isPostingExperience = ref(false);
 const isSavingEvent = ref(false);
 const isAddingToGoogleCalendar = ref(false);
+const isCalendarMenuOpen = ref(false);
 const postError = ref('');
 const experienceError = ref('');
 let unsubscribePosts: (() => void) | null = null;
@@ -421,9 +452,52 @@ const goToLogin = () => {
   });
 };
 
+const goToExperienceEditor = () => {
+  if (!event.value?.id) return;
+  router.push({
+    path: '/forum/new',
+    query: {
+      eventId: event.value.id,
+    },
+  });
+};
+
 const openRegistration = () => {
   if (!event.value?.link) return;
   window.open(event.value.link, '_blank', 'noopener,noreferrer');
+};
+
+const closeCalendarMenu = () => {
+  isCalendarMenuOpen.value = false;
+};
+
+const toggleCalendarMenu = () => {
+  if (!event.value) return;
+  isCalendarMenuOpen.value = !isCalendarMenuOpen.value;
+};
+
+const handleCalendarClickOutside = (clickEvent: MouseEvent) => {
+  const target = clickEvent.target;
+  if (
+    !isCalendarMenuOpen.value ||
+    !(target instanceof Node) ||
+    calendarMenuRef.value?.contains(target)
+  ) {
+    return;
+  }
+
+  closeCalendarMenu();
+};
+
+const downloadEventCalendar = () => {
+  if (!event.value) return;
+  downloadIcs(event.value);
+  closeCalendarMenu();
+};
+
+const addEventToGoogleCalendarFromMenu = async () => {
+  closeCalendarMenu();
+  await addToGoogleCalendar();
 };
 
 const toggleSavedEvent = async () => {
@@ -574,30 +648,6 @@ const submitPost = async (text: string) => {
   }
 };
 
-const submitExperiencePost = async (text: string) => {
-  if (!userStore.userProfile?.email || !eventId.value) return;
-
-  isPostingExperience.value = true;
-  experienceError.value = '';
-
-  try {
-    await createEventExperiencePost(
-      eventId.value,
-      {
-        uid: userStore.userProfile.uid,
-        email: userStore.userProfile.email,
-        displayName: userStore.userProfile.displayName,
-      },
-      text
-    );
-  } catch (error) {
-    console.error('Failed to post experience:', error);
-    experienceError.value = 'Failed to share experience. Please try again.';
-  } finally {
-    isPostingExperience.value = false;
-  }
-};
-
 const submitReply = async (postId: string, text: string) => {
   if (!userStore.userProfile?.email || !eventId.value) return;
 
@@ -691,6 +741,7 @@ const initMap = async () => {
 };
 
 onMounted(() => {
+  document.addEventListener('click', handleCalendarClickOutside);
   loadEventData();
   scrollToForum();
 });
@@ -714,6 +765,7 @@ watch(() => route.query, () => {
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', handleCalendarClickOutside);
   if (unsubscribePosts) unsubscribePosts();
   if (unsubscribeExperiencePosts) unsubscribeExperiencePosts();
 });
@@ -883,7 +935,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0 64px 0 2px;
+  padding: 0 2px;
 }
 
 .event-info-header {
@@ -991,7 +1043,8 @@ onBeforeUnmount(() => {
 }
 
 .register-button,
-.download-button,
+.calendar-menu-button,
+.calendar-menu-item,
 .save-event-button {
   border: 0;
   cursor: pointer;
@@ -1019,30 +1072,125 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 
-.download-button {
+.calendar-menu {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 50px;
-  height: 50px;
+  flex: 0 1 auto;
+}
+
+.calendar-menu-button {
+  min-height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
+  padding: 0 18px;
   color: #475467;
   border: 1px solid #e4e7ec;
   border-radius: 999px;
   background: var(--color-white);
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.download-button:hover {
+.calendar-menu-button:hover:not(:disabled),
+.calendar-menu-button[aria-expanded="true"] {
   background: #f8fafc;
+  border-color: #d0d5dd;
 }
 
-.download-button svg,
+.calendar-menu-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.calendar-menu-button svg,
 .save-event-button svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+}
+
+.calendar-menu-button .chevron-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.calendar-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: var(--z-dropdown, 1000);
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  background: var(--color-white);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.calendar-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: #101828;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+}
+
+.calendar-menu-item:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.calendar-menu-item:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.calendar-menu-item svg,
+.calendar-menu-item-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c48d1;
+  border-radius: 10px;
+  background: rgba(108, 72, 209, 0.1);
+}
+
+.calendar-menu-item svg {
+  padding: 7px;
+}
+
+.calendar-menu-item-icon {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.calendar-menu-item span:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-menu-item strong {
+  color: #101828;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.calendar-menu-item small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .save-event-button {
@@ -1074,7 +1222,7 @@ onBeforeUnmount(() => {
 }
 
 .register-button:active,
-.download-button:active,
+.calendar-menu-button:active,
 .save-event-button:active {
   transform: scale(0.97);
 }
@@ -1272,64 +1420,60 @@ onBeforeUnmount(() => {
   margin-bottom: 30px;
 }
 
+.experience-sharing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .experience-sharing-card .section-title {
-  margin-bottom: 8px;
-  padding-left: 0;
-  color: #111827;
-  font-size: 32px;
-  font-weight: 800;
-  line-height: 1.1;
+  margin-bottom: var(--spacing-lg);
 }
 
 .experience-sharing-card .section-title::before {
-  display: none;
+  display: block;
 }
 
 .experience-sharing-card .section-helper {
-  margin: 0;
+  margin: 0 0 6px;
   color: #6b7280;
-  font-size: 18px;
-  line-height: 1.45;
-}
-
-.experience-sharing-card .forum-count {
-  margin-top: 24px;
-  color: #6b7280;
-  font-size: 18px;
+  font-size: 14px;
+  line-height: 1.35;
   white-space: nowrap;
 }
 
-.experience-sharing-card :deep(.reply-input) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 16px;
-}
-
-.experience-sharing-card :deep(.reply-textarea) {
-  min-height: 174px;
-  border: 1px solid #ddd9ff;
-  border-radius: 14px;
-  padding: 18px;
-  color: #4b5563;
-  background: #fff;
-  font-size: 18px;
-  line-height: 1.45;
-}
-
-.experience-sharing-card :deep(.reply-textarea::placeholder) {
-  color: #9ca3af;
-}
-
-.experience-sharing-card :deep(.reply-submit) {
-  min-height: 50px;
+.experience-sharing-card .forum-count {
+  display: inline-flex;
   margin-top: 0;
-  padding: 0 26px;
-  border-radius: 12px;
-  background: #9ca3af;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.share-experience-button {
+  min-height: 42px;
+  padding: 0 18px;
   color: #fff;
-  font-size: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #6c48d1;
+  font-size: 14px;
   font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(108, 72, 209, 0.18);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.share-experience-button:hover {
+  background: #5d3fc0;
+}
+
+.share-experience-button:active {
+  transform: scale(0.97);
 }
 
 .experience-sharing-card .forum-empty {
@@ -1647,13 +1791,26 @@ onBeforeUnmount(() => {
   }
 
   .register-button,
+  .calendar-menu,
+  .calendar-menu-button,
   .save-event-button {
     flex: 1 1 auto;
     justify-content: center;
   }
 
-  .download-button {
-    position: static;
+  .calendar-menu {
+    position: relative;
+    right: auto;
+    bottom: auto;
+  }
+
+  .calendar-menu-button {
+    width: 100%;
+  }
+
+  .calendar-menu-panel {
+    right: 0;
+    left: auto;
   }
 
   .review-metrics {
@@ -1664,12 +1821,13 @@ onBeforeUnmount(() => {
     padding: 28px;
   }
 
-  .experience-sharing-card :deep(.reply-input) {
-    grid-template-columns: 1fr;
+  .experience-sharing-header {
+    flex-direction: column;
   }
 
-  .experience-sharing-card :deep(.reply-submit) {
+  .experience-sharing-actions {
     width: 100%;
+    justify-content: space-between;
   }
 }
 
