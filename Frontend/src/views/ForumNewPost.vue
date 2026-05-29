@@ -455,7 +455,7 @@ const applyPainterStyle = (style: PainterStyle) => {
   const syncToggle = (command: 'bold' | 'italic' | 'underline', enabled: boolean) => {
     const currentState = document.queryCommandState(command);
     if (currentState !== enabled) {
-      document.execCommand(command, false, null);
+      document.execCommand(command, false, undefined);
     }
   };
 
