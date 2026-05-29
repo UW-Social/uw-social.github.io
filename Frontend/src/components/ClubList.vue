@@ -19,7 +19,6 @@ import Fuse from 'fuse.js';
 import { useClubStore } from '../stores/club';
 import ClubCard from './ClubCard.vue';
 import { useUserStore } from '../stores/user';
-import type { Club } from '../types/club';
 
 const props = defineProps<{ 
   category?: string;

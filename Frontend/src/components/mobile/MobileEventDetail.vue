@@ -252,7 +252,7 @@
     <!-- Map under social sections -->
     <div v-if="event?.location" class="map-card">
       <h2 class="section-title">Location Map</h2>
-      <div ref="mapEl" class="google-map"></div>
+      <div class="google-map"></div>
     </div>
 
     <!-- Event Link -->
@@ -291,7 +291,6 @@ import type { DiscussionPost, ExperiencePost } from '../../types/forum';
 import ExperiencePostCard from '../ExperiencePostCard.vue';
 import ForumPostCard from '../ForumPostCard.vue';
 import ReplyInput from '../ReplyInput.vue';
-import { loadGoogleMaps } from '../../utils/googleMaps';
 import { downloadIcs } from '../../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../../utils/googleCalendar';
 import {
@@ -310,7 +309,6 @@ const eventStore = useEventStore();
 const userStore = useUserStore();
 const event = ref<Event | null>(null);
 const isLoading = ref(true);
-const mapEl = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);
 const calendarMenuRef = ref<HTMLElement | null>(null);
@@ -561,9 +559,9 @@ const formattedTime = computed(() => {
 
 const scheduleDetails = computed(() => {
   const fallback = formattedTime.value || 'Schedule TBD';
-  const lines = fallback.split('\n').map((line) => line.trim()).filter(Boolean);
+  const lines = fallback.split('\n').map((line: string) => line.trim()).filter(Boolean);
   const getValue = (label: string) => {
-    const match = lines.find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`));
+    const match = lines.find((line: string) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`));
     return match ? match.split(':').slice(1).join(':').trim() : '';
   };
 
@@ -574,7 +572,7 @@ const scheduleDetails = computed(() => {
   if (startDate || endDate || time) {
     return {
       primary: startDate && endDate ? `${startDate} - ${endDate}` : startDate || endDate || 'Schedule TBD',
-      secondary: time || lines.find((line) => line.toLowerCase().startsWith('repeats:'))?.replace(/^Repeats:\s*/i, '') || 'Time TBD',
+      secondary: time || lines.find((line: string) => line.toLowerCase().startsWith('repeats:'))?.replace(/^Repeats:\s*/i, '') || 'Time TBD',
     };
   }
 
