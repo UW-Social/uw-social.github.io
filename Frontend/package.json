@@ -32,7 +32,7 @@
     "@vitejs/plugin-vue": "^4.6.2",
     "typescript": "^5.2.2",
     "vite": "^5.4.19",
-    "vue-tsc": "^1.8.25"
+    "vue-tsc": "^3.3.2"
   },
   "_comment": "old vite version: 5.0.8",
   "main": "index.js",
