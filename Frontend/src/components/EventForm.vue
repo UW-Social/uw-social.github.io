@@ -599,6 +599,7 @@ const scraper = async (url: string) => {
   if (!response) {
     alert('Failed to import event. (scraper braught empty html. not gemini issue)');
   }
+  console.log(response)
   const htmlDocument = await response.text();
   const form = await gemini(htmlDocument);
   if (!form) {
