@@ -6,35 +6,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import EventList from "@/components/EventList.vue";
-
-const categories = [
-  { key: "academic", label: "Academic", icon: "academic.svg" },
-  { key: "club", label: "Club", icon: "club.svg" },
-  { key: "sports", label: "Sports", icon: "sports.svg" },
-  { key: "games", label: "Games", icon: "games.svg" },
-  { key: "culture", label: "Culture", icon: "culture.svg" },
-  { key: "interest", label: "Interest", icon: "interest.svg" },
-  { key: "hfs", label: "HFS", icon: "hfs.svg" },
-];
 import { computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 
 const route = useRoute();
-const router = useRouter();
 const selectedCategory = computed(() => route.query.category?.toString() || "");
-
-
-function selectCategory(key: string) {
-  const current = route.query.category?.toString() || '';
-  const query = current === key ? {} : { category: key };
-
-  router.push({
-    path: route.path,
-    query
-  });
-}
 </script>
 
 <style scoped>

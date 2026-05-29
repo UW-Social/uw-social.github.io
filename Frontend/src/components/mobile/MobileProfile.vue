@@ -37,11 +37,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useUserStore } from '../../stores/user';
+import type { UserProfile } from '../../types/user';
 import 'element-plus/es/components/collapse/style/css';
 import 'element-plus/es/components/collapse-item/style/css';
 
 const userStore = useUserStore();
-const userProfile = ref({});
+const userProfile = ref<Partial<UserProfile>>({});
 // 从 Firebase 获取用户信息
 onMounted(async () => {
   try {
