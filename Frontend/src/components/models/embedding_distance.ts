@@ -60,10 +60,11 @@ export function getSession(modelPath?: string): Promise<ort.InferenceSession> {
       .then((session) => {
         console.log("Beginning session creation");
         cachedSession = session;
-        console.log("Caching session"); // keep the promise cached for future callers
+        console.log("Caching session"); // keep this in-flight/resolved promise for future callers
         return session;
       }).catch((err) => {
         console.log("Something went wrong:", err);
+        cachedSession = null;
         sessionPromise = null;
         throw err;
       });
