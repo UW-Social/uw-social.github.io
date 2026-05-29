@@ -586,7 +586,7 @@ const handleImport = async () => {
     currentStep.value = 1;
   } catch (err) {
     console.error(err);
-    alert('Failed to import event.');
+    alert('Failed to import event. (check console for reason)');
   } finally {
     isImporting.value = false;
   }
