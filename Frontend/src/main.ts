@@ -47,7 +47,7 @@ async function bootstrap() {
   const userStore = useUserStore();
   await userStore.loadUser();
 
-  router.beforeEach((to, from, next) => {
+  router.beforeEach((to, _from, next) => {
     if (typeof window.gtag === 'function') {
       window.gtag('event', 'page_view', {
         'page_path': location.pathname + location.hash,

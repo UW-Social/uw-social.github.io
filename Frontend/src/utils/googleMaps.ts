@@ -4,7 +4,7 @@ export async function loadGoogleMaps() {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   if (!apiKey) throw new Error('VITE_GOOGLE_MAPS_API_KEY is missing');
 
-  setOptions({ apiKey, version: 'weekly', libraries: ['places'] });
+  setOptions({ key: apiKey, v: 'weekly', libraries: ['places'] });
 
   // 按需加载库；这一行确保 google.maps.* 可用
   await importLibrary('maps');

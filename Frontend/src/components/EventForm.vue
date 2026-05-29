@@ -530,7 +530,7 @@ const handleTagsKeydown = (event: KeyboardEvent) => {
 
 const selectedImageFile = ref<File | null>(null);
 
-const handleImageSelection = (event: InputEvent) => {
+const handleImageSelection = (event: Event) => {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
 };
@@ -858,8 +858,6 @@ const handleSubmit = async () => {
 
 
   try {
-    let imageUrl = ''; // 先初始化
-
     // 上传图片
     if (selectedImageFile.value) {
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;

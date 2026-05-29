@@ -25,6 +25,9 @@ export interface Forum {
 export interface ForumPost {
   id: string;
   eventId: string;
+  eventTitle?: string;
+  eventLocation?: string;
+  eventSchedule?: string;
   title?: string;
   subtitle?: string;
   content: string;

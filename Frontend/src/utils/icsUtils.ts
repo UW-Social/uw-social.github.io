@@ -22,6 +22,16 @@ const toIcsDate = (d: Date) => {
 };
 
 const dayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+type DateLike = Date | string | number | { toDate?: () => Date } | null | undefined;
+
+const toJsDate = (value: DateLike): Date => {
+  if (!value) return new Date(NaN);
+  if (value instanceof Date) return value;
+  if (typeof value === 'object' && typeof value.toDate === 'function') {
+    return value.toDate();
+  }
+  return new Date(value as string | number);
+};
 
 export const buildEventIcs = (event: Event): string => {
   const now = new Date();
@@ -39,22 +49,22 @@ export const buildEventIcs = (event: Event): string => {
   let allDay = false;
 
   if (!schedule) {
-    const start = event.startTime?.toDate?.() ?? new Date(event.startTime);
-    const end = event.endtime?.toDate?.() ?? new Date(event.endtime);
+    const start = toJsDate(event.startTime as DateLike);
+    const end = toJsDate(event.endtime as DateLike);
     dtStart = start;
     dtEnd = end;
     allDay = event._hasStartTime === false && event._hasEndTime === false;
   } else if (schedule.type === RecurrenceType.ONE_TIME) {
-    const start = schedule.startDatetime?.toDate?.() ?? new Date(schedule.startDatetime);
-    const end = schedule.endDatetime?.toDate?.() ?? new Date(schedule.endDatetime);
+    const start = toJsDate(schedule.startDatetime as DateLike);
+    const end = toJsDate(schedule.endDatetime as DateLike);
     dtStart = start;
     dtEnd = end;
     allDay = event._hasStartTime === false && event._hasEndTime === false;
   } else {
-    const start = schedule.startDate?.toDate?.() ?? new Date(schedule.startDate);
+    const start = toJsDate(schedule.startDate as DateLike);
     dtStart = start;
     // For recurring, apply startTimeOfDay and endTimeOfDay to construct proper start/end times
-    if (schedule.startTimeOfDay) {
+    if (dtStart && schedule.startTimeOfDay) {
       const [h, m] = schedule.startTimeOfDay.split(':').map(Number);
       dtStart.setHours(h, m, 0, 0);
     }
@@ -111,7 +121,7 @@ export const buildEventIcs = (event: Event): string => {
       rruleParts.push(`BYMONTHDAY=${schedule.daysOfMonth.join(',')}`);
     }
     if (schedule.endDate) {
-      const until = schedule.endDate?.toDate?.() ?? new Date(schedule.endDate);
+      const until = toJsDate(schedule.endDate as DateLike);
       // UNTIL must match DTSTART format: DATE for all-day, DATE-TIME for timed
       if (allDay) {
         rruleParts.push(`UNTIL=${toIcsDate(until)}`);
