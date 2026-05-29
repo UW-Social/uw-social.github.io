@@ -543,7 +543,8 @@ const handleImport = async () => {
   try {
     const data = await scraper(importLink.value);
 
-    if (!data || typeof data !== 'object') throw new Error();
+    if (!data || typeof data !== 'object') alert('Failed to import event. (could be scraper or gemini)');
+    console.log(data);
 
     formData.value.title = data.title ?? formData.value.title;
     formData.value.description = data.description ?? formData.value.description;
@@ -595,10 +596,14 @@ const handleImport = async () => {
 
 const scraper = async (url: string) => {
   const response = await fetch(url);
-  console.log(response)
+  if (!response) {
+    alert('Failed to import event. (scraper braught empty html. not gemini issue)');
+  }
   const htmlDocument = await response.text();
   const form = await gemini(htmlDocument);
-  console.log(form);
+  if (!form) {
+    alert('Failed to import event. (Gemini issue)');
+  }
   return form;
 };
 
@@ -670,6 +675,7 @@ ${document}
 
   if (!response.ok) {
     const errorText = await response.text();
+    alert(`Gemini request failed (${response.status}): ${errorText}`);
     throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
   }
 
