@@ -595,20 +595,29 @@ const handleImport = async () => {
 
 
 const scraper = async (url: string) => {
-  let x = fetch(url)
-  .then(response => response.text())
-  .then(html => {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+
     console.log(html);
-  });
-  if (!x) {
-    alert('Failed to import event. (scraper braught empty html. not gemini issue)');
+
+    if (!html) {
+      alert('Failed to import event (empty HTML)');
+      return;
+    }
+
+    const form = await gemini(html);
+
+    if (!form) {
+      alert('Failed to import event (Gemini issue)');
+      return;
+    }
+
+    return form;
+  } catch (err) {
+    console.error(err);
+    alert('Failed to import event (network error)');
   }
-  console.log(x)
-  const form = await gemini(x);
-  if (!form) {
-    alert('Failed to import event. (Gemini issue)');
-  }
-  return form;
 };
 
 const gemini = async (document: string) => {
