@@ -94,12 +94,8 @@
                 <select id="category" v-model="formData.category" required>
                   <option value="">Select category</option>
                   <option value="Academic">Academic</option>
-                  <option value="Club">Club</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Games">Games</option>
-                  <option value="Culture">Culture</option>
                   <option value="Interest">Interest</option>
-                  <option value="HFS">HFS</option>
+                  <option value="Career">Career</option>
                 </select>
               </div>
             </div>

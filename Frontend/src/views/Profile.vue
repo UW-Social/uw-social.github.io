@@ -35,6 +35,14 @@
           <button
             type="button"
             class="sidebar-link"
+            :class="{ active: currentSection === 'mailbox' }"
+            @click="showSection('mailbox')"
+          >
+            <span>Mailbox</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-link"
             :class="{ active: currentSection === 'participated' }"
             @click="showSection('participated')"
           >
@@ -52,10 +60,72 @@
         <header class="content-header">
           <h1>{{ sectionTitle }}</h1>
           <p>{{ sectionSubtitle }}</p>
+          <button
+            v-if="currentSection === 'mailbox'"
+            type="button"
+            class="mailbox-read-button"
+            @click="markAllMailboxRead"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m4 13 4 4L20 5"></path>
+              <path d="m4 7 4 4"></path>
+            </svg>
+            <span>{{ mailboxReadButtonText }}</span>
+          </button>
         </header>
 
+        <section v-if="currentSection === 'mailbox'" class="mailbox-list">
+          <article
+            v-for="item in mailboxItems"
+            :key="item.id"
+            class="mailbox-card"
+            :class="{ unread: !item.read, read: item.read }"
+            @click="markMailboxItemRead(item.id)"
+          >
+            <div v-if="!item.read" class="mailbox-unread-bar" aria-hidden="true"></div>
+            <img class="mailbox-avatar" :src="item.avatarUrl" :alt="item.author" />
+            <div class="mailbox-content">
+              <div class="mailbox-card-header">
+                <h2>{{ item.author }}</h2>
+                <span>{{ item.time }}</span>
+              </div>
+              <p class="mailbox-message">
+                <span class="mailbox-inline-icon">{{ item.inlineIcon }}</span>
+                {{ item.message }}
+                <strong v-if="item.subject">{{ item.subject }}</strong>
+              </p>
+              <blockquote v-if="item.quote" class="mailbox-quote">
+                {{ item.quote }}
+              </blockquote>
+              <div v-if="item.tags.length" class="mailbox-tags">
+                <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
+              </div>
+            </div>
+            <div class="mailbox-action-icon" :class="item.tone">
+              <svg v-if="item.kind === 'like'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.8 8.6c0 5.4-8.8 10.2-8.8 10.2S3.2 14 3.2 8.6A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.8 2.4Z"></path>
+              </svg>
+              <svg v-else-if="item.kind === 'reply'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"></path>
+              </svg>
+              <svg v-else-if="item.kind === 'follow'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9.5" cy="7" r="4"></circle>
+                <path d="M19 8v6"></path>
+                <path d="M22 11h-6"></path>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+          </article>
+        </section>
+
         <section
-          v-if="currentSection === 'published' && forumNotes.length > 0"
+          v-else-if="currentSection === 'published' && forumNotes.length > 0"
           class="notes-grid"
         >
           <article
@@ -207,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   collection,
@@ -221,7 +291,9 @@ import {
 import { useUserStore } from '../stores/user';
 import { formatEventCardSchedule, formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
 
-type SectionKey = 'saved' | 'published' | 'participated';
+type SectionKey = 'saved' | 'published' | 'mailbox' | 'participated';
+type MailboxKind = 'like' | 'reply' | 'follow' | 'invite';
+type MailboxTone = 'pink' | 'purple' | 'blue' | 'neutral';
 
 interface ProfileEventCard {
   id: string;
@@ -247,6 +319,21 @@ interface ForumNoteCard {
   createdAt: unknown;
 }
 
+interface MailboxItem {
+  id: string;
+  author: string;
+  time: string;
+  avatarUrl: string;
+  message: string;
+  subject?: string;
+  quote?: string;
+  tags: string[];
+  inlineIcon: string;
+  kind: MailboxKind;
+  tone: MailboxTone;
+  read: boolean;
+}
+
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
@@ -259,11 +346,66 @@ const currentSection = ref<SectionKey>('saved');
 const savedEvents = ref<ProfileEventCard[]>([]);
 const forumNotes = ref<ForumNoteCard[]>([]);
 const userEvents = ref<ProfileEventCard[]>([]);
+const mailboxReadButtonText = ref('Mark all as read');
+const mailboxItems = ref<MailboxItem[]>([
+  {
+    id: 'like-roadshow',
+    author: 'Yuqing Ye',
+    time: '2m ago',
+    avatarUrl: '/images/default-avatar.jpg',
+    message: 'liked your post',
+    subject: '"Silicon Valley AI Startup Roadshow..."',
+    tags: [],
+    inlineIcon: '♥',
+    kind: 'like',
+    tone: 'pink',
+    read: false,
+  },
+  {
+    id: 'reply-message',
+    author: 'Coco Wang',
+    time: '15m ago',
+    avatarUrl: '/images/mob-default-avatar.jpg',
+    message: 'replied to your message:',
+    quote: 'ABCD',
+    tags: [],
+    inlineIcon: '↩',
+    kind: 'reply',
+    tone: 'purple',
+    read: false,
+  },
+  {
+    id: 'follow-alex',
+    author: 'Alex Rivers',
+    time: '1h ago',
+    avatarUrl: '/images/uwdog.png',
+    message: 'started following you',
+    tags: ['New Fan', 'Engineering'],
+    inlineIcon: '+',
+    kind: 'follow',
+    tone: 'blue',
+    read: true,
+  },
+  {
+    id: 'invite-writing',
+    author: 'Jordan Smith',
+    time: '4h ago',
+    avatarUrl: '/images/wavingdog.jpg',
+    message: 'invited you to join the',
+    subject: '"Creative Writing Workshop" group.',
+    tags: [],
+    inlineIcon: '★',
+    kind: 'invite',
+    tone: 'neutral',
+    read: true,
+  },
+]);
 
 const savedUpcomingEvents = computed(() => savedEvents.value.filter((event) => !isPassedEvent(event)));
 const passedSavedEvents = computed(() => savedEvents.value.filter((event) => isPassedEvent(event)));
 
 const currentEvents = computed(() => {
+  if (currentSection.value === 'mailbox') return [];
   if (currentSection.value === 'published') return [];
   if (currentSection.value === 'participated') return userEvents.value;
   return savedUpcomingEvents.value;
@@ -276,12 +418,14 @@ const hasPassedSavedOnly = computed(() => (
 ));
 
 const sectionTitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Mailbox';
   if (currentSection.value === 'published') return 'Your Forum Notes';
   if (currentSection.value === 'participated') return 'Your Events';
   return 'Saved Events';
 });
 
 const sectionSubtitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Catch up with your campus interactions.';
   if (currentSection.value === 'published') {
     return `You have shared ${forumNotes.value.length} forum notes across your event discussions.`;
   }
@@ -292,12 +436,14 @@ const sectionSubtitle = computed(() => {
 });
 
 const emptyMessage = computed(() => {
+  if (currentSection.value === 'mailbox') return 'New likes, replies, follows, and invitations will appear here.';
   if (currentSection.value === 'published') return 'Post a note inside an event forum and it will show up here.';
   if (currentSection.value === 'participated') return 'Create an event and it will appear here.';
   return 'Save an upcoming event from its detail page and it will show up here.';
 });
 
 const emptyTitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Mailbox is empty';
   if (currentSection.value === 'published') return 'No notes here yet';
   if (currentSection.value === 'participated') return 'No events here yet';
   return 'No events here yet';
@@ -305,6 +451,36 @@ const emptyTitle = computed(() => {
 
 function showSection(section: SectionKey) {
   currentSection.value = section;
+  if (section === 'mailbox' && route.path !== '/mailbox') {
+    router.push('/mailbox');
+    return;
+  }
+  if (section !== 'mailbox' && route.path === '/mailbox') {
+    router.push('/profile');
+  }
+}
+
+function syncSectionWithRoute() {
+  if (route.path === '/mailbox') {
+    currentSection.value = 'mailbox';
+  } else if (currentSection.value === 'mailbox') {
+    currentSection.value = 'saved';
+  }
+}
+
+function markMailboxItemRead(itemId: string) {
+  mailboxItems.value = mailboxItems.value.map((item) => (
+    item.id === itemId ? { ...item, read: true } : item
+  ));
+}
+
+function markAllMailboxRead() {
+  mailboxItems.value = mailboxItems.value.map((item) => ({ ...item, read: true }));
+  mailboxReadButtonText.value = 'All marked';
+
+  window.setTimeout(() => {
+    mailboxReadButtonText.value = 'Mark all as read';
+  }, 1800);
 }
 
 function goToEditProfile() {
@@ -624,6 +800,8 @@ async function fetchForumNotes(userId: string) {
 }
 
 onMounted(async () => {
+  syncSectionWithRoute();
+
   countdownTimer = setInterval(() => {
     nowMs.value = Date.now();
   }, 60000);
@@ -648,6 +826,8 @@ onMounted(async () => {
     console.error('Failed to load profile events:', error);
   }
 });
+
+watch(() => route.path, syncSectionWithRoute);
 
 onUnmounted(() => {
   if (countdownTimer) {
