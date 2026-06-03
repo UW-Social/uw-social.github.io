@@ -535,7 +535,7 @@ function handleTagsKeydown(event: KeyboardEvent) {
   }, 0);
 }
 
-function handleImageSelection(event: InputEvent) {
+function handleImageSelection(event: Event) {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
 }

@@ -302,8 +302,6 @@ const addCustomTag = () => {
   }
 };
 
-
-
 // Remove tag
 const removeTag = (tag: string) => {
   const index = selectedTags.value.indexOf(tag);

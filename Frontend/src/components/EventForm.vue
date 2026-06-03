@@ -530,7 +530,7 @@ const handleTagsKeydown = (event: KeyboardEvent) => {
 
 const selectedImageFile = ref<File | null>(null);
 
-const handleImageSelection = (event: InputEvent) => {
+const handleImageSelection = (event: Event) => {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
 };
@@ -543,7 +543,8 @@ const handleImport = async () => {
   try {
     const data = await scraper(importLink.value);
 
-    if (!data || typeof data !== 'object') throw new Error();
+    if (!data || typeof data !== 'object') alert('Failed to import event. (could be scraper or gemini)');
+    console.log(data);
 
     formData.value.title = data.title ?? formData.value.title;
     formData.value.description = data.description ?? formData.value.description;
@@ -585,7 +586,7 @@ const handleImport = async () => {
     currentStep.value = 1;
   } catch (err) {
     console.error(err);
-    alert('Failed to import event.');
+    alert('Failed to import event. (check console for reason)');
   } finally {
     isImporting.value = false;
   }
@@ -594,12 +595,29 @@ const handleImport = async () => {
 
 
 const scraper = async (url: string) => {
-  const response = await fetch(url);
-  console.log(response)
-  const htmlDocument = await response.text();
-  const form = await gemini(htmlDocument);
-  console.log(form);
-  return form;
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+
+    console.log(html);
+
+    if (!html) {
+      alert('Failed to import event (empty HTML)');
+      return;
+    }
+
+    const form = await gemini(html);
+
+    if (!form) {
+      alert('Failed to import event (Gemini issue)');
+      return;
+    }
+
+    return form;
+  } catch (err) {
+    console.error(err);
+    alert('Failed to import event (network error)');
+  }
 };
 
 const gemini = async (document: string) => {
@@ -670,6 +688,7 @@ ${document}
 
   if (!response.ok) {
     const errorText = await response.text();
+    alert(`Gemini request failed (${response.status}): ${errorText}`);
     throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
   }
 
@@ -852,8 +871,6 @@ const handleSubmit = async () => {
 
 
   try {
-    let imageUrl = ''; // 先初始化
-
     // 上传图片
     if (selectedImageFile.value) {
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
