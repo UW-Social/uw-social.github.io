@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
+import type { Transaction } from 'firebase/firestore';
 import type { Event } from '../types/event';
 import type {
   AggregatedDiscussionPost,
@@ -23,9 +24,17 @@ import type {
   ForumPost,
 } from '../types/forum';
 import { buildForumEventSnapshot } from '../types/forum';
+import type { NewUserNotification, NotificationTargetType } from '../types/notification';
 import { db } from '../firebase/config';
 
 const forumsCollection = collection(db, 'forums');
+
+type LikeActor = {
+  uid: string;
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+};
 
 export async function listForums(): Promise<Forum[]> {
   const forumsQuery = query(forumsCollection, orderBy('lastPostAt', 'desc'));
@@ -491,10 +500,10 @@ export async function listExperiencePostReplies(
 export async function toggleExperiencePostLike(
   eventId: string,
   postId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
-  const likeRef = doc(db, 'events', eventId, 'forumPosts', postId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'forumPosts', postId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [postSnap, likeSnap] = await Promise.all([
@@ -515,16 +524,33 @@ export async function toggleExperiencePostLike(
       transaction.update(postRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof postSnap.data().userId === 'string' ? postSnap.data().userId : undefined,
+        'experiencePost',
+        eventId,
+        postId,
+        actor.uid
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(postRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'experiencePost',
+      eventId,
+      postId,
+      undefined,
+      actor,
+      postSnap.data() as Record<string, unknown>
+    );
   });
 }
 
@@ -573,10 +599,10 @@ export async function createDiscussionReply(
 export async function toggleDiscussionPostLike(
   eventId: string,
   postId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const postRef = doc(db, 'events', eventId, 'posts', postId);
-  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [postSnap, likeSnap] = await Promise.all([
@@ -597,16 +623,33 @@ export async function toggleDiscussionPostLike(
       transaction.update(postRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof postSnap.data().userId === 'string' ? postSnap.data().userId : undefined,
+        'discussionPost',
+        eventId,
+        postId,
+        actor.uid
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(postRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'discussionPost',
+      eventId,
+      postId,
+      undefined,
+      actor,
+      postSnap.data() as Record<string, unknown>
+    );
   });
 }
 
@@ -614,10 +657,10 @@ export async function toggleDiscussionReplyLike(
   eventId: string,
   postId: string,
   replyId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const replyRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId);
-  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [replySnap, likeSnap] = await Promise.all([
@@ -638,17 +681,142 @@ export async function toggleDiscussionReplyLike(
       transaction.update(replyRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof replySnap.data().userId === 'string' ? replySnap.data().userId : undefined,
+        'discussionReply',
+        eventId,
+        postId,
+        actor.uid,
+        replyId
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(replyRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'discussionReply',
+      eventId,
+      postId,
+      replyId,
+      actor,
+      replySnap.data() as Record<string, unknown>
+    );
   });
+}
+
+function buildReceiverLikeNotificationRef(
+  receiverUid: string,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  actorUid: string,
+  replyId?: string
+) {
+  const targetId = replyId ? `${postId}_${replyId}` : postId;
+  return doc(
+    db,
+    'users',
+    receiverUid,
+    'notifications',
+    `${targetType}_${eventId}_${targetId}_${actorUid}`
+  );
+}
+
+function createLikeNotificationInTransaction(
+  transaction: Transaction,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  replyId: string | undefined,
+  actor: LikeActor,
+  targetData: Record<string, unknown>
+) {
+  const receiverUid = typeof targetData.userId === 'string' ? targetData.userId : '';
+  if (!receiverUid || receiverUid === actor.uid) return;
+
+  const notificationRef = buildReceiverLikeNotificationRef(
+    receiverUid,
+    targetType,
+    eventId,
+    postId,
+    actor.uid,
+    replyId
+  );
+  const subject = getNotificationSubject(targetData);
+  const quote = getNotificationQuote(targetData);
+  const notification: NewUserNotification = {
+    type: 'like',
+    targetType,
+    receiverUid,
+    actorUid: actor.uid,
+    actorName: getActorDisplayName(actor),
+    actorAvatarUrl: actor.photoURL ?? null,
+    message: targetType === 'discussionReply' ? 'liked your reply' : 'liked your post',
+    ...(subject ? { subject } : {}),
+    ...(quote ? { quote } : {}),
+    eventId,
+    postId,
+    ...(replyId ? { replyId } : {}),
+    read: false,
+  };
+
+  transaction.set(notificationRef, {
+    ...notification,
+    createdAt: serverTimestamp(),
+  });
+}
+
+function deleteLikeNotificationInTransaction(
+  transaction: Transaction,
+  receiverUid: string | undefined,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  actorUid: string,
+  replyId?: string
+) {
+  if (!receiverUid || receiverUid === actorUid) return;
+
+  transaction.delete(buildReceiverLikeNotificationRef(
+    receiverUid,
+    targetType,
+    eventId,
+    postId,
+    actorUid,
+    replyId
+  ));
+}
+
+function getActorDisplayName(actor: LikeActor) {
+  if (actor.displayName?.trim()) return actor.displayName.trim();
+  if (actor.email?.trim()) return actor.email.split('@')[0];
+  return 'A UW Social user';
+}
+
+function getNotificationSubject(targetData: Record<string, unknown>) {
+  const title = typeof targetData.title === 'string' ? targetData.title.trim() : '';
+  if (title) return title.length <= 96 ? title : `${title.slice(0, 96).trimEnd()}...`;
+
+  return getNotificationQuote(targetData);
+}
+
+function getNotificationQuote(targetData: Record<string, unknown>) {
+  const raw = typeof targetData.content === 'string'
+    ? targetData.content
+    : typeof targetData.text === 'string'
+      ? targetData.text
+      : '';
+  const normalized = raw.replace(/\s+/g, ' ').trim();
+  if (!normalized) return undefined;
+  return normalized.length <= 140 ? normalized : `${normalized.slice(0, 140).trimEnd()}...`;
 }
 
 async function hydrateDiscussionPost(

@@ -282,14 +282,21 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   collection,
   collectionGroup,
+  doc,
   documentId,
   getDocs,
   getFirestore,
+  onSnapshot,
+  orderBy,
   query,
+  updateDoc,
   where,
+  writeBatch,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { useUserStore } from '../stores/user';
 import { formatEventCardSchedule, formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
+import type { UserNotification } from '../types/notification';
 
 type SectionKey = 'saved' | 'published' | 'mailbox' | 'participated';
 type MailboxKind = 'like' | 'reply' | 'follow' | 'invite';
@@ -341,65 +348,14 @@ const db = getFirestore();
 const isSavingEvent = ref(false);
 const nowMs = ref(Date.now());
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let unsubscribeMailbox: Unsubscribe | null = null;
 
 const currentSection = ref<SectionKey>('saved');
 const savedEvents = ref<ProfileEventCard[]>([]);
 const forumNotes = ref<ForumNoteCard[]>([]);
 const userEvents = ref<ProfileEventCard[]>([]);
 const mailboxReadButtonText = ref('Mark all as read');
-const mailboxItems = ref<MailboxItem[]>([
-  {
-    id: 'like-roadshow',
-    author: 'Yuqing Ye',
-    time: '2m ago',
-    avatarUrl: '/images/default-avatar.jpg',
-    message: 'liked your post',
-    subject: '"Silicon Valley AI Startup Roadshow..."',
-    tags: [],
-    inlineIcon: '♥',
-    kind: 'like',
-    tone: 'pink',
-    read: false,
-  },
-  {
-    id: 'reply-message',
-    author: 'Coco Wang',
-    time: '15m ago',
-    avatarUrl: '/images/mob-default-avatar.jpg',
-    message: 'replied to your message:',
-    quote: 'ABCD',
-    tags: [],
-    inlineIcon: '↩',
-    kind: 'reply',
-    tone: 'purple',
-    read: false,
-  },
-  {
-    id: 'follow-alex',
-    author: 'Alex Rivers',
-    time: '1h ago',
-    avatarUrl: '/images/uwdog.png',
-    message: 'started following you',
-    tags: ['New Fan', 'Engineering'],
-    inlineIcon: '+',
-    kind: 'follow',
-    tone: 'blue',
-    read: true,
-  },
-  {
-    id: 'invite-writing',
-    author: 'Jordan Smith',
-    time: '4h ago',
-    avatarUrl: '/images/wavingdog.jpg',
-    message: 'invited you to join the',
-    subject: '"Creative Writing Workshop" group.',
-    tags: [],
-    inlineIcon: '★',
-    kind: 'invite',
-    tone: 'neutral',
-    read: true,
-  },
-]);
+const mailboxItems = ref<MailboxItem[]>([]);
 
 const savedUpcomingEvents = computed(() => savedEvents.value.filter((event) => !isPassedEvent(event)));
 const passedSavedEvents = computed(() => savedEvents.value.filter((event) => isPassedEvent(event)));
@@ -468,15 +424,54 @@ function syncSectionWithRoute() {
   }
 }
 
-function markMailboxItemRead(itemId: string) {
+async function markMailboxItemRead(itemId: string) {
+  const userId = userStore.userProfile?.uid;
+  if (!userId) return;
+
   mailboxItems.value = mailboxItems.value.map((item) => (
     item.id === itemId ? { ...item, read: true } : item
   ));
+
+  try {
+    await updateDoc(doc(db, 'users', userId, 'notifications', itemId), {
+      read: true,
+    });
+  } catch (error) {
+    console.error('Failed to mark mailbox item as read:', error);
+  }
 }
 
-function markAllMailboxRead() {
+async function markAllMailboxRead() {
+  const userId = userStore.userProfile?.uid;
+  if (!userId) return;
+
+  const unreadIds = mailboxItems.value
+    .filter((item) => !item.read)
+    .map((item) => item.id);
+
+  if (unreadIds.length === 0) {
+    mailboxReadButtonText.value = 'All marked';
+    window.setTimeout(() => {
+      mailboxReadButtonText.value = 'Mark all as read';
+    }, 1800);
+    return;
+  }
+
   mailboxItems.value = mailboxItems.value.map((item) => ({ ...item, read: true }));
-  mailboxReadButtonText.value = 'All marked';
+
+  try {
+    const batch = writeBatch(db);
+    unreadIds.forEach((itemId) => {
+      batch.update(doc(db, 'users', userId, 'notifications', itemId), {
+        read: true,
+      });
+    });
+    await batch.commit();
+    mailboxReadButtonText.value = 'All marked';
+  } catch (error) {
+    console.error('Failed to mark all mailbox items as read:', error);
+    mailboxReadButtonText.value = 'Try again';
+  }
 
   window.setTimeout(() => {
     mailboxReadButtonText.value = 'Mark all as read';
@@ -564,6 +559,90 @@ function getTimestampMs(value: unknown) {
 
   const date = raw instanceof Date ? raw : new Date(raw);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function formatRelativeTime(value: unknown) {
+  const timestamp = getTimestampMs(value);
+  if (!timestamp) return 'Just now';
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSeconds < 60) return 'Just now';
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(timestamp));
+}
+
+function getMailboxTone(kind: MailboxKind): MailboxTone {
+  if (kind === 'like') return 'pink';
+  if (kind === 'reply') return 'purple';
+  if (kind === 'follow') return 'blue';
+  return 'neutral';
+}
+
+function getMailboxInlineIcon(kind: MailboxKind) {
+  if (kind === 'like') return '♥';
+  if (kind === 'reply') return '↩';
+  if (kind === 'follow') return '+';
+  return '★';
+}
+
+function mapNotificationToMailboxItem(notification: UserNotification): MailboxItem {
+  const kind: MailboxKind = notification.type;
+
+  return {
+    id: notification.id,
+    author: notification.actorName || 'UW Social user',
+    time: formatRelativeTime(notification.createdAt),
+    avatarUrl: notification.actorAvatarUrl || '/images/default-avatar.jpg',
+    message: notification.message,
+    subject: notification.subject ? `"${notification.subject}"` : undefined,
+    quote: notification.quote,
+    tags: notification.targetType ? [notification.targetType] : [],
+    inlineIcon: getMailboxInlineIcon(kind),
+    kind,
+    tone: getMailboxTone(kind),
+    read: notification.read,
+  };
+}
+
+function subscribeMailbox(userId: string) {
+  if (unsubscribeMailbox) {
+    unsubscribeMailbox();
+    unsubscribeMailbox = null;
+  }
+
+  const notificationsQuery = query(
+    collection(db, 'users', userId, 'notifications'),
+    orderBy('createdAt', 'desc'),
+  );
+
+  unsubscribeMailbox = onSnapshot(
+    notificationsQuery,
+    (snapshot) => {
+      mailboxItems.value = snapshot.docs.map((notificationDoc) => {
+        const notification = {
+          id: notificationDoc.id,
+          ...(notificationDoc.data() as Omit<UserNotification, 'id'>),
+        };
+        return mapNotificationToMailboxItem(notification);
+      });
+    },
+    (error) => {
+      console.error('Failed to subscribe to mailbox notifications:', error);
+      mailboxItems.value = [];
+    },
+  );
 }
 
 function formatPostTimestamp(value: unknown) {
@@ -815,6 +894,7 @@ onMounted(async () => {
   const userId = profile?.uid;
 
   if (!userId) return;
+  subscribeMailbox(userId);
 
   try {
     await Promise.all([
@@ -833,6 +913,11 @@ onUnmounted(() => {
   if (countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
+  }
+
+  if (unsubscribeMailbox) {
+    unsubscribeMailbox();
+    unsubscribeMailbox = null;
   }
 });
 </script>

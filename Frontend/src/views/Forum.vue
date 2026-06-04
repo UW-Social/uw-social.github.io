@@ -105,6 +105,7 @@ const errorMessage = ref('');
 const allPosts = ref<AggregatedExperiencePost[]>([]);
 const searchQuery = ref('');
 const activeSort = ref<ForumSort>('recommended');
+const pendingLikePostIds = ref(new Set<string>());
 
 const filteredPosts = computed(() => {
   const normalizedSearch = searchQuery.value.trim().toLowerCase();
@@ -189,16 +190,41 @@ const getTimestampMs = (value: AggregatedExperiencePost['createdAt']) => {
 };
 
 const togglePostLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid) return;
+  const profile = userStore.userProfile;
+  if (!profile?.uid) return;
+  if (pendingLikePostIds.value.has(postId)) return;
 
   const post = allPosts.value.find((item) => item.id === postId);
   if (!post) return;
 
+  const previousHasLiked = Boolean(post.hasLiked);
+  const previousLikeCount = post.likeCount || 0;
+  const nextHasLiked = !previousHasLiked;
+  const nextLikeCount = Math.max(0, previousLikeCount + (nextHasLiked ? 1 : -1));
+
+  pendingLikePostIds.value.add(postId);
+  allPosts.value = allPosts.value.map((item) => (
+    item.id === postId
+      ? { ...item, hasLiked: nextHasLiked, likeCount: nextLikeCount }
+      : item
+  ));
+
   try {
-    await toggleExperiencePostLike(post.eventId, postId, userStore.userProfile.uid);
-    await loadForumPosts();
+    await toggleExperiencePostLike(post.eventId, postId, {
+      uid: profile.uid,
+      displayName: profile.displayName,
+      email: profile.email,
+      photoURL: profile.photoURL,
+    });
   } catch (error) {
     console.error('Failed to toggle post like:', error);
+    allPosts.value = allPosts.value.map((item) => (
+      item.id === postId
+        ? { ...item, hasLiked: previousHasLiked, likeCount: previousLikeCount }
+        : item
+    ));
+  } finally {
+    pendingLikePostIds.value.delete(postId);
   }
 };
 
