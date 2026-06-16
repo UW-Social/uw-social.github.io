@@ -106,6 +106,7 @@
 .login-btn,
 .logout-btn,
 .avatar-button,
+.mailbox-nav-button,
 .chat-toggle-btn {
   display: flex;
   align-items: center;
@@ -161,6 +162,32 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.mailbox-nav-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: #5f5678;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.mailbox-nav-button:hover,
+.mailbox-nav-button.active {
+  color: #5f32eb;
+  background: #f1ecff;
+  transform: translateY(-1px);
+}
+
+.mailbox-nav-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .avatar-button {
@@ -229,6 +256,11 @@
   .avatar-button {
     width: 40px;
     height: 40px;
+  }
+
+  .mailbox-nav-button {
+    width: 38px;
+    height: 38px;
   }
 
   .user-avatar {

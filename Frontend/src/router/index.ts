@@ -30,6 +30,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/mailbox',
+    name: 'Mailbox',
+    component: isMobile()
+      ? () => import('@/views/Profile.vue')
+      : () => import('@/views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/onboarding',
     name: 'Onboarding',
     component: () => import('@/views/Onboarding.vue'),

@@ -35,6 +35,14 @@
           <button
             type="button"
             class="sidebar-link"
+            :class="{ active: currentSection === 'mailbox' }"
+            @click="showSection('mailbox')"
+          >
+            <span>Mailbox</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-link"
             :class="{ active: currentSection === 'participated' }"
             @click="showSection('participated')"
           >
@@ -52,10 +60,72 @@
         <header class="content-header">
           <h1>{{ sectionTitle }}</h1>
           <p>{{ sectionSubtitle }}</p>
+          <button
+            v-if="currentSection === 'mailbox'"
+            type="button"
+            class="mailbox-read-button"
+            @click="markAllMailboxRead"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m4 13 4 4L20 5"></path>
+              <path d="m4 7 4 4"></path>
+            </svg>
+            <span>{{ mailboxReadButtonText }}</span>
+          </button>
         </header>
 
+        <section v-if="currentSection === 'mailbox'" class="mailbox-list">
+          <article
+            v-for="item in mailboxItems"
+            :key="item.id"
+            class="mailbox-card"
+            :class="{ unread: !item.read, read: item.read }"
+            @click="markMailboxItemRead(item.id)"
+          >
+            <div v-if="!item.read" class="mailbox-unread-bar" aria-hidden="true"></div>
+            <img class="mailbox-avatar" :src="item.avatarUrl" :alt="item.author" />
+            <div class="mailbox-content">
+              <div class="mailbox-card-header">
+                <h2>{{ item.author }}</h2>
+                <span>{{ item.time }}</span>
+              </div>
+              <p class="mailbox-message">
+                <span class="mailbox-inline-icon">{{ item.inlineIcon }}</span>
+                {{ item.message }}
+                <strong v-if="item.subject">{{ item.subject }}</strong>
+              </p>
+              <blockquote v-if="item.quote" class="mailbox-quote">
+                {{ item.quote }}
+              </blockquote>
+              <div v-if="item.tags.length" class="mailbox-tags">
+                <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
+              </div>
+            </div>
+            <div class="mailbox-action-icon" :class="item.tone">
+              <svg v-if="item.kind === 'like'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.8 8.6c0 5.4-8.8 10.2-8.8 10.2S3.2 14 3.2 8.6A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.8 2.4Z"></path>
+              </svg>
+              <svg v-else-if="item.kind === 'reply'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"></path>
+              </svg>
+              <svg v-else-if="item.kind === 'follow'" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9.5" cy="7" r="4"></circle>
+                <path d="M19 8v6"></path>
+                <path d="M22 11h-6"></path>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+          </article>
+        </section>
+
         <section
-          v-if="currentSection === 'published' && forumNotes.length > 0"
+          v-else-if="currentSection === 'published' && forumNotes.length > 0"
           class="notes-grid"
         >
           <article
@@ -258,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   collection,
@@ -268,16 +338,23 @@ import {
   documentId,
   getDocs,
   getFirestore,
+  onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { auth } from '../firebase/config';
 import { useUserStore } from '../stores/user';
 import { formatEventCardSchedule, formatEventSchedule, RecurrenceType, type Event as FullEvent } from '../types/event';
+import type { UserNotification } from '../types/notification';
 
-type SectionKey = 'saved' | 'published' | 'participated';
+type SectionKey = 'saved' | 'published' | 'mailbox' | 'participated';
+type MailboxKind = 'like' | 'reply' | 'follow' | 'invite';
+type MailboxTone = 'pink' | 'purple' | 'blue' | 'neutral';
 
 interface ProfileEventCard {
   id: string;
@@ -305,6 +382,21 @@ interface ForumNoteCard {
   userId: string;
 }
 
+interface MailboxItem {
+  id: string;
+  author: string;
+  time: string;
+  avatarUrl: string;
+  message: string;
+  subject?: string;
+  quote?: string;
+  tags: string[];
+  inlineIcon: string;
+  kind: MailboxKind;
+  tone: MailboxTone;
+  read: boolean;
+}
+
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
@@ -312,11 +404,14 @@ const db = getFirestore();
 const isSavingEvent = ref(false);
 const nowMs = ref(Date.now());
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let unsubscribeMailbox: Unsubscribe | null = null;
 
 const currentSection = ref<SectionKey>('saved');
 const savedEvents = ref<ProfileEventCard[]>([]);
 const forumNotes = ref<ForumNoteCard[]>([]);
 const userEvents = ref<ProfileEventCard[]>([]);
+const mailboxReadButtonText = ref('Mark all as read');
+const mailboxItems = ref<MailboxItem[]>([]);
 const editingNoteId = ref<string | null>(null);
 const editNoteTitle = ref('');
 const editNoteText = ref('');
@@ -327,6 +422,7 @@ const savedUpcomingEvents = computed(() => savedEvents.value.filter((event) => !
 const passedSavedEvents = computed(() => savedEvents.value.filter((event) => isPassedEvent(event)));
 
 const currentEvents = computed(() => {
+  if (currentSection.value === 'mailbox') return [];
   if (currentSection.value === 'published') return [];
   if (currentSection.value === 'participated') return userEvents.value;
   return savedUpcomingEvents.value;
@@ -339,12 +435,14 @@ const hasPassedSavedOnly = computed(() => (
 ));
 
 const sectionTitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Mailbox';
   if (currentSection.value === 'published') return 'Your Forum Notes';
   if (currentSection.value === 'participated') return 'Your Events';
   return 'Saved Events';
 });
 
 const sectionSubtitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Catch up with your campus interactions.';
   if (currentSection.value === 'published') {
     return `You have shared ${forumNotes.value.length} forum notes across your event discussions.`;
   }
@@ -355,12 +453,14 @@ const sectionSubtitle = computed(() => {
 });
 
 const emptyMessage = computed(() => {
+  if (currentSection.value === 'mailbox') return 'New likes, replies, follows, and invitations will appear here.';
   if (currentSection.value === 'published') return 'Post a note inside an event forum and it will show up here.';
   if (currentSection.value === 'participated') return 'Create an event and it will appear here.';
   return 'Save an upcoming event from its detail page and it will show up here.';
 });
 
 const emptyTitle = computed(() => {
+  if (currentSection.value === 'mailbox') return 'Mailbox is empty';
   if (currentSection.value === 'published') return 'No notes here yet';
   if (currentSection.value === 'participated') return 'No events here yet';
   return 'No events here yet';
@@ -368,6 +468,75 @@ const emptyTitle = computed(() => {
 
 function showSection(section: SectionKey) {
   currentSection.value = section;
+  if (section === 'mailbox' && route.path !== '/mailbox') {
+    router.push('/mailbox');
+    return;
+  }
+  if (section !== 'mailbox' && route.path === '/mailbox') {
+    router.push('/profile');
+  }
+}
+
+function syncSectionWithRoute() {
+  if (route.path === '/mailbox') {
+    currentSection.value = 'mailbox';
+  } else if (currentSection.value === 'mailbox') {
+    currentSection.value = 'saved';
+  }
+}
+
+async function markMailboxItemRead(itemId: string) {
+  const userId = userStore.userProfile?.uid;
+  if (!userId) return;
+
+  mailboxItems.value = mailboxItems.value.map((item) => (
+    item.id === itemId ? { ...item, read: true } : item
+  ));
+
+  try {
+    await updateDoc(firestoreDoc(db, 'users', userId, 'notifications', itemId), {
+      read: true,
+    });
+  } catch (error) {
+    console.error('Failed to mark mailbox item as read:', error);
+  }
+}
+
+async function markAllMailboxRead() {
+  const userId = userStore.userProfile?.uid;
+  if (!userId) return;
+
+  const unreadIds = mailboxItems.value
+    .filter((item) => !item.read)
+    .map((item) => item.id);
+
+  if (unreadIds.length === 0) {
+    mailboxReadButtonText.value = 'All marked';
+    window.setTimeout(() => {
+      mailboxReadButtonText.value = 'Mark all as read';
+    }, 1800);
+    return;
+  }
+
+  mailboxItems.value = mailboxItems.value.map((item) => ({ ...item, read: true }));
+
+  try {
+    const batch = writeBatch(db);
+    unreadIds.forEach((itemId) => {
+      batch.update(firestoreDoc(db, 'users', userId, 'notifications', itemId), {
+        read: true,
+      });
+    });
+    await batch.commit();
+    mailboxReadButtonText.value = 'All marked';
+  } catch (error) {
+    console.error('Failed to mark all mailbox items as read:', error);
+    mailboxReadButtonText.value = 'Try again';
+  }
+
+  window.setTimeout(() => {
+    mailboxReadButtonText.value = 'Mark all as read';
+  }, 1800);
 }
 
 function goToEditProfile() {
@@ -550,6 +719,90 @@ function getTimestampMs(value: unknown) {
 
   const date = raw instanceof Date ? raw : new Date(raw);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function formatRelativeTime(value: unknown) {
+  const timestamp = getTimestampMs(value);
+  if (!timestamp) return 'Just now';
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSeconds < 60) return 'Just now';
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(timestamp));
+}
+
+function getMailboxTone(kind: MailboxKind): MailboxTone {
+  if (kind === 'like') return 'pink';
+  if (kind === 'reply') return 'purple';
+  if (kind === 'follow') return 'blue';
+  return 'neutral';
+}
+
+function getMailboxInlineIcon(kind: MailboxKind) {
+  if (kind === 'like') return '♥';
+  if (kind === 'reply') return '↩';
+  if (kind === 'follow') return '+';
+  return '★';
+}
+
+function mapNotificationToMailboxItem(notification: UserNotification): MailboxItem {
+  const kind: MailboxKind = notification.type;
+
+  return {
+    id: notification.id,
+    author: notification.actorName || 'UW Social user',
+    time: formatRelativeTime(notification.createdAt),
+    avatarUrl: notification.actorAvatarUrl || '/images/default-avatar.jpg',
+    message: notification.message,
+    subject: notification.subject ? `"${notification.subject}"` : undefined,
+    quote: notification.quote,
+    tags: notification.targetType ? [notification.targetType] : [],
+    inlineIcon: getMailboxInlineIcon(kind),
+    kind,
+    tone: getMailboxTone(kind),
+    read: notification.read,
+  };
+}
+
+function subscribeMailbox(userId: string) {
+  if (unsubscribeMailbox) {
+    unsubscribeMailbox();
+    unsubscribeMailbox = null;
+  }
+
+  const notificationsQuery = query(
+    collection(db, 'users', userId, 'notifications'),
+    orderBy('createdAt', 'desc'),
+  );
+
+  unsubscribeMailbox = onSnapshot(
+    notificationsQuery,
+    (snapshot) => {
+      mailboxItems.value = snapshot.docs.map((notificationDoc) => {
+        const notification = {
+          id: notificationDoc.id,
+          ...(notificationDoc.data() as Omit<UserNotification, 'id'>),
+        };
+        return mapNotificationToMailboxItem(notification);
+      });
+    },
+    (error) => {
+      console.error('Failed to subscribe to mailbox notifications:', error);
+      mailboxItems.value = [];
+    },
+  );
 }
 
 function formatPostTimestamp(value: unknown) {
@@ -793,6 +1046,8 @@ async function fetchForumNotes(userId: string) {
 }
 
 onMounted(async () => {
+  syncSectionWithRoute();
+
   countdownTimer = setInterval(() => {
     nowMs.value = Date.now();
   }, 60000);
@@ -806,6 +1061,7 @@ onMounted(async () => {
   const userId = profile?.uid;
 
   if (!userId) return;
+  subscribeMailbox(userId);
 
   try {
     await Promise.all([
@@ -818,10 +1074,17 @@ onMounted(async () => {
   }
 });
 
+watch(() => route.path, syncSectionWithRoute);
+
 onUnmounted(() => {
   if (countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
+  }
+
+  if (unsubscribeMailbox) {
+    unsubscribeMailbox();
+    unsubscribeMailbox = null;
   }
 });
 </script>

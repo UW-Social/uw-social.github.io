@@ -9,6 +9,53 @@ service cloud.firestore {
       return isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
     }
+
+    function isValidNotificationCreate(userId) {
+      return isSignedIn() &&
+        request.resource.data.keys().hasOnly([
+          'type',
+          'targetType',
+          'receiverUid',
+          'actorUid',
+          'actorName',
+          'actorAvatarUrl',
+          'message',
+          'subject',
+          'quote',
+          'eventId',
+          'postId',
+          'replyId',
+          'read',
+          'createdAt'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'type',
+          'targetType',
+          'receiverUid',
+          'actorUid',
+          'actorName',
+          'message',
+          'read',
+          'createdAt'
+        ]) &&
+        request.resource.data.receiverUid == userId &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.read == false &&
+        request.resource.data.createdAt == request.time &&
+        (
+          request.resource.data.type == 'like' ||
+          request.resource.data.type == 'reply' ||
+          request.resource.data.type == 'follow' ||
+          request.resource.data.type == 'invite'
+        ) &&
+        (
+          request.resource.data.targetType == 'discussionPost' ||
+          request.resource.data.targetType == 'discussionReply' ||
+          request.resource.data.targetType == 'experiencePost' ||
+          request.resource.data.targetType == 'event' ||
+          request.resource.data.targetType == 'user'
+        );
+    }
     
     // 活动集合的规则（event-posters）
     match /event-posters/{document=**} {
@@ -81,6 +128,23 @@ service cloud.firestore {
         allow delete: if isSignedIn() &&
           request.auth.uid == resource.data.userId;
 
+        match /replies/{replyId} {
+          allow read: if true;
+          allow create: if isSignedIn() &&
+            request.resource.data.userId == request.auth.uid;
+          allow update: if isSignedIn() && (
+            request.auth.uid == resource.data.userId ||
+            isCounterOnlyUpdate(['likeCount'])
+          );
+          allow delete: if isSignedIn() &&
+            request.auth.uid == resource.data.userId;
+
+          match /likes/{userId} {
+            allow read: if true;
+            allow create, delete: if isSignedIn() && request.auth.uid == userId;
+          }
+        }
+
         match /likes/{userId} {
           allow read: if true;
           allow create, delete: if isSignedIn() && request.auth.uid == userId;
@@ -95,6 +159,18 @@ service cloud.firestore {
 
       // 只有登录用户可以创建、更新或删除自己的用户信息
       allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+
+      match /notifications/{notificationId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isValidNotificationCreate(userId);
+        allow update: if isSignedIn() &&
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow delete: if isSignedIn() && (
+          request.auth.uid == userId ||
+          resource.data.actorUid == request.auth.uid
+        );
+      }
     }
   }
 }

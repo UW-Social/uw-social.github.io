@@ -669,31 +669,46 @@ const submitReply = async (postId: string, text: string) => {
   }
 };
 
+const getCurrentLikeActor = () => {
+  const profile = userStore.userProfile;
+  if (!profile?.uid) return null;
+
+  return {
+    uid: profile.uid,
+    displayName: profile.displayName,
+    email: profile.email,
+    photoURL: profile.photoURL,
+  };
+};
+
 const togglePostLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleDiscussionPostLike(eventId.value, postId, userStore.userProfile.uid);
+    await toggleDiscussionPostLike(eventId.value, postId, actor);
   } catch (error) {
     console.error('Failed to toggle post like:', error);
   }
 };
 
 const toggleReplyLike = async (postId: string, replyId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleDiscussionReplyLike(eventId.value, postId, replyId, userStore.userProfile.uid);
+    await toggleDiscussionReplyLike(eventId.value, postId, replyId, actor);
   } catch (error) {
     console.error('Failed to toggle reply like:', error);
   }
 };
 
 const toggleExperienceLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
+    await toggleExperiencePostLike(eventId.value, postId, actor);
   } catch (error) {
     console.error('Failed to toggle experience like:', error);
   }

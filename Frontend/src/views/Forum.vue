@@ -24,13 +24,23 @@
       <div class="toolbar-row">
         <div class="filter-tabs" role="tablist" aria-label="Forum post sorting options">
           <button
-            v-for="tab in sortTabs"
-            :key="tab.value"
             type="button"
-            :class="['filter-tab', { active: activeSort === tab.value }]"
-            @click="activeSort = tab.value"
+            :class="['filter-tab', { active: activeSort === 'recommended' }]"
+            @click="activeSort = 'recommended'"
           >
-            {{ tab.label }}
+            Recommended
+          </button>
+          <button
+            type="button"
+            :class="['sort-icon-button', { active: activeSort !== 'recommended', oldest: activeSort === 'oldest' }]"
+            :aria-label="activeSort === 'oldest' ? 'Sort latest first' : 'Sort oldest first'"
+            :title="activeSort === 'oldest' ? 'Oldest first' : 'Latest first'"
+            @click="toggleChronologicalSort"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path class="sort-arrow-up" d="M7 19V5m0 0L3.5 8.5M7 5l3.5 3.5" />
+              <path class="sort-arrow-down" d="M17 5v14m0 0 3.5-3.5M17 19l-3.5-3.5" />
+            </svg>
           </button>
         </div>
 
@@ -90,12 +100,6 @@ import { useUserStore } from '../stores/user';
 
 type ForumSort = 'recommended' | 'latest' | 'oldest';
 
-const sortTabs: Array<{ label: string; value: ForumSort }> = [
-  { label: 'Recommended', value: 'recommended' },
-  { label: 'Latest', value: 'latest' },
-  { label: 'Oldest', value: 'oldest' },
-];
-
 const route = useRoute();
 const router = useRouter();
 const eventStore = useEventStore();
@@ -105,6 +109,11 @@ const errorMessage = ref('');
 const allPosts = ref<AggregatedExperiencePost[]>([]);
 const searchQuery = ref('');
 const activeSort = ref<ForumSort>('recommended');
+const pendingLikePostIds = ref(new Set<string>());
+
+const toggleChronologicalSort = () => {
+  activeSort.value = activeSort.value === 'latest' ? 'oldest' : 'latest';
+};
 
 const filteredPosts = computed(() => {
   const normalizedSearch = searchQuery.value.trim().toLowerCase();
@@ -189,16 +198,41 @@ const getTimestampMs = (value: AggregatedExperiencePost['createdAt']) => {
 };
 
 const togglePostLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid) return;
+  const profile = userStore.userProfile;
+  if (!profile?.uid) return;
+  if (pendingLikePostIds.value.has(postId)) return;
 
   const post = allPosts.value.find((item) => item.id === postId);
   if (!post) return;
 
+  const previousHasLiked = Boolean(post.hasLiked);
+  const previousLikeCount = post.likeCount || 0;
+  const nextHasLiked = !previousHasLiked;
+  const nextLikeCount = Math.max(0, previousLikeCount + (nextHasLiked ? 1 : -1));
+
+  pendingLikePostIds.value.add(postId);
+  allPosts.value = allPosts.value.map((item) => (
+    item.id === postId
+      ? { ...item, hasLiked: nextHasLiked, likeCount: nextLikeCount }
+      : item
+  ));
+
   try {
-    await toggleExperiencePostLike(post.eventId, postId, userStore.userProfile.uid);
-    await loadForumPosts();
+    await toggleExperiencePostLike(post.eventId, postId, {
+      uid: profile.uid,
+      displayName: profile.displayName,
+      email: profile.email,
+      photoURL: profile.photoURL,
+    });
   } catch (error) {
     console.error('Failed to toggle post like:', error);
+    allPosts.value = allPosts.value.map((item) => (
+      item.id === postId
+        ? { ...item, hasLiked: previousHasLiked, likeCount: previousLikeCount }
+        : item
+    ));
+  } finally {
+    pendingLikePostIds.value.delete(postId);
   }
 };
 
@@ -232,10 +266,12 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .toolbar-row {
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 6px;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -255,11 +291,12 @@ watch(() => userStore.userProfile?.uid, () => {
   background: #1f2740;
   color: #fff;
   box-shadow: 0 12px 28px rgba(108, 99, 255, 0.18);
-  margin-left: auto;
+  margin-left: 4px;
 }
 
 .search-field {
-  width: 100%;
+  width: 70%;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -314,7 +351,8 @@ watch(() => userStore.userProfile?.uid, () => {
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
+  align-items: center;
 }
 
 .filter-tab {
@@ -334,11 +372,56 @@ watch(() => userStore.userProfile?.uid, () => {
   border-color: #1f2740;
 }
 
+.sort-icon-button {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(108, 99, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #58627e;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.sort-icon-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sort-icon-button.active {
+  background: #1f2740;
+  border-color: #1f2740;
+  color: #fff;
+}
+
+.sort-icon-button.oldest .sort-arrow-up {
+  opacity: 0.38;
+}
+
+.sort-icon-button:not(.oldest).active .sort-arrow-down {
+  opacity: 0.38;
+}
+
+.sort-icon-button:focus {
+  outline: 3px solid rgba(108, 99, 255, 0.16);
+  outline-offset: 2px;
+}
+
 .forum-content {
   margin-top: 28px;
 }
 
 .post-list {
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;

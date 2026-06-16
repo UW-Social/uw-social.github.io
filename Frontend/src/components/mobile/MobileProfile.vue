@@ -24,8 +24,29 @@
 
     <!-- Forum Notes -->
     <div class="info-card">
-      <router-link to="/profile" class="info-title">Your Forum Notes</router-link>
+      <div class="info-title">Your Forum Notes</div>
+      <div class="info-content">{{ forumNotes.length }}</div>
     </div>
+
+    <section v-if="forumNotes.length > 0" class="forum-notes-list">
+      <article
+        v-for="note in forumNotes"
+        :key="note.id"
+        class="forum-note-card"
+        @click="openForumNote(note)"
+      >
+        <div>
+          <p class="forum-note-label">Forum note</p>
+          <h3>{{ note.eventTitle }}</h3>
+        </div>
+        <p class="forum-note-body">{{ note.text }}</p>
+        <div class="forum-note-meta">
+          <span>{{ note.eventSchedule }}</span>
+          <span v-if="note.eventLocation">{{ note.eventLocation }}</span>
+        </div>
+      </article>
+    </section>
+    <p v-else class="forum-notes-empty">No forum notes yet.</p>
 
     <!-- User Events -->
     <div class="info-card">
@@ -36,18 +57,101 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  collection,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useUserStore } from '../../stores/user';
+import { formatEventSchedule, type Event as FullEvent } from '../../types/event';
 import type { UserProfile } from '../../types/user';
 import 'element-plus/es/components/collapse/style/css';
 import 'element-plus/es/components/collapse-item/style/css';
 
+interface ForumNoteCard {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventLocation: string;
+  eventSchedule: string;
+  text: string;
+  createdAt: unknown;
+}
+
 const userStore = useUserStore();
+const router = useRouter();
+const db = getFirestore();
 const userProfile = ref<Partial<UserProfile>>({});
+const forumNotes = ref<ForumNoteCard[]>([]);
+
+function getTimestampMs(value: unknown) {
+  if (!value) return 0;
+
+  if (typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+
+  if (typeof (value as { seconds?: number }).seconds === 'number') {
+    return (value as { seconds: number }).seconds * 1000;
+  }
+
+  const parsed = new Date(value as string).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+async function fetchForumNotes(userId: string) {
+  const eventsSnapshot = await getDocs(collection(db, 'events'));
+  const noteGroups = await Promise.all(
+    eventsSnapshot.docs.map(async (eventDoc) => {
+      const eventId = eventDoc.id;
+      const eventData = eventDoc.data() as Record<string, any>;
+      const eventForSchedule = { ...eventData, id: eventId } as FullEvent;
+      const postsSnapshot = await getDocs(
+        query(collection(db, 'events', eventId, 'forumPosts'), where('userId', '==', userId)),
+      );
+
+      return postsSnapshot.docs.map((postDoc) => {
+        const post = postDoc.data() as {
+          content?: string;
+          body?: string;
+          text?: string;
+          createdAt?: unknown;
+        };
+        const text = post.content || post.body || post.text || '';
+
+        return {
+          id: postDoc.id,
+          eventId,
+          eventTitle: eventData.title || 'Deleted Event',
+          eventLocation: eventData.location || '',
+          eventSchedule: formatEventSchedule(eventForSchedule),
+          text: text.trim() || '(Empty note)',
+          createdAt: post.createdAt,
+        } satisfies ForumNoteCard;
+      });
+    }),
+  );
+
+  forumNotes.value = noteGroups
+    .flat()
+    .sort((left, right) => getTimestampMs(right.createdAt) - getTimestampMs(left.createdAt));
+}
+
+function openForumNote(note: ForumNoteCard) {
+  router.push(`/forum/posts/${note.eventId}/${note.id}`);
+}
+
 // 从 Firebase 获取用户信息
 onMounted(async () => {
   try {
     const user = await userStore.fetchUserProfile();
     userProfile.value = user || {};
+    if (user?.uid) {
+      await fetchForumNotes(user.uid);
+    }
   } catch (error) {
     console.error('Failed to fetch user profile:', error);
   }
