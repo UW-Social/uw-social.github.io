@@ -255,6 +255,22 @@ const deletePost = async (postId: string) => {
   }
 };
 
+const deletePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid) return;
+
+  const post = allPosts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this forum post?')) return;
+
+  try {
+    await deleteEventExperiencePost(post.eventId, postId);
+    allPosts.value = allPosts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete forum post:', error);
+    window.alert('Failed to delete this forum post. Please try again.');
+  }
+};
+
 onMounted(() => {
   loadForumPosts();
 });

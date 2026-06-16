@@ -112,10 +112,13 @@ const props = withDefaults(defineProps<{
   onToggleLike: (postId: string) => Promise<void> | void;
   canDelete?: boolean;
   onDelete?: (postId: string) => Promise<void> | void;
+  canDelete?: boolean;
+  onDelete?: (postId: string) => Promise<void> | void;
 }>(), {
   showEventContext: false,
   compact: false,
   previewLimit: 360,
+  canDelete: false,
   canDelete: false,
 });
 
@@ -173,6 +176,10 @@ const handleToggleLike = async () => {
   }
 
   await props.onToggleLike(props.post.id);
+};
+
+const handleDelete = async () => {
+  await props.onDelete?.(props.post.id);
 };
 
 const handleDelete = async () => {
