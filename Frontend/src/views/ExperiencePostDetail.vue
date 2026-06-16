@@ -44,6 +44,14 @@
         <footer class="post-stats">
           <span>{{ post.likeCount }} likes</span>
           <span>{{ replies.length || post.replyCount }} replies</span>
+          <button
+            v-if="post.userId === userStore.userProfile?.uid"
+            class="delete-post-button"
+            type="button"
+            @click="deletePost"
+          >
+            Delete
+          </button>
         </footer>
       </article>
 
@@ -96,7 +104,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getEventExperiencePost, listExperiencePostReplies } from '../api/forums';
+import { deleteEventExperiencePost, getEventExperiencePost, listExperiencePostReplies } from '../api/forums';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule } from '../types/event';
@@ -183,6 +191,19 @@ const goBack = () => {
   }
 
   router.push(eventLink.value);
+};
+
+const deletePost = async () => {
+  if (!post.value || post.value.userId !== userStore.userProfile?.uid) return;
+  if (!window.confirm('Delete this experience post?')) return;
+
+  try {
+    await deleteEventExperiencePost(eventId.value, postId.value);
+    router.push(eventLink.value);
+  } catch (error) {
+    console.error('Failed to delete experience post:', error);
+    errorMessage.value = 'Failed to delete this experience post.';
+  }
 };
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url);
@@ -366,6 +387,20 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   margin: 28px 0 0;
   padding-top: 18px;
   border-top: 1px solid #eef2f6;
+}
+
+.delete-post-button {
+  border: none;
+  background: transparent;
+  color: #b42318;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-post-button:hover {
+  color: #7a271a;
 }
 
 .event-card {

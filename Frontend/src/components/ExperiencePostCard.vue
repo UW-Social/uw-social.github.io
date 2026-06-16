@@ -102,10 +102,13 @@ const props = withDefaults(defineProps<{
   previewLimit?: number;
   onLogin: () => void;
   onToggleLike: (postId: string) => Promise<void> | void;
+  canDelete?: boolean;
+  onDelete?: (postId: string) => Promise<void> | void;
 }>(), {
   showEventContext: false,
   compact: false,
   previewLimit: 360,
+  canDelete: false,
 });
 
 const router = useRouter();
@@ -162,6 +165,10 @@ const handleToggleLike = async () => {
   }
 
   await props.onToggleLike(props.post.id);
+};
+
+const handleDelete = async () => {
+  await props.onDelete?.(props.post.id);
 };
 
 const openPostDetail = () => {
