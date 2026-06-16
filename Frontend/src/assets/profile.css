@@ -717,6 +717,60 @@
   font-size: 0.84rem;
   font-weight: 800;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.note-link-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.note-link-button.secondary {
+  background: #f4f1fb;
+  color: #625d79;
+}
+
+.note-link-button.danger {
+  background: #fff0f0;
+  color: #b42318;
+}
+
+.note-actions,
+.note-edit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.note-edit-title,
+.note-edit-text {
+  width: 100%;
+  border: 1px solid rgba(160, 143, 220, 0.28);
+  border-radius: 18px;
+  background: #fff;
+  color: #21134b;
+  font: inherit;
+  outline: none;
+}
+
+.note-edit-title {
+  padding: 0.8rem 0.95rem;
+  font-weight: 800;
+}
+
+.note-edit-text {
+  min-height: 156px;
+  padding: 0.9rem 0.95rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.note-edit-title:focus,
+.note-edit-text:focus {
+  border-color: #8a68f8;
+  box-shadow: 0 0 0 3px rgba(138, 104, 248, 0.14);
 }
 
 .note-body {
@@ -941,6 +995,11 @@
 
   .note-card-header {
     flex-direction: column;
+  }
+
+  .note-actions,
+  .note-edit-actions {
+    justify-content: flex-start;
   }
 
   .interest-strip {
