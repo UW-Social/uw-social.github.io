@@ -285,7 +285,8 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-field {
-  width: 100%;
+  width: 70%;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 0.75rem;
