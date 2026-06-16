@@ -69,6 +69,14 @@
             <article v-for="post in posts" :key="post.id" class="forum-post">
               <div class="forum-post-header">
                 <span class="forum-post-email">{{ post.userEmail || 'Unknown user' }}</span>
+                <button
+                  v-if="post.userId === userStore.userProfile?.uid"
+                  class="forum-post-delete"
+                  type="button"
+                  @click="deletePost(post.id)"
+                >
+                  Delete
+                </button>
               </div>
               <p>{{ post.text }}</p>
             </article>
@@ -82,7 +90,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createForumPost, ensureForumForEvent, getForum, subscribeToForumPosts } from '../api/forums';
+import { createForumPost, deleteForumPost, ensureForumForEvent, getForum, subscribeToForumPosts } from '../api/forums';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import type { Event } from '../types/event';
@@ -196,6 +204,22 @@ const submitPost = async () => {
     postError.value = 'Failed to post. Please try again.';
   } finally {
     isPosting.value = false;
+  }
+};
+
+const deletePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid) return;
+
+  const post = posts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this post?')) return;
+
+  try {
+    await deleteForumPost(forumId.value, postId);
+    posts.value = posts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete post:', error);
+    postError.value = 'Failed to delete post. Please try again.';
   }
 };
 
@@ -402,12 +426,31 @@ onBeforeUnmount(() => {
 
 .forum-post-header {
   margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
 }
 
 .forum-post-email {
   font-size: 0.9rem;
   color: #7c6d5d;
   font-weight: 600;
+}
+
+.forum-post-delete {
+  border: none;
+  background: transparent;
+  color: #b42318;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.forum-post-delete:hover {
+  color: #7a271a;
 }
 
 .forum-post p {

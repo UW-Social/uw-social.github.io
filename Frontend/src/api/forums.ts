@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -127,6 +128,10 @@ export async function createForumPost(
     userEmail: author.email,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function deleteForumPost(forumId: string, postId: string) {
+  await deleteDoc(doc(db, 'forums', forumId, 'posts', postId));
 }
 
 export async function listAggregatedForumPosts(): Promise<AggregatedForumPost[]> {
@@ -333,6 +338,10 @@ export async function createEventDiscussionPost(
   });
 }
 
+export async function deleteEventDiscussionPost(eventId: string, postId: string) {
+  await deleteDoc(doc(db, 'events', eventId, 'posts', postId));
+}
+
 export function subscribeToEventExperiencePosts(
   eventId: string,
   currentUserId: string | null | undefined,
@@ -441,6 +450,10 @@ export async function createEventExperiencePost(
   });
 
   return postRef.id;
+}
+
+export async function deleteEventExperiencePost(eventId: string, postId: string) {
+  await deleteDoc(doc(db, 'events', eventId, 'forumPosts', postId));
 }
 
 export async function getEventExperiencePost(

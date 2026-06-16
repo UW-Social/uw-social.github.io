@@ -174,8 +174,10 @@
                 :post="post"
                 :is-logged-in="userStore.isLoggedIn"
                 :compact="true"
+                :can-delete="post.userId === userStore.userProfile?.uid"
                 :on-login="goToLogin"
                 :on-toggle-like="toggleExperienceLike"
+                :on-delete="deleteExperiencePost"
               />
             </div>
           </div>
@@ -264,10 +266,12 @@
                 tag-label="Comment"
                 :comment-style="true"
                 :highlighted="highlightedPostId === post.id"
+                :can-delete="post.userId === userStore.userProfile?.uid"
                 :on-login="goToLogin"
                 :on-toggle-post-like="togglePostLike"
                 :on-toggle-reply-like="toggleReplyLike"
                 :on-submit-reply="submitReply"
+                :on-delete-post="deleteDiscussionPost"
               />
             </div>
           </div>
@@ -293,6 +297,8 @@ import { downloadIcs } from '../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../utils/googleCalendar';
 import {
   createDiscussionReply,
+  deleteEventDiscussionPost,
+  deleteEventExperiencePost,
   createEventDiscussionPost,
   subscribeToEventDiscussionPosts,
   subscribeToEventExperiencePosts,
@@ -696,6 +702,38 @@ const toggleExperienceLike = async (postId: string) => {
     await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
   } catch (error) {
     console.error('Failed to toggle experience like:', error);
+  }
+};
+
+const deleteDiscussionPost = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  const post = posts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this comment?')) return;
+
+  try {
+    await deleteEventDiscussionPost(eventId.value, postId);
+    posts.value = posts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    postError.value = 'Failed to delete comment. Please try again.';
+  }
+};
+
+const deleteExperiencePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  const post = experiencePosts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this experience post?')) return;
+
+  try {
+    await deleteEventExperiencePost(eventId.value, postId);
+    experiencePosts.value = experiencePosts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete experience post:', error);
+    experienceError.value = 'Failed to delete experience post. Please try again.';
   }
 };
 

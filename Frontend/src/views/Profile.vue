@@ -266,6 +266,7 @@ import {
   deleteField,
   doc as firestoreDoc,
   documentId,
+  type FieldValue,
   getDocs,
   getFirestore,
   query,
@@ -438,7 +439,7 @@ async function saveForumNote(note: ForumNoteCard) {
 
   try {
     const nextTitle = editNoteTitle.value.trim();
-    const updates: Record<string, unknown> = {
+    const updates: Record<string, string | FieldValue> = {
       content: nextText,
       text: nextText,
       updatedAt: serverTimestamp(),

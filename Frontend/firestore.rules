@@ -88,6 +88,25 @@ service cloud.firestore {
       }
     }
 
+    // Event-linked forum documents and their lightweight posts.
+    match /forums/{forumId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if isSignedIn() &&
+          request.resource.data.userId == request.auth.uid;
+        allow update: if isSignedIn() && (
+          request.auth.uid == resource.data.userId ||
+          isCounterOnlyUpdate(['replyCount'])
+        );
+        allow delete: if isSignedIn() &&
+          request.auth.uid == resource.data.userId;
+      }
+    }
+
     // 用户集合的规则
     match /users/{userId} {
       // 只有登录用户可以读取自己的用户信息
