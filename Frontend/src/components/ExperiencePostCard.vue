@@ -85,6 +85,14 @@
         </svg>
         {{ post.replyCount }} replies
       </span>
+      <button
+        v-if="canDelete"
+        class="experience-action-button delete-action"
+        type="button"
+        @click.stop="handleDelete"
+      >
+        Delete
+      </button>
     </div>
   </article>
 </template>
@@ -472,6 +480,15 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 .experience-action-button:hover {
   background: #f0e9ff;
   color: #6539d7;
+}
+
+.delete-action {
+  color: #b42318;
+}
+
+.delete-action:hover {
+  background: #fff1f0;
+  color: #7a271a;
 }
 
 .experience-action-button:active {
