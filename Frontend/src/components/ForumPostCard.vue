@@ -46,6 +46,14 @@
         Reply
       </button>
       <span v-if="!commentStyle">{{ post.replyCount }} replies</span>
+      <button
+        v-if="canDelete"
+        class="discussion-action-button delete-action"
+        type="button"
+        @click="handleDeletePost"
+      >
+        Delete
+      </button>
     </div>
 
     <ReplyInput
@@ -103,6 +111,8 @@ const props = withDefaults(defineProps<{
   onTogglePostLike: (postId: string) => Promise<void> | void;
   onToggleReplyLike: (postId: string, replyId: string) => Promise<void> | void;
   onSubmitReply: (postId: string, text: string) => Promise<void> | void;
+  canDelete?: boolean;
+  onDeletePost?: (postId: string) => Promise<void> | void;
 }>(), {
   showEventContext: false,
   replyPreviewCount: undefined,
@@ -110,6 +120,7 @@ const props = withDefaults(defineProps<{
   highlighted: false,
   tagLabel: 'Discussion',
   commentStyle: false,
+  canDelete: false,
 });
 
 const isReplying = ref(false);
@@ -158,6 +169,10 @@ const handleTogglePostLike = async () => {
 
 const handleToggleReplyLike = async (replyId: string) => {
   await props.onToggleReplyLike(props.post.id, replyId);
+};
+
+const handleDeletePost = async () => {
+  await props.onDeletePost?.(props.post.id);
 };
 
 const formatTimestamp = (value: DiscussionPost['createdAt']) => {
@@ -401,6 +416,14 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+}
+
+.delete-action {
+  color: #b42318;
+}
+
+.delete-action:hover {
+  color: #7a271a;
 }
 
 .like-indicator {

@@ -28,9 +28,12 @@ interface LoginResult {
 type StoredUserProfile = Partial<UserProfile> | null | undefined;
 
 function buildUserProfile(user: FirebaseUser, storedProfile?: StoredUserProfile): UserProfile {
-  const safeTags = Array.isArray(storedProfile?.tags) ? storedProfile.tags : [];
-  const safeGoals = Array.isArray(storedProfile?.goals) ? storedProfile.goals : [];
-  const safeSavedEventIds = Array.isArray(storedProfile?.savedEventIds) ? storedProfile.savedEventIds : [];
+  const storedTags = storedProfile?.tags;
+  const storedGoals = storedProfile?.goals;
+  const storedSavedEventIds = storedProfile?.savedEventIds;
+  const safeTags = Array.isArray(storedTags) ? storedTags : [];
+  const safeGoals = Array.isArray(storedGoals) ? storedGoals : [];
+  const safeSavedEventIds = Array.isArray(storedSavedEventIds) ? storedSavedEventIds : [];
   const creationTime = user.metadata.creationTime ?? storedProfile?.metadata?.creationTime ?? '';
   const lastSignInTime = user.metadata.lastSignInTime ?? storedProfile?.metadata?.lastSignInTime ?? '';
   const hasLegacyCompletedProfile = Boolean(safeTags.length && storedProfile?.grade && storedProfile?.major);

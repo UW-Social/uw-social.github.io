@@ -85,6 +85,14 @@
         </svg>
         {{ post.replyCount }} replies
       </span>
+      <button
+        v-if="canDelete"
+        class="experience-action-button delete-action"
+        type="button"
+        @click.stop="handleDelete"
+      >
+        Delete
+      </button>
     </div>
   </article>
 </template>
@@ -102,10 +110,13 @@ const props = withDefaults(defineProps<{
   previewLimit?: number;
   onLogin: () => void;
   onToggleLike: (postId: string) => Promise<void> | void;
+  canDelete?: boolean;
+  onDelete?: (postId: string) => Promise<void> | void;
 }>(), {
   showEventContext: false,
   compact: false,
   previewLimit: 360,
+  canDelete: false,
 });
 
 const router = useRouter();
@@ -162,6 +173,10 @@ const handleToggleLike = async () => {
   }
 
   await props.onToggleLike(props.post.id);
+};
+
+const handleDelete = async () => {
+  await props.onDelete?.(props.post.id);
 };
 
 const openPostDetail = () => {
@@ -465,6 +480,15 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 .experience-action-button:hover {
   background: #f0e9ff;
   color: #6539d7;
+}
+
+.delete-action {
+  color: #b42318;
+}
+
+.delete-action:hover {
+  background: #fff1f0;
+  color: #7a271a;
 }
 
 .experience-action-button:active {

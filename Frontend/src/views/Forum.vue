@@ -78,8 +78,10 @@
           :post="post"
           :is-logged-in="userStore.isLoggedIn"
           :show-event-context="true"
+          :can-delete="post.userId === userStore.userProfile?.uid"
           :on-login="goToLogin"
           :on-toggle-like="togglePostLike"
+          :on-delete="deletePost"
         />
       </div>
     </section>
@@ -91,6 +93,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import {
+  deleteEventExperiencePost,
   listAggregatedExperiencePosts,
   toggleExperiencePostLike,
 } from '../api/forums';
@@ -233,6 +236,22 @@ const togglePostLike = async (postId: string) => {
     ));
   } finally {
     pendingLikePostIds.value.delete(postId);
+  }
+};
+
+const deletePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid) return;
+
+  const post = allPosts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this forum post?')) return;
+
+  try {
+    await deleteEventExperiencePost(post.eventId, postId);
+    allPosts.value = allPosts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete forum post:', error);
+    window.alert('Failed to delete this forum post. Please try again.');
   }
 };
 

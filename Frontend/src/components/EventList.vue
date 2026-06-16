@@ -153,13 +153,14 @@ async function refresh() {
   events = sortEvents(events);
 
   if (props.recommendationMode === 'personalized') {
+    const userTags = userStore.userProfile?.tags;
     if (
       userStore.isLoggedIn &&
-      Array.isArray(userStore.userProfile?.tags) &&
-      userStore.userProfile.tags.length > 0
+      Array.isArray(userTags) &&
+      userTags.length > 0
     ) {
       try {
-        const personalized = scoreByPersonalization(events, userStore.userProfile.tags);
+        const personalized = scoreByPersonalization(events, userTags);
         events = personalized;
       } catch (err) {
         // Fall back to date-sorted events on error
