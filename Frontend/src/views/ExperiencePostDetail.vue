@@ -143,10 +143,11 @@ const loadPost = async () => {
       await eventStore.fetchEvents();
     }
 
-    const [nextPost, nextReplies] = await Promise.all([
-      getEventExperiencePost(eventId.value, postId.value, userStore.userProfile?.uid),
-      listExperiencePostReplies(eventId.value, postId.value, userStore.userProfile?.uid),
-    ]);
+    const nextPost = await getEventExperiencePost(
+      eventId.value,
+      postId.value,
+      userStore.userProfile?.uid
+    );
 
     if (!nextPost) {
       errorMessage.value = 'Experience post not found.';
@@ -156,7 +157,17 @@ const loadPost = async () => {
     }
 
     post.value = nextPost;
-    replies.value = nextReplies;
+
+    try {
+      replies.value = await listExperiencePostReplies(
+        eventId.value,
+        postId.value,
+        userStore.userProfile?.uid
+      );
+    } catch (replyError) {
+      console.warn('Failed to load experience post replies:', replyError);
+      replies.value = [];
+    }
   } catch (error) {
     console.error('Failed to load experience post:', error);
     errorMessage.value = 'Failed to load this experience post.';

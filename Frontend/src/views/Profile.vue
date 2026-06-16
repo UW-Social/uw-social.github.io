@@ -141,9 +141,9 @@
               <button
                 type="button"
                 class="note-link-button"
-                @click="openEvent(note.eventId)"
+                @click="openForumNote(note)"
               >
-                Open event
+                Open note
               </button>
             </div>
             <p class="note-body">{{ note.text }}</p>
@@ -281,7 +281,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   collection,
-  collectionGroup,
   doc,
   documentId,
   getDocs,
@@ -489,6 +488,15 @@ function goToEditEvent(eventId: string) {
 function openEvent(eventId: string) {
   router.push({
     path: `/events/${eventId}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
+}
+
+function openForumNote(note: ForumNoteCard) {
+  router.push({
+    path: `/forum/posts/${note.eventId}/${note.id}`,
     query: {
       returnTo: route.fullPath,
     },
@@ -831,50 +839,40 @@ async function fetchUserEvents(userId: string) {
 }
 
 async function fetchForumNotes(userId: string) {
-  const snapshot = await getDocs(
-    query(collectionGroup(db, 'posts'), where('userId', '==', userId)),
+  const eventsSnapshot = await getDocs(collection(db, 'events'));
+  const noteGroups = await Promise.all(
+    eventsSnapshot.docs.map(async (eventDoc) => {
+      const eventId = eventDoc.id;
+      const eventData = eventDoc.data() as Record<string, any>;
+      const eventForSchedule = { ...eventData, id: eventId } as FullEvent;
+      const postsSnapshot = await getDocs(
+        query(collection(db, 'events', eventId, 'forumPosts'), where('userId', '==', userId)),
+      );
+
+      return postsSnapshot.docs.map((postDoc) => {
+        const post = postDoc.data() as {
+          content?: string;
+          body?: string;
+          text?: string;
+          createdAt?: unknown;
+        };
+        const text = post.content || post.body || post.text || '';
+
+        return {
+          id: postDoc.id,
+          eventId,
+          eventTitle: eventData.title || 'Deleted Event',
+          eventLocation: eventData.location || '',
+          eventSchedule: formatEventSchedule(eventForSchedule),
+          text: text.trim() || '(Empty note)',
+          createdAt: post.createdAt,
+        } satisfies ForumNoteCard;
+      });
+    }),
   );
 
-  if (snapshot.empty) {
-    forumNotes.value = [];
-    return;
-  }
-
-  const eventIds = Array.from(new Set(
-    snapshot.docs
-      .map((doc) => doc.ref.parent.parent?.id)
-      .filter((id): id is string => Boolean(id)),
-  ));
-
-  const eventMap = new Map<string, Record<string, any>>();
-  for (let index = 0; index < eventIds.length; index += 10) {
-    const chunk = eventIds.slice(index, index + 10);
-    const eventSnapshot = await getDocs(
-      query(collection(db, 'events'), where(documentId(), 'in', chunk)),
-    );
-
-    eventSnapshot.docs.forEach((doc) => {
-      eventMap.set(doc.id, doc.data() as Record<string, any>);
-    });
-  }
-
-  forumNotes.value = snapshot.docs
-    .map((doc) => {
-      const post = doc.data() as { text?: string; createdAt?: unknown };
-      const eventId = doc.ref.parent.parent?.id ?? '';
-      const eventData = eventMap.get(eventId);
-      const eventForSchedule = eventData ? ({ ...eventData, id: eventId } as FullEvent) : null;
-
-      return {
-        id: doc.id,
-        eventId,
-        eventTitle: eventData?.title || 'Deleted Event',
-        eventLocation: eventData?.location || '',
-        eventSchedule: eventForSchedule ? formatEventSchedule(eventForSchedule) : 'Schedule TBD',
-        text: post.text?.trim() || '(Empty note)',
-        createdAt: post.createdAt,
-      };
-    })
+  forumNotes.value = noteGroups
+    .flat()
     .sort((left, right) => getTimestampMs(right.createdAt) - getTimestampMs(left.createdAt));
 }
 
