@@ -382,6 +382,21 @@ interface ForumNoteCard {
   userId: string;
 }
 
+interface MailboxItem {
+  id: string;
+  author: string;
+  time: string;
+  avatarUrl: string;
+  message: string;
+  subject?: string;
+  quote?: string;
+  tags: string[];
+  inlineIcon: string;
+  kind: MailboxKind;
+  tone: MailboxTone;
+  read: boolean;
+}
+
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
@@ -395,6 +410,8 @@ const currentSection = ref<SectionKey>('saved');
 const savedEvents = ref<ProfileEventCard[]>([]);
 const forumNotes = ref<ForumNoteCard[]>([]);
 const userEvents = ref<ProfileEventCard[]>([]);
+const mailboxReadButtonText = ref('Mark all as read');
+const mailboxItems = ref<MailboxItem[]>([]);
 const editingNoteId = ref<string | null>(null);
 const editNoteTitle = ref('');
 const editNoteText = ref('');
@@ -477,7 +494,7 @@ async function markMailboxItemRead(itemId: string) {
   ));
 
   try {
-    await updateDoc(doc(db, 'users', userId, 'notifications', itemId), {
+    await updateDoc(firestoreDoc(db, 'users', userId, 'notifications', itemId), {
       read: true,
     });
   } catch (error) {
@@ -506,7 +523,7 @@ async function markAllMailboxRead() {
   try {
     const batch = writeBatch(db);
     unreadIds.forEach((itemId) => {
-      batch.update(doc(db, 'users', userId, 'notifications', itemId), {
+      batch.update(firestoreDoc(db, 'users', userId, 'notifications', itemId), {
         read: true,
       });
     });
