@@ -38,8 +38,9 @@
             @click="toggleChronologicalSort"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path class="sort-arrow-up" d="M7 19V5m0 0L3.5 8.5M7 5l3.5 3.5" />
-              <path class="sort-arrow-down" d="M17 5v14m0 0 3.5-3.5M17 19l-3.5-3.5" />
+              <path d="M5 7h14" />
+              <path d="M5 12h10" />
+              <path d="M5 17h6" />
             </svg>
           </button>
         </div>
@@ -301,9 +302,10 @@ watch(() => userStore.userProfile?.uid, () => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 9px 14px;
   text-decoration: none;
   font-weight: 700;
+  font-size: 0.9rem;
 }
 
 .start-discussion-button {
@@ -314,12 +316,13 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-field {
-  width: 70%;
+  width: 100%;
+  max-width: 900px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.65rem 0.75rem 0.65rem 1.2rem;
+  gap: 0.55rem;
+  padding: 0.42rem 0.55rem 0.42rem 1rem;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 999px;
@@ -342,8 +345,8 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-action {
-  width: 50px;
-  height: 50px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -363,14 +366,14 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
 }
 
@@ -379,8 +382,9 @@ watch(() => userStore.userProfile?.uid, () => {
   background: rgba(255, 255, 255, 0.82);
   color: #58627e;
   border-radius: 999px;
-  padding: 10px 16px;
+  padding: 8px 13px;
   font: inherit;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -392,41 +396,40 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .sort-icon-button {
-  width: 42px;
-  height: 42px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(108, 99, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: #58627e;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .sort-icon-button svg {
-  width: 23px;
-  height: 23px;
+  width: 21px;
+  height: 21px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.6;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .sort-icon-button.active {
-  background: #1f2740;
-  border-color: #1f2740;
-  color: #fff;
+  color: #5b61f6;
 }
 
-.sort-icon-button.oldest .sort-arrow-up {
-  opacity: 0.38;
+.sort-icon-button:hover {
+  color: #5b61f6;
+  transform: translateY(-1px);
 }
 
-.sort-icon-button:not(.oldest).active .sort-arrow-down {
-  opacity: 0.38;
+.sort-icon-button.oldest svg {
+  transform: scaleY(-1);
 }
 
 .sort-icon-button:focus {
@@ -447,6 +450,8 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .state-card {
+  max-width: 900px;
+  margin: 0 auto;
   border-radius: 24px;
   border: 1px solid rgba(108, 99, 255, 0.08);
   background: rgba(255, 255, 255, 0.88);
@@ -505,7 +510,7 @@ watch(() => userStore.userProfile?.uid, () => {
 
   .search-field {
     gap: 0.5rem;
-    padding: 0.55rem 0.55rem 0.55rem 0.9rem;
+    padding: 0.38rem 0.5rem 0.38rem 0.85rem;
   }
 
   .search-field input {
@@ -513,8 +518,8 @@ watch(() => userStore.userProfile?.uid, () => {
   }
 
   .search-action {
-    width: 44px;
-    height: 44px;
+    width: 34px;
+    height: 34px;
   }
 }
 </style>

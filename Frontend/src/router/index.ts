@@ -70,6 +70,11 @@ const routes = [
     component: () => import('@/views/ScoreFramework.vue')
   },
   {
+    path: '/ai-consultant',
+    name: 'AIConsultant',
+    component: () => import('@/views/AIConsultant.vue')
+  },
+  {
     path: '/events/:id/edit',
     name: 'EditEvent',
     component: () => import('@/views/EditEvent.vue'),

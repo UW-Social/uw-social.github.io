@@ -11,7 +11,6 @@
     <template v-else-if="post">
       <article class="post-card">
         <header class="post-header">
-          <span class="post-tag">Experience</span>
           <h1>{{ postTitle }}</h1>
           <p v-if="post.subtitle" class="post-subtitle">{{ post.subtitle }}</p>
           <p class="post-meta">
@@ -82,6 +81,21 @@
           <span>{{ replies.length }} replies</span>
         </div>
 
+        <ReplyInput
+          :is-logged-in="userStore.isLoggedIn"
+          :loading="isReplySubmitting"
+          :rows="3"
+          placeholder="Write a reply to this post..."
+          submit-label="Reply"
+          login-heading="Join the conversation"
+          login-text="Log in to reply to this forum post."
+          login-button-label="Log in to reply"
+          @submit="submitReply"
+          @login="goToLogin"
+        />
+
+        <p v-if="replyError" class="reply-error">{{ replyError }}</p>
+
         <div v-if="replies.length === 0" class="reply-empty">
           Replies will appear here once people respond to this experience.
         </div>
@@ -104,7 +118,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { deleteEventExperiencePost, getEventExperiencePost, listExperiencePostReplies } from '../api/forums';
+import {
+  createEventExperienceReply,
+  deleteEventExperiencePost,
+  getEventExperiencePost,
+  listExperiencePostReplies,
+} from '../api/forums';
+import ReplyInput from '../components/ReplyInput.vue';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule } from '../types/event';
@@ -118,7 +138,9 @@ const userStore = useUserStore();
 const post = ref<ExperiencePost | null>(null);
 const replies = ref<DiscussionReply[]>([]);
 const isLoading = ref(true);
+const isReplySubmitting = ref(false);
 const errorMessage = ref('');
+const replyError = ref('');
 
 const eventId = computed(() => route.params.eventId as string);
 const postId = computed(() => route.params.postId as string);
@@ -139,6 +161,14 @@ const safeBodyHtml = computed(() => {
   if (!post.value?.bodyHtml) return '';
   return sanitizeHtml(post.value.bodyHtml);
 });
+
+const loadReplies = async () => {
+  replies.value = await listExperiencePostReplies(
+    eventId.value,
+    postId.value,
+    userStore.userProfile?.uid
+  );
+};
 
 const loadPost = async () => {
   if (!eventId.value || !postId.value) return;
@@ -167,11 +197,7 @@ const loadPost = async () => {
     post.value = nextPost;
 
     try {
-      replies.value = await listExperiencePostReplies(
-        eventId.value,
-        postId.value,
-        userStore.userProfile?.uid
-      );
+      await loadReplies();
     } catch (replyError) {
       console.warn('Failed to load experience post replies:', replyError);
       replies.value = [];
@@ -191,6 +217,53 @@ const goBack = () => {
   }
 
   router.push(eventLink.value);
+};
+
+const goToLogin = () => {
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      prompt: 'Please log in to reply to this forum post.',
+    },
+  });
+};
+
+const submitReply = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value || !postId.value) {
+    goToLogin();
+    return;
+  }
+
+  isReplySubmitting.value = true;
+  replyError.value = '';
+
+  try {
+    await createEventExperienceReply(
+      eventId.value,
+      postId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+
+    await loadReplies();
+
+    if (post.value) {
+      post.value = {
+        ...post.value,
+        replyCount: Math.max(post.value.replyCount || 0, replies.value.length),
+      };
+    }
+  } catch (error) {
+    console.error('Failed to submit experience reply:', error);
+    replyError.value = 'Failed to post reply. Please try again.';
+  } finally {
+    isReplySubmitting.value = false;
+  }
 };
 
 const deletePost = async () => {
@@ -300,18 +373,6 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   padding: 34px;
 }
 
-.post-tag {
-  display: inline-flex;
-  margin-bottom: 14px;
-  padding: 6px 10px;
-  color: #6c48d1;
-  border-radius: 999px;
-  background: rgba(108, 72, 209, 0.1);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .post-header h1 {
   margin: 0;
   color: #101828;
@@ -414,7 +475,7 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 
 .event-label {
   margin: 0 0 4px;
-  color: #6c48d1;
+  color: #5b61f6;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -440,16 +501,16 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   padding: 0 16px;
   color: #fff;
   border-radius: 999px;
-  background: #6c48d1;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
 }
 
 .event-link.secondary {
-  color: #6c48d1;
-  border: 1px solid rgba(108, 72, 209, 0.2);
-  background: rgba(108, 72, 209, 0.08);
+  color: #5b61f6;
+  border: 1px solid rgba(91, 97, 246, 0.2);
+  background: rgba(91, 97, 246, 0.08);
 }
 
 .replies-card {
@@ -475,6 +536,18 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 .reply-empty {
   color: #667085;
   font-size: 13px;
+}
+
+.replies-card :deep(.reply-input),
+.replies-card :deep(.reply-login-prompt) {
+  margin-bottom: 18px;
+}
+
+.reply-error {
+  margin: -6px 0 16px;
+  color: #b42318;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .reply-list {

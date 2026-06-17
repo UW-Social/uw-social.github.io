@@ -7,10 +7,6 @@
     @keydown.enter.prevent="openPostDetail"
     @keydown.space.prevent="openPostDetail"
   >
-    <div class="experience-tag-row">
-      <span class="experience-tag">Experience</span>
-    </div>
-
     <header class="experience-header">
       <div class="author-block">
         <div class="author-avatar" aria-hidden="true">
@@ -212,43 +208,27 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   position: relative;
   overflow: hidden;
   border-radius: 22px;
-  border: 1px solid rgba(130, 110, 153, 0.18);
+  border: 1px solid rgba(91, 97, 246, 0.18);
   background: #fff;
   padding: 22px;
-  box-shadow: 0 16px 34px rgba(56, 39, 77, 0.07);
+  box-shadow: 0 16px 34px rgba(31, 39, 64, 0.07);
   cursor: pointer;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
 }
 
 .experience-card:hover {
-  border-color: rgba(101, 57, 215, 0.28);
-  box-shadow: 0 20px 42px rgba(56, 39, 77, 0.1);
+  border-color: rgba(91, 97, 246, 0.28);
+  box-shadow: 0 20px 42px rgba(91, 97, 246, 0.1);
   transform: translateY(-2px);
 }
 
 .experience-card:focus-visible {
-  outline: 3px solid rgba(101, 57, 215, 0.22);
+  outline: 3px solid rgba(91, 97, 246, 0.22);
   outline-offset: 3px;
 }
 
 .experience-card.compact {
   padding: 18px;
-}
-
-.experience-tag-row {
-  margin-bottom: 16px;
-}
-
-.experience-tag {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 5px 10px;
-  background: #f0e9ff;
-  color: #53368b;
-  font-size: 0.66rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
 
 .experience-header {
@@ -375,7 +355,7 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   max-height: 190px;
   object-fit: cover;
   border-radius: 14px;
-  border: 1px solid rgba(130, 110, 153, 0.16);
+  border: 1px solid rgba(91, 97, 246, 0.16);
   background: #16052a;
 }
 
@@ -395,15 +375,15 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   margin-bottom: 16px;
   padding: 12px;
   border-radius: 16px;
-  background: #f9f5ff;
-  border: 1px solid rgba(186, 164, 210, 0.24);
+  background: rgba(247, 248, 255, 0.96);
+  border: 1px solid rgba(91, 97, 246, 0.16);
   color: inherit;
   text-decoration: none;
   transition: background 0.18s ease;
 }
 
 .event-context:hover {
-  background: #f3eaff;
+  background: #eef0ff;
 }
 
 .event-icon {
@@ -412,8 +392,8 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #dcc9ff;
-  color: #53368b;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
+  color: #fff;
 }
 
 .event-copy {
@@ -422,7 +402,7 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 
 .context-label {
   margin: 0 0 4px;
-  color: #6539d7;
+  color: #5b61f6;
   font-size: 0.62rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -448,7 +428,7 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 
 .experience-actions {
   padding-top: 14px;
-  border-top: 1px solid rgba(186, 164, 210, 0.22);
+  border-top: 1px solid rgba(91, 97, 246, 0.14);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -478,8 +458,8 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 }
 
 .experience-action-button:hover {
-  background: #f0e9ff;
-  color: #6539d7;
+  background: #eef0ff;
+  color: #5b61f6;
 }
 
 .delete-action {
@@ -496,8 +476,8 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 }
 
 .experience-action-button svg.active {
-  fill: #6539d7;
-  color: #6539d7;
+  fill: #5b61f6;
+  color: #5b61f6;
 }
 
 @media (max-width: 900px) {
