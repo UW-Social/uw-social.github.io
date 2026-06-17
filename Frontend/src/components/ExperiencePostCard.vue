@@ -7,10 +7,6 @@
     @keydown.enter.prevent="openPostDetail"
     @keydown.space.prevent="openPostDetail"
   >
-    <div class="experience-tag-row">
-      <span class="experience-tag">Experience</span>
-    </div>
-
     <header class="experience-header">
       <div class="author-block">
         <div class="author-avatar" aria-hidden="true">
@@ -233,22 +229,6 @@ const formatTimestamp = (value: ExperiencePost['createdAt']) => {
 
 .experience-card.compact {
   padding: 18px;
-}
-
-.experience-tag-row {
-  margin-bottom: 16px;
-}
-
-.experience-tag {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 5px 10px;
-  background: #eef0ff;
-  color: #5b61f6;
-  font-size: 0.66rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
 
 .experience-header {

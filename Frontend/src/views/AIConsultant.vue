@@ -15,6 +15,9 @@
           </svg>
           <span>{{ item }}</span>
         </button>
+        <p v-if="recentConsultations.length === 0" class="history-empty">
+          Your first requests will appear here.
+        </p>
       </div>
 
       <div class="sidebar-section">
@@ -138,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatbotStore } from '../stores/chatbot';
 import { useUserStore } from '../stores/user';
@@ -148,13 +151,11 @@ const chatbotStore = useChatbotStore();
 const userStore = useUserStore();
 const draft = ref('');
 const chatScrollRef = ref<HTMLElement | null>(null);
+const recentConsultations = ref<string[]>([]);
 
+const RECENT_CONSULTATIONS_KEY = 'uw-social-ai-recent-consultations';
+const MAX_RECENT_CONSULTATIONS = 8;
 const topics = ['#Internships', '#Orientation', '#Hackathon', '#Research', '#StudySpots'];
-const recentConsultations = [
-  'Informatics major clubs',
-  'Research application help',
-  'Career fair preparation',
-];
 
 const starters = [
   {
@@ -190,6 +191,42 @@ const canSubmit = computed(() => (
   !chatbotStore.isLoading
 ));
 
+function loadRecentConsultations() {
+  try {
+    const raw = window.localStorage.getItem(RECENT_CONSULTATIONS_KEY);
+    if (!raw) {
+      recentConsultations.value = [];
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    recentConsultations.value = Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
+  } catch (error) {
+    console.warn('Failed to load recent consultations:', error);
+    recentConsultations.value = [];
+  }
+}
+
+function saveFirstRequestToRecent(message: string) {
+  const request = message.trim();
+  if (!request) return;
+
+  const nextRecent = [
+    request,
+    ...recentConsultations.value.filter((item) => item !== request),
+  ].slice(0, MAX_RECENT_CONSULTATIONS);
+
+  recentConsultations.value = nextRecent;
+
+  try {
+    window.localStorage.setItem(RECENT_CONSULTATIONS_KEY, JSON.stringify(nextRecent));
+  } catch (error) {
+    console.warn('Failed to save recent consultations:', error);
+  }
+}
+
 async function scrollToBottom() {
   await nextTick();
   chatScrollRef.value?.scrollTo({
@@ -200,6 +237,11 @@ async function scrollToBottom() {
 
 async function sendMessage(message: string) {
   if (!message.trim()) return;
+  const isFirstUserRequest = !chatbotStore.messages.some((item) => item.role === 'user');
+  if (isFirstUserRequest) {
+    saveFirstRequestToRecent(message);
+  }
+
   await chatbotStore.sendMessage(message, route.fullPath);
   await scrollToBottom();
 }
@@ -222,6 +264,8 @@ watch(
     void scrollToBottom();
   }
 );
+
+onMounted(loadRecentConsultations);
 </script>
 
 <style scoped>
@@ -269,15 +313,16 @@ watch(
 .history-item {
   min-height: 40px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  padding: 0 14px;
+  padding: 10px 14px;
   border-radius: 999px;
   background: transparent;
   color: #66537d;
   font-size: 0.85rem;
   font-weight: 750;
   text-align: left;
+  line-height: 1.35;
 }
 
 .history-item:first-of-type {
@@ -293,9 +338,28 @@ watch(
 .history-item svg {
   width: 15px;
   height: 15px;
+  flex: 0 0 15px;
+  margin-top: 2px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
+}
+
+.history-item span {
+  min-width: 0;
+  display: -webkit-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.history-empty {
+  margin: 2px 12px 0;
+  color: #826e99;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .topic-list {

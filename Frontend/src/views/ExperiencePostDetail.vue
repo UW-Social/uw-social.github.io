@@ -11,7 +11,6 @@
     <template v-else-if="post">
       <article class="post-card">
         <header class="post-header">
-          <span class="post-tag">Experience</span>
           <h1>{{ postTitle }}</h1>
           <p v-if="post.subtitle" class="post-subtitle">{{ post.subtitle }}</p>
           <p class="post-meta">
@@ -372,18 +371,6 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 
 .post-card {
   padding: 34px;
-}
-
-.post-tag {
-  display: inline-flex;
-  margin-bottom: 14px;
-  padding: 6px 10px;
-  color: #5b61f6;
-  border-radius: 999px;
-  background: rgba(91, 97, 246, 0.1);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .post-header h1 {
