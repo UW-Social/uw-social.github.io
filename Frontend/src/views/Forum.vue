@@ -450,6 +450,8 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .state-card {
+  max-width: 900px;
+  margin: 0 auto;
   border-radius: 24px;
   border: 1px solid rgba(108, 99, 255, 0.08);
   background: rgba(255, 255, 255, 0.88);

@@ -510,6 +510,50 @@ export async function listExperiencePostReplies(
   );
 }
 
+export async function createEventExperienceReply(
+  eventId: string,
+  postId: string,
+  author: DiscussionAuthor,
+  content: string
+) {
+  const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
+  const repliesRef = collection(db, 'events', eventId, 'forumPosts', postId, 'replies');
+  const trimmedContent = content.trim();
+
+  if (!trimmedContent) {
+    throw new Error('Reply content cannot be empty.');
+  }
+
+  await runTransaction(db, async (transaction) => {
+    const postSnap = await transaction.get(postRef);
+
+    if (!postSnap.exists()) {
+      throw new Error('Experience post not found');
+    }
+
+    const replyRef = doc(repliesRef);
+    const currentReplyCount = typeof postSnap.data().replyCount === 'number'
+      ? postSnap.data().replyCount
+      : 0;
+
+    transaction.set(replyRef, {
+      postId,
+      eventId,
+      content: trimmedContent,
+      text: trimmedContent,
+      authorName: author.displayName || author.email.split('@')[0],
+      likeCount: 0,
+      userId: author.uid,
+      userEmail: author.email,
+      createdAt: serverTimestamp(),
+    });
+
+    transaction.update(postRef, {
+      replyCount: currentReplyCount + 1,
+    });
+  });
+}
+
 export async function toggleExperiencePostLike(
   eventId: string,
   postId: string,
