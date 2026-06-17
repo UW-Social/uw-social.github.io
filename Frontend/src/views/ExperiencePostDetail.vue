@@ -304,9 +304,9 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   display: inline-flex;
   margin-bottom: 14px;
   padding: 6px 10px;
-  color: #6c48d1;
+  color: #5b61f6;
   border-radius: 999px;
-  background: rgba(108, 72, 209, 0.1);
+  background: rgba(91, 97, 246, 0.1);
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -414,7 +414,7 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 
 .event-label {
   margin: 0 0 4px;
-  color: #6c48d1;
+  color: #5b61f6;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -440,16 +440,16 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   padding: 0 16px;
   color: #fff;
   border-radius: 999px;
-  background: #6c48d1;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
 }
 
 .event-link.secondary {
-  color: #6c48d1;
-  border: 1px solid rgba(108, 72, 209, 0.2);
-  background: rgba(108, 72, 209, 0.08);
+  color: #5b61f6;
+  border: 1px solid rgba(91, 97, 246, 0.2);
+  background: rgba(91, 97, 246, 0.08);
 }
 
 .replies-card {

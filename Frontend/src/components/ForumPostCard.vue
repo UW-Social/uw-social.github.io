@@ -202,7 +202,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
 <style scoped>
 .discussion-card {
   border-radius: 24px;
-  border: 1px solid rgba(108, 99, 255, 0.1);
+  border: 1px solid rgba(91, 97, 246, 0.1);
   background: rgba(255, 255, 255, 0.94);
   padding: 20px;
   box-shadow: 0 12px 30px rgba(31, 39, 64, 0.06);
@@ -221,8 +221,8 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
 }
 
 .discussion-card.highlighted {
-  border-color: rgba(108, 99, 255, 0.28);
-  box-shadow: 0 16px 36px rgba(108, 99, 255, 0.12);
+  border-color: rgba(91, 97, 246, 0.28);
+  box-shadow: 0 16px 36px rgba(91, 97, 246, 0.12);
 }
 
 .discussion-top {
@@ -243,9 +243,9 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6c48d1;
-  background: #f1edff;
-  border: 1px solid #ddd5ff;
+  color: #5b61f6;
+  background: #eef0ff;
+  border: 1px solid #dfe2ff;
   border-radius: 999px;
   font-size: 14px !important;
   font-weight: 700;
@@ -273,8 +273,8 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   margin-bottom: 10px;
   border-radius: 999px;
   padding: 6px 10px;
-  background: rgba(108, 99, 255, 0.1);
-  color: #3757b1;
+  background: rgba(91, 97, 246, 0.1);
+  color: #5b61f6;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -335,12 +335,12 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   padding: 14px;
   border-radius: 18px;
   background: rgba(248, 249, 255, 0.92);
-  border: 1px solid rgba(108, 99, 255, 0.1);
+  border: 1px solid rgba(91, 97, 246, 0.1);
 }
 
 .context-label {
   margin: 0 0 4px;
-  color: #6c63ff;
+  color: #5b61f6;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -434,7 +434,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
 }
 
 .like-indicator.active {
-  background: #6c63ff;
+  background: #5b61f6;
 }
 
 .discussion-footer {
@@ -447,7 +447,7 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
   justify-content: center;
   border-radius: 999px;
   padding: 12px 18px;
-  background: rgba(108, 99, 255, 0.1);
+  background: rgba(91, 97, 246, 0.1);
   color: #20263a;
   text-decoration: none;
   font-weight: 700;
