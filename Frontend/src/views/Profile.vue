@@ -1,3 +1,6 @@
+we are building events collection app. add features so that user can put links to their projects, other files related to them, and think of other stuff they migh want to add and add it to the Code. Write the 4 files fully
+
+
 <template>
   <div class="profile-page">
     <div class="profile-shell">
@@ -483,7 +486,7 @@ async function deleteForumNote(note: ForumNoteCard) {
     alert(`Failed to delete this forum note. ${getFirebaseErrorMessage(error)}`);
   } finally {
     deletingNoteId.value = null;
-  }
+  }z
 }
 
 function isEventSaved(eventId: string) {
