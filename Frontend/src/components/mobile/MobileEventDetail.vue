@@ -297,6 +297,7 @@ import ForumPostCard from '../ForumPostCard.vue';
 import ReplyInput from '../ReplyInput.vue';
 import { downloadIcs } from '../../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../../utils/googleCalendar';
+import { buildEventJsonLd, useJsonLd } from '../../utils/structuredData';
 import {
   createDiscussionReply,
   createEventDiscussionPost,
@@ -332,6 +333,9 @@ const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
 });
+
+const eventJsonLd = computed(() => event.value ? buildEventJsonLd(event.value) : null);
+useJsonLd('mobile-event-detail', eventJsonLd);
 
 const currentUserInitials = computed(() => {
   const profile = userStore.userProfile;

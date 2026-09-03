@@ -3,10 +3,10 @@
     <section class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">
-          <span class="text-gradient">Discover</span>
-          Campus Life
+          <span class="text-gradient">Huskies</span>
+          <span class="hero-title-line">Find Your Next Event</span>
         </h1>
-        <p class="hero-subtitle">Connect with events, clubs, and communities at UW</p>
+        <p class="hero-subtitle">Discover opportunities to connect, explore, and grow throughout your UW journey</p>
 
         <SearchFilterBar class="hero-search" />
       </div>
@@ -152,7 +152,7 @@ watch(showRecommendationUpdateNotice, (shouldScroll) => {
 
 .hero-title {
   font-size: clamp(2.3rem, 4.8vw, 3.7rem);
-  font-weight: 700;
+  font-weight: 650;
   color: var(--color-gray-900);
   line-height: 1.02;
   letter-spacing: -0.03em;
@@ -165,6 +165,13 @@ watch(showRecommendationUpdateNotice, (shouldScroll) => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 630;
+}
+
+.hero-title-line {
+  display: block;
+  text-align: center;
+  margin-top: 0.1em;
 }
 
 .hero-subtitle {

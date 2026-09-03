@@ -128,6 +128,7 @@ import ReplyInput from '../components/ReplyInput.vue';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule } from '../types/event';
+import { buildExperiencePostJsonLd, useJsonLd } from '../utils/structuredData';
 import type { DiscussionReply, ExperiencePost } from '../types/forum';
 
 const route = useRoute();
@@ -145,6 +146,10 @@ const replyError = ref('');
 const eventId = computed(() => route.params.eventId as string);
 const postId = computed(() => route.params.postId as string);
 const relatedEvent = computed(() => eventStore.events.find((event) => event.id === eventId.value) ?? null);
+const postJsonLd = computed(() => (
+  post.value ? buildExperiencePostJsonLd(post.value, relatedEvent.value, replies.value) : null
+));
+useJsonLd('experience-post-detail', postJsonLd);
 const eventLink = computed(() => ({
   path: `/events/${eventId.value}`,
   query: { section: 'forum', postId: postId.value },

@@ -93,6 +93,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { createForumPost, deleteForumPost, ensureForumForEvent, getForum, subscribeToForumPosts } from '../api/forums';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
+import { buildForumJsonLd, useJsonLd } from '../utils/structuredData';
 import type { Event } from '../types/event';
 import type { Forum, ForumPost } from '../types/forum';
 
@@ -111,6 +112,8 @@ const isLoadingPosts = ref(true);
 let unsubscribePosts: (() => void) | null = null;
 
 const forumId = computed(() => route.params.id as string);
+const forumJsonLd = computed(() => buildForumJsonLd(forum.value, linkedEvent.value, posts.value));
+useJsonLd('forum-detail', forumJsonLd);
 
 const eventTitle = computed(() => {
   return linkedEvent.value?.title || forum.value?.eventTitle || 'Unknown event';
