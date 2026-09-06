@@ -88,6 +88,9 @@ function isRecurring(event: Event) {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
+function calculateRecencyScore(event: Event, now: number): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const startMs = toDate(event.startTime).getTime();
 function endOfDay(date: Date): Date {
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
@@ -187,6 +190,13 @@ async function refresh() {
   events = sortEvents(events);
 
   if (props.recommendationMode === 'personalized') {
+    if (
+      userStore.isLoggedIn &&
+      Array.isArray(userStore.userProfile?.tags) &&
+      userStore.userProfile.tags.length > 0
+    ) {
+      try {
+        const personalized = scoreByPersonalization(events, userStore.userProfile.tags);
     const userTags = userStore.userProfile?.tags;
     if (
       userStore.isLoggedIn &&
