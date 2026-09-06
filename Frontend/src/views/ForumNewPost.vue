@@ -227,6 +227,9 @@
                   ref="eventResultListRef"
                   class="event-result-list"
                   @scroll="handleEventListScroll"
+                  @wheel="handleEventListWheel"
+                  @touchstart="handleEventListTouchStart"
+                  @touchmove="handleEventListTouchMove"
                 >
                   <button
                     v-for="event in eventResults"
@@ -240,8 +243,13 @@
                     <span class="event-result-meta">{{ event.location || 'Location TBD' }}</span>
                   </button>
 
-                  <p v-if="eventResults.length < searchedEvents.length" class="event-result-status">
-                    Scroll to load more events
+                  <p
+                    v-if="eventResults.length < searchedEvents.length"
+                    class="event-result-status"
+                    :class="{ loading: isLoadingMoreEvents }"
+                  >
+                    <span v-if="isLoadingMoreEvents" class="event-result-spinner" aria-hidden="true"></span>
+                    <span>{{ eventLoadStatusText }}</span>
                   </p>
                 </div>
 
@@ -310,8 +318,12 @@ const errorMessage = ref('');
 const eventSearch = ref('');
 const textColor = ref('#24304a');
 const visibleEventCount = ref(12);
+const isEventLoadArmed = ref(false);
+const isLoadingMoreEvents = ref(false);
+const eventListTouchStartY = ref<number | null>(null);
 const bodyPlaceholder = 'Share your experience, thoughts, highlights, or advice...';
 const EVENT_BATCH_SIZE = 12;
+const EVENT_LOAD_DELAY_MS = 450;
 const mediaInputRef = ref<HTMLInputElement | null>(null);
 const selectedMediaFile = ref<File | null>(null);
 const uploadedMediaUrl = ref('');
@@ -337,22 +349,53 @@ const toDate = (value: unknown): Date => {
   return new Date(value as string | number | Date);
 };
 
+const getEventTimeMs = (event: UWEvent): number => {
+  const startTime = toDate(event.startTime).getTime();
+  if (!Number.isNaN(startTime)) return startTime;
+
+  const endTime = toDate(event.endtime).getTime();
+  return Number.isNaN(endTime) ? Number.MAX_SAFE_INTEGER : endTime;
+};
+
+const getEventEndTimeMs = (event: UWEvent): number => {
+  const endTime = toDate(event.endtime).getTime();
+  return Number.isNaN(endTime) ? Number.MAX_SAFE_INTEGER : endTime;
+};
+
+const getEventDropdownGroup = (event: UWEvent): number => {
+  const isSaved = savedEventIds.value.has(event.id);
+  const isOutdated = getEventEndTimeMs(event) < Date.now();
+
+  if (isSaved && isOutdated) return 0;
+  if (isOutdated) return 1;
+  if (isSaved) return 2;
+  return 3;
+};
+
 const events = computed(() => eventStore.events);
-const upcomingEvents = computed(() => {
-  const now = Date.now();
-  return events.value.filter((event) => toDate(event.endtime).getTime() > now);
+const savedEventIds = computed(() => new Set(userStore.userProfile?.savedEventIds ?? []));
+const sortedEvents = computed(() => {
+  return [...events.value].sort((a, b) => {
+    const groupDifference = getEventDropdownGroup(a) - getEventDropdownGroup(b);
+    if (groupDifference !== 0) return groupDifference;
+
+    const timeDifference = getEventTimeMs(a) - getEventTimeMs(b);
+    if (timeDifference !== 0) return timeDifference;
+
+    return a.title.localeCompare(b.title);
+  });
 });
-const selectedEvent = computed(() => upcomingEvents.value.find((event) => event.id === selectedEventId.value) ?? null);
-const sortedEvents = computed(() => upcomingEvents.value);
+const selectedEvent = computed(() => events.value.find((event) => event.id === selectedEventId.value) ?? null);
 const searchedEvents = computed<UWEvent[]>(() => {
   const query = eventSearch.value.trim();
   if (!query) return sortedEvents.value;
 
   return eventFuse.value
     .search(query)
-    .map((result) => result.item);
+    .map((result) => result.item)
+    .sort((a, b) => sortedEvents.value.indexOf(a) - sortedEvents.value.indexOf(b));
 });
-const eventFuse = computed(() => new Fuse(events.value, {
+const eventFuse = computed(() => new Fuse(sortedEvents.value, {
   keys: [
     { name: 'title', weight: 0.5 },
     { name: 'location', weight: 0.22 },
@@ -365,6 +408,12 @@ const eventFuse = computed(() => new Fuse(events.value, {
 }));
 const eventResults = computed<UWEvent[]>(() => {
   return searchedEvents.value.slice(0, visibleEventCount.value);
+});
+const hasMoreEventResults = computed(() => eventResults.value.length < searchedEvents.value.length);
+const eventLoadStatusText = computed(() => {
+  if (isLoadingMoreEvents.value) return 'Loading more events...';
+  if (isEventLoadArmed.value) return 'Pull a little more to load';
+  return 'Scroll to the bottom for more events';
 });
 const canPublish = computed(() =>
   title.value.trim().length > 0 &&
@@ -455,7 +504,7 @@ const applyPainterStyle = (style: PainterStyle) => {
   const syncToggle = (command: 'bold' | 'italic' | 'underline', enabled: boolean) => {
     const currentState = document.queryCommandState(command);
     if (currentState !== enabled) {
-      document.execCommand(command, false, null);
+      document.execCommand(command, false, undefined);
     }
   };
 
@@ -566,12 +615,16 @@ const uploadSelectedMedia = async (fileToUpload = selectedMediaFile.value) => {
 const openEventSelector = async () => {
   isEventSelectorOpen.value = true;
   visibleEventCount.value = EVENT_BATCH_SIZE;
+  isEventLoadArmed.value = false;
+  isLoadingMoreEvents.value = false;
   await nextTick();
   eventSearchRef.value?.focus();
 };
 
 const closeEventSelector = () => {
   isEventSelectorOpen.value = false;
+  isEventLoadArmed.value = false;
+  isLoadingMoreEvents.value = false;
 };
 
 const handleDocumentPointerDown = (event: PointerEvent) => {
@@ -588,8 +641,19 @@ const selectEvent = (eventId: string) => {
 };
 
 const loadMoreEvents = () => {
-  if (visibleEventCount.value >= searchedEvents.value.length) return;
+  if (!hasMoreEventResults.value) return;
   visibleEventCount.value += EVENT_BATCH_SIZE;
+};
+
+const triggerEventLoadMore = () => {
+  if (!isEventLoadArmed.value || isLoadingMoreEvents.value || !hasMoreEventResults.value) return;
+
+  isLoadingMoreEvents.value = true;
+  window.setTimeout(() => {
+    loadMoreEvents();
+    isEventLoadArmed.value = false;
+    isLoadingMoreEvents.value = false;
+  }, EVENT_LOAD_DELAY_MS);
 };
 
 const handleEventListScroll = () => {
@@ -597,8 +661,25 @@ const handleEventListScroll = () => {
   if (!list) return;
 
   const remainingScroll = list.scrollHeight - list.scrollTop - list.clientHeight;
-  if (remainingScroll <= 24) {
-    loadMoreEvents();
+  isEventLoadArmed.value = hasMoreEventResults.value && remainingScroll <= 8;
+};
+
+const handleEventListWheel = (event: WheelEvent) => {
+  if (event.deltaY <= 0) return;
+  triggerEventLoadMore();
+};
+
+const handleEventListTouchStart = (event: TouchEvent) => {
+  eventListTouchStartY.value = event.touches[0]?.clientY ?? null;
+};
+
+const handleEventListTouchMove = (event: TouchEvent) => {
+  if (eventListTouchStartY.value === null) return;
+
+  const currentY = event.touches[0]?.clientY ?? eventListTouchStartY.value;
+  const isPullingPastBottom = eventListTouchStartY.value - currentY > 18;
+  if (isPullingPastBottom) {
+    triggerEventLoadMore();
   }
 };
 
@@ -660,7 +741,7 @@ onMounted(async () => {
   }
 
   const eventId = route.query.eventId;
-  if (typeof eventId === 'string' && upcomingEvents.value.some((event) => event.id === eventId)) {
+  if (typeof eventId === 'string' && events.value.some((event) => event.id === eventId)) {
     selectedEventId.value = eventId;
   }
 });
@@ -671,6 +752,8 @@ onBeforeUnmount(() => {
 
 watch(eventSearch, async () => {
   visibleEventCount.value = EVENT_BATCH_SIZE;
+  isEventLoadArmed.value = false;
+  isLoadingMoreEvents.value = false;
   await nextTick();
   const list = eventResultListRef.value;
   if (list) list.scrollTop = 0;
@@ -1228,11 +1311,40 @@ watch(eventSearch, async () => {
 }
 
 .event-result-status {
-  margin: 2px 0 0;
-  padding: 8px 12px 4px;
-  color: #7a859e;
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #4f5f85;
+  font-size: 0.9rem;
+  font-weight: 700;
   text-align: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.event-result-status.loading {
+  background: rgba(66, 133, 244, 0.14);
+  color: #1a57b8;
+}
+
+.event-result-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(26, 87, 184, 0.22);
+  border-top-color: #1a57b8;
+  border-radius: 50%;
+  animation: event-result-spin 0.7s linear infinite;
+}
+
+@keyframes event-result-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .publish-button,

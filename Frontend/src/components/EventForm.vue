@@ -30,6 +30,10 @@
         </div>
         <div class="step" :class="{ active: currentStep >= 4 }" @click="currentStep = 4">
           <span class="step-number">4</span>
+          <span class="step-title">Review</span>
+        </div>
+        <div class="step" :class="{ active: currentStep >= 5 }" @click="currentStep = 5">
+          <span class="step-number">5</span>
           <span class="step-title">Preview</span>
         </div>
       </div>
@@ -90,12 +94,8 @@
                 <select id="category" v-model="formData.category" required>
                   <option value="">Select category</option>
                   <option value="Academic">Academic</option>
-                  <option value="Club">Club</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Games">Games</option>
-                  <option value="Culture">Culture</option>
                   <option value="Interest">Interest</option>
-                  <option value="HFS">HFS</option>
+                  <option value="Career">Career</option>
                 </select>
               </div>
             </div>
@@ -282,12 +282,68 @@
           
           <div class="step-navigation">
             <button type="button" class="nav-btn prev" @click="currentStep = 2">← Previous</button>
-            <button type="button" class="nav-btn next" @click="currentStep = 4">Preview →</button>
+            <button type="button" class="nav-btn next" @click="currentStep = 4">Review →</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Review -->
+        <div v-show="currentStep === 4" class="step-content">
+          <div class="bento-grid">
+            <div class="bento-card large">
+              <div class="card-header">
+                <h3>Review</h3>
+                <p>Set the rating shown on this event detail page</p>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reviewStars">Stars</label>
+                  <input
+                    id="reviewStars"
+                    v-model.number="formData.reviewStars"
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="1"
+                    placeholder="e.g., 4"
+                  >
+                </div>
+
+                <div class="form-group">
+                  <label for="reviewScore">Score</label>
+                  <input
+                    id="reviewScore"
+                    v-model.number="formData.reviewScore"
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    placeholder="e.g., 4.8"
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="reviewSentence">Short sentence of review</label>
+                <input
+                  id="reviewSentence"
+                  v-model="formData.reviewSentence"
+                  type="text"
+                  maxlength="80"
+                  placeholder="e.g., Helpful for networking"
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="step-navigation">
+            <button type="button" class="nav-btn prev" @click="currentStep = 3">← Previous</button>
+            <button type="button" class="nav-btn next" @click="currentStep = 5">Preview →</button>
           </div>
         </div>
         
-        <!-- Step 4: Preview & Submit -->
-        <div v-show="currentStep === 4" class="step-content">
+        <!-- Step 5: Preview & Submit -->
+        <div v-show="currentStep === 5" class="step-content">
           <div class="preview-card">
             <div class="card-header">
               <h3>🎉 Ready to Publish?</h3>
@@ -308,11 +364,18 @@
               <div v-if="formData.tags.length" class="preview-tags">
                 <span v-for="tag in formData.tags" :key="tag" class="tag-chip">#{{ tag }}</span>
               </div>
+              <div class="preview-details">
+                <template v-if="hasReviewInput">
+                  <span class="detail-chip">★ {{ normalizedReviewStars }} / 5</span>
+                  <span class="detail-chip">{{ normalizedReviewScore }} / 5 score</span>
+                  <span v-if="formData.reviewSentence.trim()" class="detail-chip">{{ formData.reviewSentence }}</span>
+                </template>
+              </div>
             </div>
           </div>
           
           <div class="step-navigation">
-            <button type="button" class="nav-btn prev" @click="currentStep = 3">← Edit Details</button>
+            <button type="button" class="nav-btn prev" @click="currentStep = 4">← Edit Review</button>
             <button type="submit" class="submit-btn" :disabled="isSubmitting">
               {{ isSubmitting ? 'Publishing...' : '🚀 Publish Event!' }}
             </button>
@@ -331,9 +394,8 @@ import { useUserStore } from '../stores/user';
 import { useEventStore } from '../stores/event';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import type { Event } from '../types/event';
+import type { Event as EventModel } from '../types/event';
 import { RecurrenceType } from '../types/event';
-import { GoogleGenAI } from "@google/genai";
 import '@/assets/eventform.css';
 
 const router = useRouter();
@@ -345,9 +407,9 @@ const storage = getStorage();
 const currentStep = ref(1);
 const importLink = ref('');
 const isImporting = ref(false);
-const ai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY
-});
+
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 const formData = ref({
   title: '',
@@ -365,9 +427,34 @@ const formData = ref({
   daysOfWeek: [] as number[],
   daysOfMonthInput: '',
   imageUrl: '',
+  reviewStars: null as number | null,
+  reviewScore: null as number | null,
+  reviewSentence: '',
 });
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const clampNumber = (value: number, min: number, max: number) => (
+  Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
+);
+
+const normalizedReviewStars = computed(() => (
+  Math.round(clampNumber(Number(formData.value.reviewStars ?? 4), 1, 5))
+));
+
+const normalizedReviewScore = computed(() => (
+  Math.round(clampNumber(Number(formData.value.reviewScore ?? 4.8), 0, 5) * 10) / 10
+));
+
+const hasNumberInput = (value: number | null) => (
+  value !== null && Number.isFinite(Number(value))
+);
+
+const hasReviewInput = computed(() => (
+  formData.value.reviewSentence.trim().length > 0
+  || hasNumberInput(formData.value.reviewStars)
+  || hasNumberInput(formData.value.reviewScore)
+));
 
 // 使用简单的ref来避免computed双向绑定的问题
 const tagsInputValue = ref('');
@@ -389,7 +476,7 @@ const createLocalDateFromInput = (
 };
 
 // 处理input事件
-const handleTagsInput = (event: Event) => {
+const handleTagsInput = (event: globalThis.Event) => {
   const target = event.target as HTMLInputElement;
   tagsInputValue.value = target.value;
   
@@ -439,7 +526,7 @@ const handleTagsKeydown = (event: KeyboardEvent) => {
 
 const selectedImageFile = ref<File | null>(null);
 
-const handleImageSelection = (event: InputEvent) => {
+const handleImageSelection = (event: Event) => {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
 };
@@ -452,7 +539,8 @@ const handleImport = async () => {
   try {
     const data = await scraper(importLink.value);
 
-    if (!data || typeof data !== 'object') throw new Error();
+    if (!data || typeof data !== 'object') alert('Failed to import event. (could be scraper or gemini)');
+    console.log(data);
 
     formData.value.title = data.title ?? formData.value.title;
     formData.value.description = data.description ?? formData.value.description;
@@ -494,7 +582,7 @@ const handleImport = async () => {
     currentStep.value = 1;
   } catch (err) {
     console.error(err);
-    alert('Failed to import event.');
+    alert('Failed to import event. (check console for reason)');
   } finally {
     isImporting.value = false;
   }
@@ -503,18 +591,38 @@ const handleImport = async () => {
 
 
 const scraper = async (url: string) => {
-  const response = await fetch(url);
-  console.log(response)
-  const htmlDocument = await response.text();
-  const form = await gemini(htmlDocument);
-  console.log(form);
-  return form;
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+
+    console.log(html);
+
+    if (!html) {
+      alert('Failed to import event (empty HTML)');
+      return;
+    }
+
+    const form = await gemini(html);
+
+    if (!form) {
+      alert('Failed to import event (Gemini issue)');
+      return;
+    }
+
+    return form;
+  } catch (err) {
+    console.error(err);
+    alert('Failed to import event (network error)');
+  }
 };
 
 const gemini = async (document: string) => {
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
-    contents: `
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
+  }
+
+  const prompt = `
 You are an information extraction system.
 
 Extract event details from the document.
@@ -553,10 +661,47 @@ Rules:
 
 DOCUMENT:
 ${document}
-    `.trim(),
+    `.trim();
+
+  const response = await fetch(`${GEMINI_ENDPOINT}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    }),
   });
 
-  const text = response.text;
+  if (!response.ok) {
+    const errorText = await response.text();
+    alert(`Gemini request failed (${response.status}): ${errorText}`);
+    throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          text?: string;
+        }>;
+      };
+    }>;
+  };
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini response did not include text content.');
+  }
 
   try {
     return JSON.parse(text);
@@ -575,6 +720,8 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true;
   try {
+    const reviewSentence = formData.value.reviewSentence.trim();
+
     let schedule;
     const recurrenceType = formData.value.recurrenceType;
     if (recurrenceType === RecurrenceType.ONE_TIME) {
@@ -720,8 +867,6 @@ const handleSubmit = async () => {
 
 
   try {
-    let imageUrl = ''; // 先初始化
-
     // 上传图片
     if (selectedImageFile.value) {
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
@@ -735,7 +880,7 @@ const handleSubmit = async () => {
       formData.value.imageUrl = downloadURL;
     }
 
-      const eventData: Omit<Event, 'id'> = {
+      const eventData: Omit<EventModel, 'id'> = {
       title: formData.value.title,
       description: formData.value.description.trim() || `Come and enjoy ${formData.value.title}!`,
       location: formData.value.location,
@@ -750,6 +895,13 @@ const handleSubmit = async () => {
       participants: [],
       link: formData.value.link,
       imageUrl: formData.value.imageUrl,
+      review: hasReviewInput.value
+        ? {
+            stars: normalizedReviewStars.value,
+            score: normalizedReviewScore.value,
+            sentence: reviewSentence,
+          }
+        : null,
       startTime: startTime,
       endtime: endtime,
       // Store original time info for display

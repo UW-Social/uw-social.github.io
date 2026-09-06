@@ -30,6 +30,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/mailbox',
+    name: 'Mailbox',
+    component: isMobile()
+      ? () => import('@/views/Profile.vue')
+      : () => import('@/views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/onboarding',
     name: 'Onboarding',
     component: () => import('@/views/Onboarding.vue'),
@@ -49,6 +57,22 @@ const routes = [
     path: '/forum/new',
     name: 'ForumNewPost',
     component: () => import('@/views/ForumNewPost.vue')
+  },
+  {
+    path: '/forum/posts/:eventId/:postId',
+    name: 'ExperiencePostDetail',
+    component: () => import('@/views/ExperiencePostDetail.vue'),
+    props: true
+  },
+  {
+    path: '/score-framework',
+    name: 'ScoreFramework',
+    component: () => import('@/views/ScoreFramework.vue')
+  },
+  {
+    path: '/ai-consultant',
+    name: 'AIConsultant',
+    component: () => import('@/views/AIConsultant.vue')
   },
   {
     path: '/events/:id/edit',
@@ -117,7 +141,7 @@ export function isMobile() {
 }
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     const authPrompt = typeof to.meta.authPrompt === 'string' ? to.meta.authPrompt : ''

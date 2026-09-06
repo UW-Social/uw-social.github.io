@@ -48,6 +48,8 @@
 import { computed, ref } from "vue";
 import { useUserStore } from "../stores/user";
 import { useRouter, useRoute } from "vue-router";
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 import "../assets/login.css";
 
 const userStore = useUserStore();
@@ -122,6 +124,7 @@ const handleGoogleLogin = async () => {
 
     //  每次登录成功都记
     track("login_success", { method: "google" });
+    await trackFirstLoginOnce(uid);
 
     router.push(loginResult.nextPath);
   } catch (error: any) {

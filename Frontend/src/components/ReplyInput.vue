@@ -6,6 +6,7 @@
       class="reply-textarea"
       :placeholder="placeholder"
       :disabled="loading"
+      @keydown.enter.exact="handleEnter"
     ></textarea>
     <button class="reply-submit" type="button" :disabled="!canSubmit" @click="handleSubmit">
       {{ submitLabel }}
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<{
   loginHeading?: string;
   loginText?: string;
   loginButtonLabel?: string;
+  submitOnEnter?: boolean;
 }>(), {
   loading: false,
   rows: 3,
@@ -43,6 +45,7 @@ const props = withDefaults(defineProps<{
   loginHeading: 'Join the discussion',
   loginText: 'Log in to share your thoughts about this event.',
   loginButtonLabel: 'Log in to post',
+  submitOnEnter: false,
 });
 
 const emit = defineEmits<{
@@ -58,6 +61,12 @@ const handleSubmit = () => {
   if (!text) return;
   emit('submit', text);
   draft.value = '';
+};
+
+const handleEnter = (event: KeyboardEvent) => {
+  if (!props.submitOnEnter) return;
+  event.preventDefault();
+  handleSubmit();
 };
 
 watch(() => props.isLoggedIn, (isLoggedIn) => {
@@ -85,7 +94,9 @@ watch(() => props.isLoggedIn, (isLoggedIn) => {
   border: 1px solid rgba(99, 102, 241, 0.16);
   border-radius: 14px;
   padding: 12px 14px;
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--reply-textarea-font-size, inherit);
+  line-height: var(--reply-textarea-line-height, normal);
   color: #20263a;
   background: rgba(255, 255, 255, 0.92);
 }
@@ -98,7 +109,7 @@ watch(() => props.isLoggedIn, (isLoggedIn) => {
 .reply-login-button {
   border: none;
   border-radius: 12px;
-  background: #1f2740;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
   color: #fff;
   padding: 11px 14px;
   font: inherit;

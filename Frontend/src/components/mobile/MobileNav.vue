@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useUserStore } from "@/stores/user";
+import { useUserStore } from "../../stores/user";
 
 const userStore = useUserStore();
 const defaultAvatar = "/images/mob-default-avatar.jpg";

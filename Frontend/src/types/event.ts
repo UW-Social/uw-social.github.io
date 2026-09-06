@@ -78,6 +78,11 @@ export interface MonthlySchedule extends BaseRecurringSchedule {
  */
 export type EventSchedule = OneTimeSchedule | DailySchedule | WeeklySchedule | MonthlySchedule;
 
+export interface EventReviewSummary {
+  stars: number;
+  score: number;
+  sentence: string;
+}
 
 export interface Event {
   id: string;
@@ -97,6 +102,7 @@ export interface Event {
   maxParticipants: number | null;
   tags: string[];
   link?: string;
+  review?: EventReviewSummary | null;
   _hasStartTime?: boolean; // Whether original form had start time
   _hasEndTime?: boolean; // Whether original form had end time
 }

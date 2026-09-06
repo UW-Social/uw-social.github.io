@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -11,6 +12,7 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
+import type { Transaction } from 'firebase/firestore';
 import type { Event } from '../types/event';
 import type {
   AggregatedDiscussionPost,
@@ -23,9 +25,17 @@ import type {
   ForumPost,
 } from '../types/forum';
 import { buildForumEventSnapshot } from '../types/forum';
+import type { NewUserNotification, NotificationTargetType } from '../types/notification';
 import { db } from '../firebase/config';
 
 const forumsCollection = collection(db, 'forums');
+
+type LikeActor = {
+  uid: string;
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+};
 
 export async function listForums(): Promise<Forum[]> {
   const forumsQuery = query(forumsCollection, orderBy('lastPostAt', 'desc'));
@@ -127,6 +137,10 @@ export async function createForumPost(
     userEmail: author.email,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function deleteForumPost(forumId: string, postId: string) {
+  await deleteDoc(doc(db, 'forums', forumId, 'posts', postId));
 }
 
 export async function listAggregatedForumPosts(): Promise<AggregatedForumPost[]> {
@@ -333,6 +347,10 @@ export async function createEventDiscussionPost(
   });
 }
 
+export async function deleteEventDiscussionPost(eventId: string, postId: string) {
+  await deleteDoc(doc(db, 'events', eventId, 'posts', postId));
+}
+
 export function subscribeToEventExperiencePosts(
   eventId: string,
   currentUserId: string | null | undefined,
@@ -443,13 +461,106 @@ export async function createEventExperiencePost(
   return postRef.id;
 }
 
+export async function deleteEventExperiencePost(eventId: string, postId: string) {
+  await deleteDoc(doc(db, 'events', eventId, 'forumPosts', postId));
+}
+
+export async function getEventExperiencePost(
+  eventId: string,
+  postId: string,
+  currentUserId?: string | null
+): Promise<ExperiencePost | null> {
+  const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) return null;
+
+  return hydrateExperiencePost(
+    eventId,
+    postSnap.id,
+    postSnap.data() as Record<string, unknown>,
+    currentUserId
+  );
+}
+
+export async function listExperiencePostReplies(
+  eventId: string,
+  postId: string,
+  currentUserId?: string | null
+): Promise<DiscussionReply[]> {
+  const repliesRef = collection(db, 'events', eventId, 'forumPosts', postId, 'replies');
+  const repliesSnapshot = await getDocs(query(repliesRef, orderBy('createdAt', 'asc')));
+
+  return Promise.all(
+    repliesSnapshot.docs.map(async (replyDoc) => {
+      const [likesSnapshot, likedDoc] = await Promise.all([
+        getDocs(collection(db, 'events', eventId, 'forumPosts', postId, 'replies', replyDoc.id, 'likes')),
+        currentUserId
+          ? getDoc(doc(db, 'events', eventId, 'forumPosts', postId, 'replies', replyDoc.id, 'likes', currentUserId))
+          : Promise.resolve(null),
+      ]);
+
+      return {
+        id: replyDoc.id,
+        ...normalizeDiscussionReplyData(postId, eventId, replyDoc.data() as Record<string, unknown>),
+        likeCount: likesSnapshot.size || 0,
+        hasLiked: likedDoc?.exists?.() ?? false,
+      } satisfies DiscussionReply;
+    })
+  );
+}
+
+export async function createEventExperienceReply(
+  eventId: string,
+  postId: string,
+  author: DiscussionAuthor,
+  content: string
+) {
+  const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
+  const repliesRef = collection(db, 'events', eventId, 'forumPosts', postId, 'replies');
+  const trimmedContent = content.trim();
+
+  if (!trimmedContent) {
+    throw new Error('Reply content cannot be empty.');
+  }
+
+  await runTransaction(db, async (transaction) => {
+    const postSnap = await transaction.get(postRef);
+
+    if (!postSnap.exists()) {
+      throw new Error('Experience post not found');
+    }
+
+    const replyRef = doc(repliesRef);
+    const currentReplyCount = typeof postSnap.data().replyCount === 'number'
+      ? postSnap.data().replyCount
+      : 0;
+
+    transaction.set(replyRef, {
+      postId,
+      eventId,
+      content: trimmedContent,
+      text: trimmedContent,
+      authorName: author.displayName || author.email.split('@')[0],
+      likeCount: 0,
+      userId: author.uid,
+      userEmail: author.email,
+      createdAt: serverTimestamp(),
+    });
+
+    transaction.update(postRef, {
+      replyCount: currentReplyCount + 1,
+    });
+  });
+}
+
 export async function toggleExperiencePostLike(
   eventId: string,
   postId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const postRef = doc(db, 'events', eventId, 'forumPosts', postId);
-  const likeRef = doc(db, 'events', eventId, 'forumPosts', postId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'forumPosts', postId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [postSnap, likeSnap] = await Promise.all([
@@ -470,16 +581,33 @@ export async function toggleExperiencePostLike(
       transaction.update(postRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof postSnap.data().userId === 'string' ? postSnap.data().userId : undefined,
+        'experiencePost',
+        eventId,
+        postId,
+        actor.uid
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(postRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'experiencePost',
+      eventId,
+      postId,
+      undefined,
+      actor,
+      postSnap.data() as Record<string, unknown>
+    );
   });
 }
 
@@ -528,10 +656,10 @@ export async function createDiscussionReply(
 export async function toggleDiscussionPostLike(
   eventId: string,
   postId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const postRef = doc(db, 'events', eventId, 'posts', postId);
-  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [postSnap, likeSnap] = await Promise.all([
@@ -552,16 +680,33 @@ export async function toggleDiscussionPostLike(
       transaction.update(postRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof postSnap.data().userId === 'string' ? postSnap.data().userId : undefined,
+        'discussionPost',
+        eventId,
+        postId,
+        actor.uid
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(postRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'discussionPost',
+      eventId,
+      postId,
+      undefined,
+      actor,
+      postSnap.data() as Record<string, unknown>
+    );
   });
 }
 
@@ -569,10 +714,10 @@ export async function toggleDiscussionReplyLike(
   eventId: string,
   postId: string,
   replyId: string,
-  userId: string
+  actor: LikeActor
 ) {
   const replyRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId);
-  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId, 'likes', userId);
+  const likeRef = doc(db, 'events', eventId, 'posts', postId, 'replies', replyId, 'likes', actor.uid);
 
   await runTransaction(db, async (transaction) => {
     const [replySnap, likeSnap] = await Promise.all([
@@ -593,17 +738,142 @@ export async function toggleDiscussionReplyLike(
       transaction.update(replyRef, {
         likeCount: Math.max(0, currentLikeCount - 1),
       });
+      deleteLikeNotificationInTransaction(
+        transaction,
+        typeof replySnap.data().userId === 'string' ? replySnap.data().userId : undefined,
+        'discussionReply',
+        eventId,
+        postId,
+        actor.uid,
+        replyId
+      );
       return;
     }
 
     transaction.set(likeRef, {
-      userId,
+      userId: actor.uid,
       createdAt: serverTimestamp(),
     });
     transaction.update(replyRef, {
       likeCount: currentLikeCount + 1,
     });
+    createLikeNotificationInTransaction(
+      transaction,
+      'discussionReply',
+      eventId,
+      postId,
+      replyId,
+      actor,
+      replySnap.data() as Record<string, unknown>
+    );
   });
+}
+
+function buildReceiverLikeNotificationRef(
+  receiverUid: string,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  actorUid: string,
+  replyId?: string
+) {
+  const targetId = replyId ? `${postId}_${replyId}` : postId;
+  return doc(
+    db,
+    'users',
+    receiverUid,
+    'notifications',
+    `${targetType}_${eventId}_${targetId}_${actorUid}`
+  );
+}
+
+function createLikeNotificationInTransaction(
+  transaction: Transaction,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  replyId: string | undefined,
+  actor: LikeActor,
+  targetData: Record<string, unknown>
+) {
+  const receiverUid = typeof targetData.userId === 'string' ? targetData.userId : '';
+  if (!receiverUid || receiverUid === actor.uid) return;
+
+  const notificationRef = buildReceiverLikeNotificationRef(
+    receiverUid,
+    targetType,
+    eventId,
+    postId,
+    actor.uid,
+    replyId
+  );
+  const subject = getNotificationSubject(targetData);
+  const quote = getNotificationQuote(targetData);
+  const notification: NewUserNotification = {
+    type: 'like',
+    targetType,
+    receiverUid,
+    actorUid: actor.uid,
+    actorName: getActorDisplayName(actor),
+    actorAvatarUrl: actor.photoURL ?? null,
+    message: targetType === 'discussionReply' ? 'liked your reply' : 'liked your post',
+    ...(subject ? { subject } : {}),
+    ...(quote ? { quote } : {}),
+    eventId,
+    postId,
+    ...(replyId ? { replyId } : {}),
+    read: false,
+  };
+
+  transaction.set(notificationRef, {
+    ...notification,
+    createdAt: serverTimestamp(),
+  });
+}
+
+function deleteLikeNotificationInTransaction(
+  transaction: Transaction,
+  receiverUid: string | undefined,
+  targetType: Extract<NotificationTargetType, 'discussionPost' | 'discussionReply' | 'experiencePost'>,
+  eventId: string,
+  postId: string,
+  actorUid: string,
+  replyId?: string
+) {
+  if (!receiverUid || receiverUid === actorUid) return;
+
+  transaction.delete(buildReceiverLikeNotificationRef(
+    receiverUid,
+    targetType,
+    eventId,
+    postId,
+    actorUid,
+    replyId
+  ));
+}
+
+function getActorDisplayName(actor: LikeActor) {
+  if (actor.displayName?.trim()) return actor.displayName.trim();
+  if (actor.email?.trim()) return actor.email.split('@')[0];
+  return 'A UW Social user';
+}
+
+function getNotificationSubject(targetData: Record<string, unknown>) {
+  const title = typeof targetData.title === 'string' ? targetData.title.trim() : '';
+  if (title) return title.length <= 96 ? title : `${title.slice(0, 96).trimEnd()}...`;
+
+  return getNotificationQuote(targetData);
+}
+
+function getNotificationQuote(targetData: Record<string, unknown>) {
+  const raw = typeof targetData.content === 'string'
+    ? targetData.content
+    : typeof targetData.text === 'string'
+      ? targetData.text
+      : '';
+  const normalized = raw.replace(/\s+/g, ' ').trim();
+  if (!normalized) return undefined;
+  return normalized.length <= 140 ? normalized : `${normalized.slice(0, 140).trimEnd()}...`;
 }
 
 async function hydrateDiscussionPost(

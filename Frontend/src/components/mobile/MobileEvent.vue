@@ -54,14 +54,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEventStore } from '../../stores/event';
-import { useUserStore } from '../../stores/user';
 import Fuse from 'fuse.js';
 import MobileEventCard from './MobileEventCard.vue';
 import MobileFilterModal from './MobileFilterModal.vue';
 import type { Event } from '../../types/event';
 
 const eventStore = useEventStore();
-const userStore = useUserStore();
 const route = useRoute();
 
 const searchQuery = ref('');
