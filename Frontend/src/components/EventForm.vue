@@ -1283,7 +1283,7 @@ const handleSubmit = async () => {
       category: eventData.category,
       startTime,
       endtime,
-      willShowInEventList: willShowInEventList(endtime),
+      willShowInEventList: endtime ? willShowInEventList(endtime) : false,
       now: new Date(),
     });
 
