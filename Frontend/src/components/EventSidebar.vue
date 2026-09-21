@@ -36,6 +36,7 @@
       <select v-model="localCategory" class="sidebar-select" @change="handleCategoryChange">
   <option :value="null">All</option>
   <option value="ACADEMIC">Academic</option>
+  <option value="CAREER">Career</option>
   <option value="CLUB">Club</option>
   <option value="SPORTS">Sports</option>
   <option value="GAMES">Games</option>

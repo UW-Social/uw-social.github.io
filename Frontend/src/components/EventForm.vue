@@ -492,6 +492,19 @@ const formatErrorMessage = (error: unknown) => {
   return String(error);
 };
 
+const runPublishStep = async <T,>(label: string, task: () => Promise<T>) => {
+  submitStatus.value = label;
+  console.log(`[EventForm] ${label}`);
+  try {
+    const result = await task();
+    console.log(`[EventForm] ${label} done`);
+    return result;
+  } catch (error) {
+    console.error(`[EventForm] ${label} failed`, error);
+    throw new Error(`${label} failed: ${formatErrorMessage(error)}`);
+  }
+};
+
 const logFormSnapshot = (source: string) => {
   console.log(`[EventForm] ${source}`, {
     title: formData.value.title,
@@ -638,15 +651,17 @@ const inferCategory = (tags: string[], fallback = '') => {
 const applyImportedEventData = (data: ImportedEventData) => {
   if (!data || typeof data !== 'object') return;
   const tags = normalizeTagList(data.tags);
+  const startDate = normalizeDateInput(data.startDate ?? formData.value.startDate);
+  const endDate = normalizeDateInput(data.endDate ?? formData.value.endDate) || startDate;
 
   formData.value.title = toText(data.title, formData.value.title);
   formData.value.description = toText(data.description, formData.value.description);
   formData.value.location = toText(data.location, formData.value.location);
   formData.value.category = normalizeCategoryValue(data.category ?? formData.value.category, tags);
 
-  formData.value.startDate = normalizeDateInput(data.startDate ?? formData.value.startDate);
+  formData.value.startDate = startDate;
   formData.value.startTime = normalizeTime(data.startTime ?? formData.value.startTime);
-  formData.value.endDate = normalizeDateInput(data.endDate ?? formData.value.endDate);
+  formData.value.endDate = endDate;
   formData.value.endTime = normalizeTime(data.endTime ?? formData.value.endTime);
   formData.value.imageUrl = toText(data.imageUrl, formData.value.imageUrl);
 
@@ -701,6 +716,10 @@ const createLocalDateFromInput = (
 };
 
 const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
+
+const willShowInEventList = (end: Date) => (
+  isValidDate(end) && end.getTime() >= Date.now()
+);
 
 // 处理input事件
 const handleTagsInput = (event: globalThis.Event) => {
@@ -1213,19 +1232,17 @@ const handleSubmit = async () => {
   try {
     // 上传图片
     if (selectedImageFile.value) {
-      submitStatus.value = 'Uploading image...';
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
       const storageReference = storageRef(storage, storagePath);
 
       console.log('开始上传图片到:', storagePath);
 
-      const snapshot = await uploadBytes(storageReference, selectedImageFile.value);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const snapshot = await runPublishStep('Uploading image...', () => uploadBytes(storageReference, selectedImageFile.value!));
+      const downloadURL = await runPublishStep('Getting image URL...', () => getDownloadURL(snapshot.ref));
       console.log('图片上传成功，下载URL:', downloadURL);
       formData.value.imageUrl = downloadURL;
     }
 
-      submitStatus.value = 'Saving event...';
       const eventData: Omit<EventModel, 'id'> = {
       title: formData.value.title,
       description: formData.value.description.trim() || `Come and enjoy ${formData.value.title}!`,
@@ -1255,7 +1272,16 @@ const handleSubmit = async () => {
       _hasEndTime: !!formData.value.endTime,
     } as any;
 
-    const docRef = await addDoc(collection(db, 'events'), eventData);
+    console.log('[EventForm] Event payload visibility check', {
+      title: eventData.title,
+      category: eventData.category,
+      startTime,
+      endtime,
+      willShowInEventList: willShowInEventList(endtime),
+      now: new Date(),
+    });
+
+    const docRef = await runPublishStep('Saving event...', () => addDoc(collection(db, 'events'), eventData));
     console.log('[EventForm] Event written to Firestore', {
       id: docRef.id,
       projectId: db.app.options.projectId,
@@ -1265,21 +1291,22 @@ const handleSubmit = async () => {
     });
     alert('Successfully published!');
 
-    submitStatus.value = 'Refreshing events...';
-    await eventStore.fetchEvents();
+    await runPublishStep('Refreshing events...', () => eventStore.fetchEvents());
     router.push(`/events/${docRef.id}`);
   } catch (error) {
     console.error('Failed to publish event:', error);
-    alert(`Failed to publish event: ${formatErrorMessage(error)}`);
+    const message = formatErrorMessage(error);
+    submitStatus.value = message;
+    alert(`Failed to publish event: ${message}`);
   } finally {
     isSubmitting.value = false;
-    submitStatus.value = '';
   }
 } catch (error) {
     console.error('Failed to submit event:', error);
-    alert(`Failed to submit event: ${formatErrorMessage(error)}`);
+    const message = formatErrorMessage(error);
+    submitStatus.value = message;
+    alert(`Failed to submit event: ${message}`);
     isSubmitting.value = false;
-    submitStatus.value = '';
   }
 }
 </script>
