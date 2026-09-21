@@ -53,6 +53,7 @@ const TRENDING_POP_WEIGHT = 0.4;
 
 const VALID_CATEGORIES = new Set([
   'ACADEMIC',
+  'CAREER',
   'CLUB',
   'SPORTS',
   'GAMES',
@@ -319,9 +320,7 @@ watch(
 );
 
 onMounted(async () => {
-  if (eventStore.events.length === 0) {
-    await eventStore.fetchEvents();
-  }
+  await eventStore.fetchEvents();
   await refresh();
 });
 </script>
