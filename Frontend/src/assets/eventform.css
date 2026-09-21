@@ -29,6 +29,10 @@
   border: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
+.paste-import textarea {
+  min-height: 180px;
+}
+
 .quick-import label {
   font-size: 0.875rem;
   font-weight: 600;
@@ -39,6 +43,20 @@
 .quick-import-row {
   display: flex;
   gap: 10px;
+}
+
+.quick-import-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.import-status {
+  margin: 0;
+  color: var(--color-gray-600);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .quick-import input {
@@ -461,6 +479,13 @@ textarea::placeholder {
   background: var(--color-gray-400);
 }
 
+.submit-status {
+  margin: 0;
+  color: var(--color-gray-600);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 /* Tags Preview */
 .tags-preview {
   display: flex;
@@ -548,5 +573,10 @@ textarea::placeholder {
 
   .nav-btn {
     width: 100%;
+  }
+
+  .quick-import-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

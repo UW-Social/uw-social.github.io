@@ -590,6 +590,11 @@ const loadEventData = async () => {
 
   event.value = eventStore.events.find(e => e.id === eventId.value) || null;
 
+  if (!event.value) {
+    await eventStore.fetchEvents();
+    event.value = eventStore.events.find(e => e.id === eventId.value) || null;
+  }
+
   await nextTick();
   initMap();
 };

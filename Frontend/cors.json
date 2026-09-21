@@ -1,8 +1,22 @@
 [
   {
-    "origin": ["http://localhost:5173", "https://uw-social.com"],
-    "method": ["GET", "POST", "PUT", "DELETE"],
-    "responseHeader": ["Content-Type", "Authorization"],
+    "origin": [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://uw-social.com"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "x-goog-resumable",
+      "x-goog-upload-command",
+      "x-goog-upload-header-content-length",
+      "x-goog-upload-header-content-type",
+      "x-goog-upload-protocol",
+      "x-goog-upload-status",
+      "x-goog-upload-url"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
