@@ -1,5 +1,21 @@
 <template>
   <div class="event-form">
+    <div class="quick-import paste-import">
+      <label for="eventPasteText">Paste an event brief for quick input</label>
+      <textarea
+        id="eventPasteText"
+        v-model="pastedEventText"
+        rows="8"
+        placeholder="Paste the event text here"
+      ></textarea>
+      <div class="quick-import-actions">
+        <p v-if="pasteImportStatus" class="import-status">{{ pasteImportStatus }}</p>
+        <button type="button" @click="handlePasteImport" :disabled="isParsingPaste || !pastedEventText.trim()">
+          {{ isParsingPaste ? 'Parsing...' : 'Parse & Fill Form' }}
+        </button>
+      </div>
+    </div>
+
     <div class="quick-import">
         <label for="link">Enter the link to the event for quick input (Optinal)</label>
         <input
@@ -379,6 +395,7 @@
             <button type="submit" class="submit-btn" :disabled="isSubmitting">
               {{ isSubmitting ? 'Publishing...' : '🚀 Publish Event!' }}
             </button>
+            <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
           </div>
         </div>
         
@@ -402,11 +419,15 @@ const router = useRouter();
 const userStore = useUserStore();
 const eventStore = useEventStore();
 const isSubmitting = ref(false);
+const submitStatus = ref('');
 const db = getFirestore();
 const storage = getStorage();
 const currentStep = ref(1);
 const importLink = ref('');
 const isImporting = ref(false);
+const pastedEventText = ref('');
+const isParsingPaste = ref(false);
+const pasteImportStatus = ref('');
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-lite';
@@ -434,9 +455,58 @@ const formData = ref({
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+type ImportedEventData = Partial<{
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  imageUrl: string;
+  link: string;
+  recurrenceType: RecurrenceType;
+  tags: string[];
+  daysOfWeek: number[];
+  daysOfMonthInput: string;
+  maxParticipants: number | null;
+  reviewStars: number | null;
+  reviewScore: number | null;
+  reviewSentence: string;
+}>;
+
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
 );
+
+const formatErrorMessage = (error: unknown) => {
+  if (typeof error === 'object' && error && 'code' in error) {
+    const firebaseError = error as { code?: unknown; message?: unknown };
+    const code = firebaseError.code ? String(firebaseError.code) : 'unknown';
+    const message = firebaseError.message ? String(firebaseError.message) : 'No details';
+    return `${code}: ${message}`;
+  }
+
+  if (error instanceof Error) return error.message;
+  return String(error);
+};
+
+const logFormSnapshot = (source: string) => {
+  console.log(`[EventForm] ${source}`, {
+    title: formData.value.title,
+    startDate: formData.value.startDate,
+    startTime: formData.value.startTime,
+    endDate: formData.value.endDate,
+    endTime: formData.value.endTime,
+    location: formData.value.location,
+    category: formData.value.category,
+    tags: formData.value.tags,
+    link: formData.value.link,
+    reviewStars: formData.value.reviewStars,
+    reviewScore: formData.value.reviewScore,
+  });
+};
 
 const normalizedReviewStars = computed(() => (
   Math.round(clampNumber(Number(formData.value.reviewStars ?? 4), 1, 5))
@@ -464,6 +534,161 @@ const parseTagsFromInput = (value: string) => {
   return value.split(/[,，\s]+/).map(tag => tag.trim()).filter(Boolean);
 };
 
+const normalizeTagList = (tags: unknown): string[] => {
+  if (typeof tags === 'string') {
+    return [...new Set(
+      tags
+        .replace(/`/g, '')
+        .split(/[,，\s]+/)
+        .map(tag => tag.trim())
+        .filter(Boolean)
+    )];
+  }
+
+  if (!Array.isArray(tags)) return [];
+
+  return [...new Set(
+    tags
+      .map(tag => String(tag).replace(/^#+/, '').trim())
+      .filter(Boolean)
+  )];
+};
+
+const toText = (value: unknown, fallback = '') => (
+  typeof value === 'string' ? value : value == null ? fallback : String(value)
+);
+
+const toNullableNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+
+  const parsed = Number(value.match(/\d+(?:\.\d+)?/)?.[0] ?? NaN);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeTime = (value: unknown) => {
+  const trimmed = toText(value).trim().toUpperCase().replace(/\s+/g, ' ');
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+  if (!match) return '';
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] ?? '0');
+  const meridiem = match[3];
+
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  if (hours > 23 || minutes > 59) return '';
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+const normalizeDateInput = (value: unknown) => {
+  const trimmed = toText(value).trim();
+  if (!trimmed) return '';
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+  }
+
+  const chineseMatch = trimmed.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  if (chineseMatch) {
+    return `${chineseMatch[1]}-${chineseMatch[2].padStart(2, '0')}-${chineseMatch[3].padStart(2, '0')}`;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeCategoryValue = (value: unknown, tags: string[]) => {
+  const normalized = toText(value).trim().toLowerCase();
+  if (normalized === 'academic') return 'Academic';
+  if (normalized === 'interest') return 'Interest';
+  if (normalized === 'career') return 'Career';
+  return inferCategory(tags);
+};
+
+const normalizeRecurrenceType = (value: unknown) => {
+  const normalized = toText(value).trim().toUpperCase();
+  if (normalized === RecurrenceType.DAILY) return RecurrenceType.DAILY;
+  if (normalized === RecurrenceType.WEEKLY) return RecurrenceType.WEEKLY;
+  if (normalized === RecurrenceType.MONTHLY) return RecurrenceType.MONTHLY;
+  return RecurrenceType.ONE_TIME;
+};
+
+const inferCategory = (tags: string[], fallback = '') => {
+  if (fallback) return fallback;
+
+  const joined = tags.join(' ').toLowerCase();
+  if (joined.includes('career') || joined.includes('internship') || joined.includes('networking') || joined.includes('job')) {
+    return 'Career';
+  }
+  if (joined.includes('academic') || joined.includes('engineering') || joined.includes('student')) {
+    return 'Academic';
+  }
+
+  return 'Interest';
+};
+
+const applyImportedEventData = (data: ImportedEventData) => {
+  if (!data || typeof data !== 'object') return;
+  const tags = normalizeTagList(data.tags);
+
+  formData.value.title = toText(data.title, formData.value.title);
+  formData.value.description = toText(data.description, formData.value.description);
+  formData.value.location = toText(data.location, formData.value.location);
+  formData.value.category = normalizeCategoryValue(data.category ?? formData.value.category, tags);
+
+  formData.value.startDate = normalizeDateInput(data.startDate ?? formData.value.startDate);
+  formData.value.startTime = normalizeTime(data.startTime ?? formData.value.startTime);
+  formData.value.endDate = normalizeDateInput(data.endDate ?? formData.value.endDate);
+  formData.value.endTime = normalizeTime(data.endTime ?? formData.value.endTime);
+  formData.value.imageUrl = toText(data.imageUrl, formData.value.imageUrl);
+
+  formData.value.recurrenceType = normalizeRecurrenceType(data.recurrenceType ?? formData.value.recurrenceType);
+
+  if (tags.length) {
+    formData.value.tags = tags;
+    tagsInputValue.value = tags.join(', ');
+  }
+
+  if (Array.isArray(data.daysOfWeek)) {
+    formData.value.daysOfWeek = data.daysOfWeek.filter((d: number) => d >= 0 && d <= 6);
+  }
+
+  if (data.daysOfMonthInput != null) {
+    formData.value.daysOfMonthInput = toText(data.daysOfMonthInput);
+  }
+
+  const maxParticipants = toNullableNumber(data.maxParticipants);
+  if (maxParticipants !== null) {
+    formData.value.maxParticipants = maxParticipants;
+  }
+
+  if (data.link) {
+    formData.value.link = toText(data.link);
+  }
+
+  const reviewStars = toNullableNumber(data.reviewStars);
+  if (reviewStars !== null) {
+    formData.value.reviewStars = reviewStars;
+  }
+
+  const reviewScore = toNullableNumber(data.reviewScore);
+  if (reviewScore !== null) {
+    formData.value.reviewScore = reviewScore;
+  }
+
+  if (data.reviewSentence != null) {
+    formData.value.reviewSentence = toText(data.reviewSentence);
+  }
+};
+
 const createLocalDateFromInput = (
   value: string,
   hours = 0,
@@ -474,6 +699,8 @@ const createLocalDateFromInput = (
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day, hours, minutes, seconds, milliseconds);
 };
+
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
 
 // 处理input事件
 const handleTagsInput = (event: globalThis.Event) => {
@@ -531,6 +758,31 @@ const handleImageSelection = (event: Event) => {
   selectedImageFile.value = target.files?.[0] || null;
 };
 
+const handlePasteImport = async () => {
+  const document = pastedEventText.value.trim();
+  if (!document) return;
+
+  isParsingPaste.value = true;
+  pasteImportStatus.value = '';
+
+  try {
+    const data = await parsePastedEventWithGemini(document);
+    applyImportedEventData(data);
+    logFormSnapshot('AI paste import applied');
+    pasteImportStatus.value = 'Form filled from pasted text.';
+    currentStep.value = 1;
+  } catch (err) {
+    console.error(err);
+    const fallback = parsePastedEventLocally(document);
+    applyImportedEventData(fallback);
+    logFormSnapshot('Local paste import applied');
+    pasteImportStatus.value = 'Used local parsing because AI parsing was unavailable.';
+    currentStep.value = 1;
+  } finally {
+    isParsingPaste.value = false;
+  }
+};
+
 const handleImport = async () => {
   if (!importLink.value) return;
 
@@ -542,42 +794,8 @@ const handleImport = async () => {
     if (!data || typeof data !== 'object') alert('Failed to import event. (could be scraper or gemini)');
     console.log(data);
 
-    formData.value.title = data.title ?? formData.value.title;
-    formData.value.description = data.description ?? formData.value.description;
-    formData.value.location = data.location ?? formData.value.location;
-    formData.value.category = data.category ?? formData.value.category;
-
-    formData.value.startDate = data.startDate ?? formData.value.startDate;
-    formData.value.startTime = data.startTime ?? formData.value.startTime;
-    formData.value.endDate = data.endDate ?? formData.value.endDate;
-    formData.value.endTime = data.endTime ?? formData.value.endTime;
-
-    formData.value.imageUrl = data.imageUrl ?? formData.value.imageUrl;
-
-    if (data.recurrenceType) {
-      formData.value.recurrenceType = data.recurrenceType;
-    }
-
-    if (Array.isArray(data.tags)) {
-      formData.value.tags = data.tags.map((t: string) => t.trim()).filter(Boolean);
-      tagsInputValue.value = formData.value.tags.join(', ');
-    }
-
-    if (Array.isArray(data.daysOfWeek)) {
-      formData.value.daysOfWeek = data.daysOfWeek.filter((d: number) => d >= 0 && d <= 6);
-    }
-
-    if (data.daysOfMonthInput) {
-      formData.value.daysOfMonthInput = String(data.daysOfMonthInput);
-    }
-
-    if (typeof data.maxParticipants === 'number') {
-      formData.value.maxParticipants = data.maxParticipants;
-    }
-
-    if (data.link) {
-      formData.value.link = data.link;
-    }
+    applyImportedEventData(data);
+    logFormSnapshot('Link import applied');
 
     currentStep.value = 1;
   } catch (err) {
@@ -586,6 +804,111 @@ const handleImport = async () => {
   } finally {
     isImporting.value = false;
   }
+};
+
+const parsePastedEventLocally = (document: string): ImportedEventData => {
+  const title = document.match(/^##\s+(.+)$/m)?.[1]?.trim() ?? '';
+  const timeText = document.match(/-\s*\*\*时间[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
+  const location = document.match(/-\s*\*\*地点[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
+  const link = document.match(/-\s*\*\*链接[:：]\*\*\s*\[[^\]]+\]\(([^)]+)\)/)?.[1]?.trim() ?? '';
+  const ratingText = document.match(/-\s*\*\*评分[:：]\*\*\s*([^\n]+)/)?.[1] ?? '';
+  const tagLine = document.match(/-\s*\*\*Tags[:：]\*\*\s*([^\n]+)/i)?.[1] ?? '';
+  const english = document.match(/\*\*English:\*\*\\?\s*\n([\s\S]*?)(?=\n\s*\*\*亮点[:：]\*\*)/)?.[1]?.trim() ?? '';
+  const highlightsChinese = document.match(/\*\*亮点[:：]\*\*\s*([^\n\\]+)/)?.[1]?.trim() ?? '';
+
+  const dateMatch = timeText.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  const timeRangeMatch = timeText.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[–-]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
+  const date = dateMatch
+    ? `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`
+    : '';
+
+  const startTime = timeRangeMatch ? normalizeTime(timeRangeMatch[1]) : '';
+  const endTime = timeRangeMatch ? normalizeTime(timeRangeMatch[2]) : '';
+  const tags = normalizeTagList([...tagLine.matchAll(/`([^`]+)`/g)].map(match => match[1]));
+  const score = Number(ratingText.match(/(\d+(?:\.\d+)?)\s*\/\s*5/)?.[1] ?? NaN);
+  const stars = ratingText.match(/⭐/g)?.length || (Number.isFinite(score) ? Math.round(score) : null);
+  const translatedHighlights = translateKnownHighlights(highlightsChinese);
+  const description = [
+    english,
+    translatedHighlights ? `Highlights: ${translatedHighlights}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  return {
+    title,
+    description,
+    location,
+    category: inferCategory(tags),
+    startDate: date,
+    startTime,
+    endDate: date,
+    endTime,
+    link,
+    recurrenceType: RecurrenceType.ONE_TIME,
+    tags,
+    reviewStars: stars,
+    reviewScore: Number.isFinite(score) ? score : stars,
+    reviewSentence: Number.isFinite(score) ? `${score}/5` : '',
+  };
+};
+
+const translateKnownHighlights = (value: string) => {
+  if (!value) return '';
+
+  const parts = value
+    .split(/[;；]/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const dictionary: Record<string, string> = {
+    '直接接触招聘方': 'Direct access to recruiters',
+    '适合寻找 2027 实习': 'Useful for students seeking 2027 internships',
+    '可以练习 elevator pitch。': 'A good chance to practice your elevator pitch',
+    '可以练习 elevator pitch': 'A good chance to practice your elevator pitch',
+  };
+
+  return parts.map(part => dictionary[part] ?? part).join('; ');
+};
+
+const parsePastedEventWithGemini = async (document: string): Promise<ImportedEventData> => {
+  const prompt = `
+You extract UW event publishing fields from pasted Markdown or plain text.
+
+Return ONLY valid JSON with this schema:
+
+{
+  "title": "",
+  "description": "",
+  "location": "",
+  "category": "",
+  "startDate": "",
+  "startTime": "",
+  "endDate": "",
+  "endTime": "",
+  "link": "",
+  "recurrenceType": "ONE_TIME",
+  "tags": [],
+  "reviewStars": null,
+  "reviewScore": null,
+  "reviewSentence": ""
+}
+
+Rules:
+- Extract the event title.
+- Convert the time/date into English-compatible form fields: startDate/endDate as YYYY-MM-DD and startTime/endTime as 24-hour HH:MM.
+- Extract location, link, rating, score, and tags exactly from the pasted content.
+- Put the English event introduction and the English translation of highlights into "description".
+- Description format: English intro, blank line, then "Highlights: ..." in English.
+- Choose category from "Academic", "Interest", or "Career".
+- Use "ONE_TIME" unless the source explicitly says it repeats.
+- Use "" for missing strings, [] for missing arrays, null for unknown numbers.
+- DO NOT hallucinate facts not present in the source.
+- Output ONLY raw JSON.
+
+PASTED EVENT:
+${document}
+  `.trim();
+
+  return gemini(prompt);
 };
 
 
@@ -602,7 +925,7 @@ const scraper = async (url: string) => {
       return;
     }
 
-    const form = await gemini(html);
+    const form = await extractEventFromDocumentWithGemini(html);
 
     if (!form) {
       alert('Failed to import event (Gemini issue)');
@@ -616,12 +939,7 @@ const scraper = async (url: string) => {
   }
 };
 
-const gemini = async (document: string) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
-  }
-
+const extractEventFromDocumentWithGemini = async (document: string) => {
   const prompt = `
 You are an information extraction system.
 
@@ -662,6 +980,15 @@ Rules:
 DOCUMENT:
 ${document}
     `.trim();
+
+  return gemini(prompt);
+};
+
+const gemini = async (prompt: string) => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
+  }
 
   const response = await fetch(`${GEMINI_ENDPOINT}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
     method: 'POST',
@@ -719,6 +1046,8 @@ const handleSubmit = async () => {
   }
 
   isSubmitting.value = true;
+  submitStatus.value = 'Preparing event...';
+  logFormSnapshot('Submitting event form');
   try {
     const reviewSentence = formData.value.reviewSentence.trim();
 
@@ -742,6 +1071,13 @@ const handleSubmit = async () => {
       } else {
         // Create date without time component - will be handled in display  
         end = createLocalDateFromInput(formData.value.endDate, 23, 59, 59, 999);
+      }
+
+      if (!isValidDate(start) || !isValidDate(end)) {
+        alert('Please check the event date and time. The pasted content may not have been parsed into a valid schedule.');
+        isSubmitting.value = false;
+        submitStatus.value = '';
+        return;
       }
       
       // Store whether times were provided for display purposes
@@ -770,11 +1106,13 @@ const handleSubmit = async () => {
       if (!formData.value.startDate) {
         alert('Please fill in the start date.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       schedule = {
@@ -788,11 +1126,13 @@ const handleSubmit = async () => {
       if (!formData.value.startDate || formData.value.daysOfWeek.length === 0) {
         alert('Please fill in the start date and select at least one day of week.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       schedule = {
@@ -807,17 +1147,20 @@ const handleSubmit = async () => {
       if (!formData.value.startDate || !formData.value.daysOfMonthInput) {
         alert('Please fill in the start date and enter days of month.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       const daysOfMonth = formData.value.daysOfMonthInput.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= 31);
       if (daysOfMonth.length === 0) {
         alert('Please enter valid days of month (1-31).');
         isSubmitting.value = false;
+        submitStatus.value = '';
         return;
       }
       schedule = {
@@ -833,6 +1176,7 @@ const handleSubmit = async () => {
     if (!schedule) {
       alert('Invalid schedule.');
       isSubmitting.value = false;
+      submitStatus.value = '';
       return;
     }
 
@@ -869,6 +1213,7 @@ const handleSubmit = async () => {
   try {
     // 上传图片
     if (selectedImageFile.value) {
+      submitStatus.value = 'Uploading image...';
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
       const storageReference = storageRef(storage, storagePath);
 
@@ -880,6 +1225,7 @@ const handleSubmit = async () => {
       formData.value.imageUrl = downloadURL;
     }
 
+      submitStatus.value = 'Saving event...';
       const eventData: Omit<EventModel, 'id'> = {
       title: formData.value.title,
       description: formData.value.description.trim() || `Come and enjoy ${formData.value.title}!`,
@@ -909,21 +1255,31 @@ const handleSubmit = async () => {
       _hasEndTime: !!formData.value.endTime,
     } as any;
 
-    await addDoc(collection(db, 'events'), eventData);
+    const docRef = await addDoc(collection(db, 'events'), eventData);
+    console.log('[EventForm] Event written to Firestore', {
+      id: docRef.id,
+      projectId: db.app.options.projectId,
+      title: eventData.title,
+      startTime,
+      endtime,
+    });
     alert('Successfully published!');
 
+    submitStatus.value = 'Refreshing events...';
     await eventStore.fetchEvents();
-    router.push('/events');
+    router.push(`/events/${docRef.id}`);
   } catch (error) {
     console.error('Failed to publish event:', error);
-    alert('Failed to publish event.');
+    alert(`Failed to publish event: ${formatErrorMessage(error)}`);
   } finally {
     isSubmitting.value = false;
+    submitStatus.value = '';
   }
 } catch (error) {
     console.error('Failed to submit event:', error);
-    alert('Failed to submit event. Please try again.');
+    alert(`Failed to submit event: ${formatErrorMessage(error)}`);
     isSubmitting.value = false;
+    submitStatus.value = '';
   }
 }
 </script>

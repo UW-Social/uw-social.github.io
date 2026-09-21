@@ -319,9 +319,7 @@ watch(
 );
 
 onMounted(async () => {
-  if (eventStore.events.length === 0) {
-    await eventStore.fetchEvents();
-  }
+  await eventStore.fetchEvents();
   await refresh();
 });
 </script>
