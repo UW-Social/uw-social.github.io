@@ -16,22 +16,6 @@
       </div>
     </div>
 
-    <div class="quick-import paste-import">
-      <label for="eventPasteText">Paste an event brief for quick input</label>
-      <textarea
-        id="eventPasteText"
-        v-model="pastedEventText"
-        rows="8"
-        placeholder="Paste the event text here"
-      ></textarea>
-      <div class="quick-import-actions">
-        <p v-if="pasteImportStatus" class="import-status">{{ pasteImportStatus }}</p>
-        <button type="button" @click="handlePasteImport" :disabled="isParsingPaste || !pastedEventText.trim()">
-          {{ isParsingPaste ? 'Parsing...' : 'Parse & Fill Form' }}
-        </button>
-      </div>
-    </div>
-
     <div class="quick-import">
         <label for="link">Enter the link to the event for quick input (Optinal)</label>
         <input
@@ -417,7 +401,6 @@
               {{ isSubmitting ? 'Publishing...' : '🚀 Publish Event!' }}
             </button>
             <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
-            <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
           </div>
         </div>
         
@@ -442,15 +425,11 @@ const userStore = useUserStore();
 const eventStore = useEventStore();
 const isSubmitting = ref(false);
 const submitStatus = ref('');
-const submitStatus = ref('');
 const db = getFirestore();
 const storage = getStorage();
 const currentStep = ref(1);
 const importLink = ref('');
 const isImporting = ref(false);
-const pastedEventText = ref('');
-const isParsingPaste = ref(false);
-const pasteImportStatus = ref('');
 const pastedEventText = ref('');
 const isParsingPaste = ref(false);
 const pasteImportStatus = ref('');
@@ -502,71 +481,9 @@ type ImportedEventData = Partial<{
   reviewSentence: string;
 }>;
 
-type ImportedEventData = Partial<{
-  title: string;
-  description: string;
-  location: string;
-  category: string;
-  startDate: string;
-  startTime: string;
-  endDate: string;
-  endTime: string;
-  imageUrl: string;
-  link: string;
-  recurrenceType: RecurrenceType;
-  tags: string[];
-  daysOfWeek: number[];
-  daysOfMonthInput: string;
-  maxParticipants: number | null;
-  reviewStars: number | null;
-  reviewScore: number | null;
-  reviewSentence: string;
-}>;
-
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
 );
-
-const formatErrorMessage = (error: unknown) => {
-  if (typeof error === 'object' && error && 'code' in error) {
-    const firebaseError = error as { code?: unknown; message?: unknown };
-    const code = firebaseError.code ? String(firebaseError.code) : 'unknown';
-    const message = firebaseError.message ? String(firebaseError.message) : 'No details';
-    return `${code}: ${message}`;
-  }
-
-  if (error instanceof Error) return error.message;
-  return String(error);
-};
-
-const runPublishStep = async <T,>(label: string, task: () => Promise<T>) => {
-  submitStatus.value = label;
-  console.log(`[EventForm] ${label}`);
-  try {
-    const result = await task();
-    console.log(`[EventForm] ${label} done`);
-    return result;
-  } catch (error) {
-    console.error(`[EventForm] ${label} failed`, error);
-    throw new Error(`${label} failed: ${formatErrorMessage(error)}`);
-  }
-};
-
-const logFormSnapshot = (source: string) => {
-  console.log(`[EventForm] ${source}`, {
-    title: formData.value.title,
-    startDate: formData.value.startDate,
-    startTime: formData.value.startTime,
-    endDate: formData.value.endDate,
-    endTime: formData.value.endTime,
-    location: formData.value.location,
-    category: formData.value.category,
-    tags: formData.value.tags,
-    link: formData.value.link,
-    reviewStars: formData.value.reviewStars,
-    reviewScore: formData.value.reviewScore,
-  });
-};
 
 const formatErrorMessage = (error: unknown) => {
   if (typeof error === 'object' && error && 'code' in error) {
@@ -814,12 +731,6 @@ const willShowInEventList = (end: Date) => (
   isValidDate(end) && end.getTime() >= Date.now()
 );
 
-const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
-
-const willShowInEventList = (end: Date) => (
-  isValidDate(end) && end.getTime() >= Date.now()
-);
-
 // 处理input事件
 const handleTagsInput = (event: globalThis.Event) => {
   const target = event.target as HTMLInputElement;
@@ -874,31 +785,6 @@ const selectedImageFile = ref<File | null>(null);
 const handleImageSelection = (event: Event) => {
   const target = event.target as HTMLInputElement;
   selectedImageFile.value = target.files?.[0] || null;
-};
-
-const handlePasteImport = async () => {
-  const document = pastedEventText.value.trim();
-  if (!document) return;
-
-  isParsingPaste.value = true;
-  pasteImportStatus.value = '';
-
-  try {
-    const data = await parsePastedEventWithGemini(document);
-    applyImportedEventData(data);
-    logFormSnapshot('AI paste import applied');
-    pasteImportStatus.value = 'Form filled from pasted text.';
-    currentStep.value = 1;
-  } catch (err) {
-    console.error(err);
-    const fallback = parsePastedEventLocally(document);
-    applyImportedEventData(fallback);
-    logFormSnapshot('Local paste import applied');
-    pasteImportStatus.value = 'Used local parsing because AI parsing was unavailable.';
-    currentStep.value = 1;
-  } finally {
-    isParsingPaste.value = false;
-  }
 };
 
 const handlePasteImport = async () => {
@@ -1052,121 +938,6 @@ ${document}
   `.trim();
 
   return gemini(prompt);
-    applyImportedEventData(data);
-    logFormSnapshot('Link import applied');
-
-    currentStep.value = 1;
-  } catch (err) {
-    console.error(err);
-    alert('Failed to import event. (check console for reason)');
-  } finally {
-    isImporting.value = false;
-  }
-};
-
-const parsePastedEventLocally = (document: string): ImportedEventData => {
-  const title = document.match(/^##\s+(.+)$/m)?.[1]?.trim() ?? '';
-  const timeText = document.match(/-\s*\*\*时间[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
-  const location = document.match(/-\s*\*\*地点[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
-  const link = document.match(/-\s*\*\*链接[:：]\*\*\s*\[[^\]]+\]\(([^)]+)\)/)?.[1]?.trim() ?? '';
-  const ratingText = document.match(/-\s*\*\*评分[:：]\*\*\s*([^\n]+)/)?.[1] ?? '';
-  const tagLine = document.match(/-\s*\*\*Tags[:：]\*\*\s*([^\n]+)/i)?.[1] ?? '';
-  const english = document.match(/\*\*English:\*\*\\?\s*\n([\s\S]*?)(?=\n\s*\*\*亮点[:：]\*\*)/)?.[1]?.trim() ?? '';
-  const highlightsChinese = document.match(/\*\*亮点[:：]\*\*\s*([^\n\\]+)/)?.[1]?.trim() ?? '';
-
-  const dateMatch = timeText.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-  const timeRangeMatch = timeText.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[–-]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
-  const date = dateMatch
-    ? `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`
-    : '';
-
-  const startTime = timeRangeMatch ? normalizeTime(timeRangeMatch[1]) : '';
-  const endTime = timeRangeMatch ? normalizeTime(timeRangeMatch[2]) : '';
-  const tags = normalizeTagList([...tagLine.matchAll(/`([^`]+)`/g)].map(match => match[1]));
-  const score = Number(ratingText.match(/(\d+(?:\.\d+)?)\s*\/\s*5/)?.[1] ?? NaN);
-  const stars = ratingText.match(/⭐/g)?.length || (Number.isFinite(score) ? Math.round(score) : null);
-  const translatedHighlights = translateKnownHighlights(highlightsChinese);
-  const description = [
-    english,
-    translatedHighlights ? `Highlights: ${translatedHighlights}` : '',
-  ].filter(Boolean).join('\n\n');
-
-  return {
-    title,
-    description,
-    location,
-    category: inferCategory(tags),
-    startDate: date,
-    startTime,
-    endDate: date,
-    endTime,
-    link,
-    recurrenceType: RecurrenceType.ONE_TIME,
-    tags,
-    reviewStars: stars,
-    reviewScore: Number.isFinite(score) ? score : stars,
-    reviewSentence: Number.isFinite(score) ? `${score}/5` : '',
-  };
-};
-
-const translateKnownHighlights = (value: string) => {
-  if (!value) return '';
-
-  const parts = value
-    .split(/[;；]/)
-    .map(part => part.trim())
-    .filter(Boolean);
-
-  const dictionary: Record<string, string> = {
-    '直接接触招聘方': 'Direct access to recruiters',
-    '适合寻找 2027 实习': 'Useful for students seeking 2027 internships',
-    '可以练习 elevator pitch。': 'A good chance to practice your elevator pitch',
-    '可以练习 elevator pitch': 'A good chance to practice your elevator pitch',
-  };
-
-  return parts.map(part => dictionary[part] ?? part).join('; ');
-};
-
-const parsePastedEventWithGemini = async (document: string): Promise<ImportedEventData> => {
-  const prompt = `
-You extract UW event publishing fields from pasted Markdown or plain text.
-
-Return ONLY valid JSON with this schema:
-
-{
-  "title": "",
-  "description": "",
-  "location": "",
-  "category": "",
-  "startDate": "",
-  "startTime": "",
-  "endDate": "",
-  "endTime": "",
-  "link": "",
-  "recurrenceType": "ONE_TIME",
-  "tags": [],
-  "reviewStars": null,
-  "reviewScore": null,
-  "reviewSentence": ""
-}
-
-Rules:
-- Extract the event title.
-- Convert the time/date into English-compatible form fields: startDate/endDate as YYYY-MM-DD and startTime/endTime as 24-hour HH:MM.
-- Extract location, link, rating, score, and tags exactly from the pasted content.
-- Put the English event introduction and the English translation of highlights into "description".
-- Description format: English intro, blank line, then "Highlights: ..." in English.
-- Choose category from "Academic", "Interest", or "Career".
-- Use "ONE_TIME" unless the source explicitly says it repeats.
-- Use "" for missing strings, [] for missing arrays, null for unknown numbers.
-- DO NOT hallucinate facts not present in the source.
-- Output ONLY raw JSON.
-
-PASTED EVENT:
-${document}
-  `.trim();
-
-  return gemini(prompt);
 };
 
 
@@ -1184,7 +955,6 @@ const scraper = async (url: string) => {
     }
 
     const form = await extractEventFromDocumentWithGemini(html);
-    const form = await extractEventFromDocumentWithGemini(html);
 
     if (!form) {
       alert('Failed to import event (Gemini issue)');
@@ -1198,7 +968,6 @@ const scraper = async (url: string) => {
   }
 };
 
-const extractEventFromDocumentWithGemini = async (document: string) => {
 const extractEventFromDocumentWithGemini = async (document: string) => {
   const prompt = `
 You are an information extraction system.
@@ -1240,15 +1009,6 @@ Rules:
 DOCUMENT:
 ${document}
     `.trim();
-
-  return gemini(prompt);
-};
-
-const gemini = async (prompt: string) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
-  }
 
   return gemini(prompt);
 };
@@ -1317,8 +1077,6 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
   submitStatus.value = 'Preparing event...';
   logFormSnapshot('Submitting event form');
-  submitStatus.value = 'Preparing event...';
-  logFormSnapshot('Submitting event form');
   try {
     const reviewSentence = formData.value.reviewSentence.trim();
 
@@ -1342,13 +1100,6 @@ const handleSubmit = async () => {
       } else {
         // Create date without time component - will be handled in display  
         end = createLocalDateFromInput(formData.value.endDate, 23, 59, 59, 999);
-      }
-
-      if (!isValidDate(start) || !isValidDate(end)) {
-        alert('Please check the event date and time. The pasted content may not have been parsed into a valid schedule.');
-        isSubmitting.value = false;
-        submitStatus.value = '';
-        return;
       }
 
       if (!isValidDate(start) || !isValidDate(end)) {
@@ -1385,13 +1136,11 @@ const handleSubmit = async () => {
         alert('Please fill in the start date.');
         isSubmitting.value = false;
         submitStatus.value = '';
-        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
-        submitStatus.value = '';
         submitStatus.value = '';
         return;
       }
@@ -1407,13 +1156,11 @@ const handleSubmit = async () => {
         alert('Please fill in the start date and select at least one day of week.');
         isSubmitting.value = false;
         submitStatus.value = '';
-        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
-        submitStatus.value = '';
         submitStatus.value = '';
         return;
       }
@@ -1430,13 +1177,11 @@ const handleSubmit = async () => {
         alert('Please fill in the start date and enter days of month.');
         isSubmitting.value = false;
         submitStatus.value = '';
-        submitStatus.value = '';
         return;
       }
       if (formData.value.endDate && createLocalDateFromInput(formData.value.endDate) < createLocalDateFromInput(formData.value.startDate)) {
         alert('End date must be after start date.');
         isSubmitting.value = false;
-        submitStatus.value = '';
         submitStatus.value = '';
         return;
       }
@@ -1444,7 +1189,6 @@ const handleSubmit = async () => {
       if (daysOfMonth.length === 0) {
         alert('Please enter valid days of month (1-31).');
         isSubmitting.value = false;
-        submitStatus.value = '';
         submitStatus.value = '';
         return;
       }
@@ -1461,7 +1205,6 @@ const handleSubmit = async () => {
     if (!schedule) {
       alert('Invalid schedule.');
       isSubmitting.value = false;
-      submitStatus.value = '';
       submitStatus.value = '';
       return;
     }
@@ -1493,10 +1236,6 @@ const handleSubmit = async () => {
       startTime = startDate;
       endtime = endDate;
     }
-
-
-
-  try {
     // 上传图片
     if (selectedImageFile.value) {
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
@@ -1506,13 +1245,11 @@ const handleSubmit = async () => {
 
       const snapshot = await runPublishStep('Uploading image...', () => uploadBytes(storageReference, selectedImageFile.value!));
       const downloadURL = await runPublishStep('Getting image URL...', () => getDownloadURL(snapshot.ref));
-      const snapshot = await runPublishStep('Uploading image...', () => uploadBytes(storageReference, selectedImageFile.value!));
-      const downloadURL = await runPublishStep('Getting image URL...', () => getDownloadURL(snapshot.ref));
       console.log('图片上传成功，下载URL:', downloadURL);
       formData.value.imageUrl = downloadURL;
     }
 
-      const eventData: Omit<EventModel, 'id'> = {
+    const eventData: Omit<EventModel, 'id'> = {
       title: formData.value.title,
       description: formData.value.description.trim() || `Come and enjoy ${formData.value.title}!`,
       location: formData.value.location,
@@ -1558,27 +1295,8 @@ const handleSubmit = async () => {
       startTime,
       endtime,
     });
-    console.log('[EventForm] Event payload visibility check', {
-      title: eventData.title,
-      category: eventData.category,
-      startTime,
-      endtime,
-      willShowInEventList: willShowInEventList(endtime),
-      now: new Date(),
-    });
-
-    const docRef = await runPublishStep('Saving event...', () => addDoc(collection(db, 'events'), eventData));
-    console.log('[EventForm] Event written to Firestore', {
-      id: docRef.id,
-      projectId: db.app.options.projectId,
-      title: eventData.title,
-      startTime,
-      endtime,
-    });
     alert('Successfully published!');
 
-    await runPublishStep('Refreshing events...', () => eventStore.fetchEvents());
-    router.push(`/events/${docRef.id}`);
     await runPublishStep('Refreshing events...', () => eventStore.fetchEvents());
     router.push(`/events/${docRef.id}`);
   } catch (error) {
@@ -1586,23 +1304,10 @@ const handleSubmit = async () => {
     const message = formatErrorMessage(error);
     submitStatus.value = message;
     alert(`Failed to publish event: ${message}`);
-    const message = formatErrorMessage(error);
-    submitStatus.value = message;
-    alert(`Failed to publish event: ${message}`);
   } finally {
     isSubmitting.value = false;
   }
-} catch (error) {
-    console.error('Failed to submit event:', error);
-    const message = formatErrorMessage(error);
-    submitStatus.value = message;
-    alert(`Failed to submit event: ${message}`);
-    const message = formatErrorMessage(error);
-    submitStatus.value = message;
-    alert(`Failed to submit event: ${message}`);
-    isSubmitting.value = false;
-  }
-}
+};
 </script>
 
 <style scoped>
