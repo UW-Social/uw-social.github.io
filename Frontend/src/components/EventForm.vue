@@ -727,8 +727,8 @@ const createLocalDateFromInput = (
 
 const isValidDate = (value: Date) => !Number.isNaN(value.getTime());
 
-const willShowInEventList = (end: Date) => (
-  isValidDate(end) && end.getTime() >= Date.now()
+const willShowInEventList = (end?: Date) => (
+  !!end && isValidDate(end) && end.getTime() >= Date.now()
 );
 
 // 处理input事件
@@ -1210,7 +1210,8 @@ const handleSubmit = async () => {
     }
 
     // Calculate startTime and endtime for compatibility with existing EventList filtering
-    let startTime, endtime;
+    let startTime: Date;
+    let endtime: Date;
     if (recurrenceType === RecurrenceType.ONE_TIME) {
       startTime = schedule.startDatetime;
       endtime = schedule.endDatetime;
