@@ -416,7 +416,7 @@ import { useUserStore } from '../stores/user';
 import { useEventStore } from '../stores/event';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import type { Event as EventModel } from '../types/event';
+import type { Event as EventModel, EventSchedule } from '../types/event';
 import { RecurrenceType } from '../types/event';
 import '@/assets/eventform.css';
 
@@ -1080,7 +1080,7 @@ const handleSubmit = async () => {
   try {
     const reviewSentence = formData.value.reviewSentence.trim();
 
-    let schedule;
+    let schedule: EventSchedule | null = null;
     const recurrenceType = formData.value.recurrenceType;
     if (recurrenceType === RecurrenceType.ONE_TIME) {
       // Use provided times or null if not provided
@@ -1210,8 +1210,9 @@ const handleSubmit = async () => {
     }
 
     // Calculate startTime and endtime for compatibility with existing EventList filtering
-    let startTime, endtime;
-    if (recurrenceType === RecurrenceType.ONE_TIME) {
+    let startTime: Date;
+    let endtime: Date;
+    if (schedule.type === RecurrenceType.ONE_TIME) {
       startTime = schedule.startDatetime;
       endtime = schedule.endDatetime;
     } else {
