@@ -53,6 +53,7 @@ const TRENDING_POP_WEIGHT = 0.4;
 
 const VALID_CATEGORIES = new Set([
   'ACADEMIC',
+  'CAREER',
   'CLUB',
   'SPORTS',
   'GAMES',
