@@ -416,7 +416,7 @@ import { useUserStore } from '../stores/user';
 import { useEventStore } from '../stores/event';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import type { Event as EventModel } from '../types/event';
+import type { Event as EventModel, EventSchedule } from '../types/event';
 import { RecurrenceType } from '../types/event';
 import '@/assets/eventform.css';
 
@@ -1080,7 +1080,7 @@ const handleSubmit = async () => {
   try {
     const reviewSentence = formData.value.reviewSentence.trim();
 
-    let schedule;
+    let schedule: EventSchedule | null = null;
     const recurrenceType = formData.value.recurrenceType;
     if (recurrenceType === RecurrenceType.ONE_TIME) {
       // Use provided times or null if not provided
