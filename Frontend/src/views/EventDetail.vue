@@ -278,6 +278,23 @@
         </aside>
       </div>
 
+      <section class="related-events-section">
+        <div class="section-header-row related-events-header">
+          <div>
+            <h2 class="section-title">More Events for You</h2>
+            <p class="section-helper">
+              Personalized using the same tag matching as your home feed.
+            </p>
+          </div>
+        </div>
+        <EventList
+          :exclude-event-id="event.id"
+          :limit="4"
+          :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+          @open-card="goToRelatedEvent"
+        />
+      </section>
+
     </template>
   </div>
 </template>
@@ -292,6 +309,7 @@ import type { DiscussionPost, ExperiencePost } from '../types/forum';
 import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
+import EventList from '../components/EventList.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import { downloadIcs } from '../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../utils/googleCalendar';
@@ -450,6 +468,15 @@ const returnTo = computed(() => {
 const goBack = () => {
   router.push(returnTo.value);
 
+};
+
+const goToRelatedEvent = (relatedEvent: Event) => {
+  router.push({
+    path: `/events/${relatedEvent.id}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
 };
 
 const goToLogin = () => {

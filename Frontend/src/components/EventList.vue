@@ -32,6 +32,7 @@ const props = defineProps<{
   sort?: 'newest' | 'oldest';
   recommendationMode?: 'personalized' | 'latest' | 'trending';
   limit?: number;
+  excludeEventId?: string;
 }>();
 
 defineEmits<{
@@ -180,6 +181,10 @@ async function refresh() {
 
   let events = [...eventStore.events];
 
+  if (props.excludeEventId) {
+    events = events.filter(event => event.id !== props.excludeEventId);
+  }
+
   events = filterCategory(events);
   events = filterPast(events);
   events = applySearch(events);
@@ -314,7 +319,15 @@ function scoreByTrending(events: Event[]) {
 }
 
 watch(
-  () => [props.category, props.search, props.sort, props.recommendationMode, props.limit, eventStore.events.length],
+  () => [
+    props.category,
+    props.search,
+    props.sort,
+    props.recommendationMode,
+    props.limit,
+    props.excludeEventId,
+    eventStore.events.length,
+  ],
   refresh,
   { immediate: true }
 );

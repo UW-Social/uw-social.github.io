@@ -259,6 +259,17 @@
       <div class="google-map"></div>
     </div>
 
+    <section v-if="event" class="related-events-section">
+      <h2 class="section-title">More Events for You</h2>
+      <p class="section-helper">Personalized using the same tag matching as your home feed.</p>
+      <EventList
+        :exclude-event-id="event.id"
+        :limit="4"
+        :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+        @open-card="goToRelatedEvent"
+      />
+    </section>
+
     <!-- Event Link -->
     <div class="link-card" v-if="event?.link">
       <h2 class="section-title">Event Link</h2>
@@ -295,6 +306,7 @@ import type { DiscussionPost, ExperiencePost } from '../../types/forum';
 import ExperiencePostCard from '../ExperiencePostCard.vue';
 import ForumPostCard from '../ForumPostCard.vue';
 import ReplyInput from '../ReplyInput.vue';
+import EventList from '../EventList.vue';
 import { downloadIcs } from '../../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../../utils/googleCalendar';
 import { buildEventJsonLd, useJsonLd } from '../../utils/structuredData';
@@ -380,6 +392,15 @@ const eventSummary = computed(() => {
   const firstLine = description.split(/\n+/).find(Boolean) || description;
   return firstLine.length > 108 ? `${firstLine.slice(0, 105).trim()}...` : firstLine;
 });
+
+const goToRelatedEvent = (relatedEvent: Event) => {
+  router.push({
+    path: `/events/${relatedEvent.id}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
+};
 
 // Load event data when component mounts
 onMounted(async () => {
