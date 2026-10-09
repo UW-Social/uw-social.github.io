@@ -20,6 +20,7 @@
             :category="categoryFilter"
             :search="searchQuery"
             :sort="sortType"
+            :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
             @open-card="handleEventClick"
           />
         </div>
@@ -75,11 +76,13 @@ import { useRoute, useRouter } from 'vue-router';
 import EventList from '../components/EventList.vue';
 import EventSidebar from '../components/EventSidebar.vue';
 import BackToTop from '../components/BackToTop.vue';
+import { useUserStore } from '../stores/user';
 
 import type { Event } from '../types/event';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 const categoryFilter = ref<string | null>(null);
 const searchQuery = ref(normalizeQueryParam(route.query.q));
