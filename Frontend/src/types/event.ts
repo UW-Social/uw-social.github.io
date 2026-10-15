@@ -1,3 +1,5 @@
+import { toDateInputInTimeZone, toTimeInputInTimeZone } from '../utils/timeZone';
+
 /**
  * Defines the type of recurrence for an event.
  */
@@ -13,6 +15,8 @@ export enum RecurrenceType {
  */
 export interface OneTimeSchedule {
   type: RecurrenceType.ONE_TIME;
+  /** IANA time zone used when the event's wall-clock date and time were entered. */
+  timeZone?: string;
   /** The exact start date and time for the one-time event. */
   startDatetime: Date;
   /** The exact end date and time for the one-time event. Must be on the same day as startDatetime. */
@@ -24,6 +28,8 @@ export interface OneTimeSchedule {
  * Includes common properties like start and optional end dates.
  */
 interface BaseRecurringSchedule {
+  /** IANA time zone used for each recurrence. */
+  timeZone?: string;
   /** The start date from which the recurrence begins. The time component of this date might be ignored or used as the default time for daily/weekly/monthly events, depending on implementation. */
   startDate: Date;
   /** Optional end date for the recurrence. If not provided, the event recurs indefinitely from the startDate. */
@@ -105,9 +111,10 @@ export interface Event {
   review?: EventReviewSummary | null;
   _hasStartTime?: boolean; // Whether original form had start time
   _hasEndTime?: boolean; // Whether original form had end time
+  timeZone?: string; // IANA time zone selected by the organizer
 }
 
-function formatDate(date: any): string {
+function formatDate(date: any, timeZone?: string): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
 
   try {
@@ -135,6 +142,7 @@ function formatDate(date: any): string {
     // Final sanity check
     if (isNaN(d.getTime())) throw new Error("Invalid date object");
 
+    if (timeZone) return toDateInputInTimeZone(d, timeZone);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   } catch (err) {
     console.warn("formatDate failed:", date, err);
@@ -172,18 +180,19 @@ function formatTimeOfDay(time: string): string {
   return `${hour12}:${minutes.toString().padStart(2, '0')}${suffix}`;
 }
 
-function formatCardTime(date: Date, hasTime?: boolean): string {
+function formatCardTime(date: Date, hasTime?: boolean, timeZone?: string): string {
   if (hasTime === false) return '';
 
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+  const [hours, minutes] = timeZone
+    ? toTimeInputInTimeZone(date, timeZone).split(':').map(Number)
+    : [date.getHours(), date.getMinutes()];
 
   if (hasTime === undefined && hours === 0 && minutes === 0) return '';
   return formatTimeOfDay(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
 }
 
-function joinCompactDateAndTime(date: Date, time: string): string {
-  const dateText = formatDate(date);
+function joinCompactDateAndTime(date: Date, time: string, timeZone?: string): string {
+  const dateText = formatDate(date, timeZone);
   return time ? `${dateText} ${time}` : dateText;
 }
 
@@ -192,6 +201,20 @@ function formatTimeRange(startTime?: string, endTime?: string): string {
   if (startTime) return `from ${startTime}`;
   if (endTime) return `until ${endTime}`;
   return 'time TBD';
+}
+
+function formatTimeZoneName(timeZone?: string, date = new Date()): string {
+  if (!timeZone) return '';
+
+  try {
+    const part = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'short',
+    }).formatToParts(date).find((value) => value.type === 'timeZoneName');
+    return part?.value || timeZone;
+  } catch {
+    return timeZone;
+  }
 }
 
 function formatScheduleLines(lines: Array<[string, string]>): string {
@@ -225,8 +248,9 @@ function formatRecurringSchedule(event: Event): string {
 
   const startDate = toDateValue(schedule.startDate);
   const endDate = toDateValue(schedule.endDate);
-  const startText = startDate ? formatDate(startDate) : 'TBD';
-  const endText = endDate ? formatDate(endDate) : 'Ongoing';
+  const timeZone = schedule.timeZone || event.timeZone;
+  const startText = startDate ? formatDate(startDate, timeZone) : 'TBD';
+  const endText = endDate ? formatDate(endDate, timeZone) : 'Ongoing';
   const timeRange = formatTimeRange(schedule.startTimeOfDay, schedule.endTimeOfDay);
 
   if (schedule.type === RecurrenceType.DAILY) {
@@ -235,6 +259,7 @@ function formatRecurringSchedule(event: Event): string {
       ['End Date', endText],
       ['Repeats', 'Every day'],
       ['Time', timeRange],
+      ['Time Zone', formatTimeZoneName(timeZone, startDate ?? undefined)],
     ]);
   }
 
@@ -251,6 +276,7 @@ function formatRecurringSchedule(event: Event): string {
       ['End Date', endText],
       ['Repeats', days],
       ['Time', timeRange],
+      ['Time Zone', formatTimeZoneName(timeZone, startDate ?? undefined)],
     ]);
   }
 
@@ -268,6 +294,7 @@ function formatRecurringSchedule(event: Event): string {
     ['End Date', endText],
     ['Repeats', `Monthly on ${days}`],
     ['Time', timeRange],
+    ['Time Zone', formatTimeZoneName(timeZone, startDate ?? undefined)],
   ]);
 }
 
@@ -277,13 +304,14 @@ function formatRecurringSchedule(event: Event): string {
  */
 export function formatEventSchedule(event: Event): string {
   const schedule = event.schedule;
+  const timeZone = schedule?.timeZone || event.timeZone;
 
   // Defensive safe formatter for all dates
   const safeFormatDate = (d: any): string => {
     if (!d) return 'Unknown';
     try {
       const date = toDateValue(d);
-      return !date ? 'Invalid date' : formatDate(date);
+      return !date ? 'Invalid date' : formatDate(date, timeZone);
     } catch (err) {
       console.warn("Bad date passed to formatDate:", d, err);
       return 'Invalid date';
@@ -299,8 +327,9 @@ export function formatEventSchedule(event: Event): string {
       // If explicitly told this date doesn't have time, return empty
       if (hasTime === false) return '';
       // Don't show midnight (00:00) or end-of-day times when no time was provided
-      const hours = t.getHours();
-      const minutes = t.getMinutes();
+      const [hours, minutes] = timeZone
+        ? toTimeInputInTimeZone(t, timeZone).split(':').map(Number)
+        : [t.getHours(), t.getMinutes()];
       if ((hours === 0 && minutes === 0) || (hours === 23 && minutes === 59)) {
         if (hasTime === undefined) return ''; // No explicit time info, don't show default
       }
@@ -325,15 +354,16 @@ export function formatEventSchedule(event: Event): string {
       
       const startTimeStr = formatTime(start, hasStartTime);
       const endTimeStr = formatTime(end, hasEndTime);
+      const zoneSuffix = timeZone ? ` (${formatTimeZoneName(timeZone, start)})` : '';
       
       if (startTimeStr && endTimeStr) {
-        return `${safeFormatDate(start)} ${startTimeStr} - ${endTimeStr}`;
+        return `${safeFormatDate(start)} ${startTimeStr} - ${endTimeStr}${zoneSuffix}`;
       } else if (startTimeStr) {
-        return `${safeFormatDate(start)} from ${startTimeStr}`;
+        return `${safeFormatDate(start)} from ${startTimeStr}${zoneSuffix}`;
       } else if (endTimeStr) {
-        return `${safeFormatDate(start)} until ${endTimeStr}`;
+        return `${safeFormatDate(start)} until ${endTimeStr}${zoneSuffix}`;
       } else {
-        return `${safeFormatDate(start)}, time TBD`;
+        return `${safeFormatDate(start)}, time TBD${zoneSuffix}`;
       }
     }
 
@@ -360,13 +390,14 @@ export function formatEventCardSchedule(event: Event): string {
   if (!schedule) {
     const start = toDateValue(event.startTime);
     if (!start) return 'Schedule TBD';
-    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime, event.timeZone), event.timeZone);
   }
 
   if (schedule.type === RecurrenceType.ONE_TIME) {
     const start = toDateValue(schedule.startDatetime);
     if (!start) return 'Schedule TBD';
-    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime));
+    const timeZone = schedule.timeZone || event.timeZone;
+    return joinCompactDateAndTime(start, formatCardTime(start, event._hasStartTime, timeZone), timeZone);
   }
 
   const startTime = schedule.startTimeOfDay ? formatTimeOfDay(schedule.startTimeOfDay) : '';

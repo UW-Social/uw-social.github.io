@@ -259,6 +259,20 @@ textarea::placeholder {
   color: var(--color-gray-400);
 }
 
+input:disabled {
+  cursor: not-allowed;
+  color: var(--color-gray-600);
+  background: var(--color-gray-100);
+  opacity: 0.8;
+}
+
+.field-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-gray-500);
+  font-size: 0.78rem;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
