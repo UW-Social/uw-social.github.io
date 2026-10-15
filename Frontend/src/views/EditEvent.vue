@@ -114,6 +114,14 @@
                     </option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label for="timeZone">Time Zone</label>
+                  <select id="timeZone" v-model="formData.timeZone" required>
+                    <option v-for="option in TIME_ZONE_OPTIONS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
 
                 <div v-if="formData.recurrenceType === RecurrenceType.ONE_TIME" class="schedule-fields">
                   <div class="form-row">
@@ -123,17 +131,18 @@
                     </div>
                     <div class="form-group">
                       <label for="startTime">Start Time</label>
-                      <input id="startTime" v-model="formData.startTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="startTime" v-model="formData.startTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('startTime')">
                     </div>
                   </div>
                   <div class="form-row">
                     <div class="form-group">
                       <label for="endDate">End Date</label>
-                      <input id="endDate" v-model="formData.endDate" type="date" required>
+                      <input id="endDate" :value="formData.startDate" type="date" disabled aria-describedby="editEndDateHelp">
+                      <small id="editEndDateHelp" class="field-help">One-time events end on the start date.</small>
                     </div>
                     <div class="form-group">
                       <label for="endTime">End Time</label>
-                      <input id="endTime" v-model="formData.endTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="endTime" v-model="formData.endTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('endTime')">
                     </div>
                   </div>
                 </div>
@@ -152,11 +161,11 @@
                   <div class="form-row">
                     <div class="form-group">
                       <label for="dailyStartTime">Start Time</label>
-                      <input id="dailyStartTime" v-model="formData.startTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="dailyStartTime" v-model="formData.startTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('startTime')">
                     </div>
                     <div class="form-group">
                       <label for="dailyEndTime">End Time</label>
-                      <input id="dailyEndTime" v-model="formData.endTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="dailyEndTime" v-model="formData.endTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('endTime')">
                     </div>
                   </div>
                 </div>
@@ -175,11 +184,11 @@
                   <div class="form-row">
                     <div class="form-group">
                       <label for="weeklyStartTime">Start Time</label>
-                      <input id="weeklyStartTime" v-model="formData.startTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="weeklyStartTime" v-model="formData.startTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('startTime')">
                     </div>
                     <div class="form-group">
                       <label for="weeklyEndTime">End Time</label>
-                      <input id="weeklyEndTime" v-model="formData.endTime" type="time" placeholder="Optional - leave empty if TBD">
+                      <input id="weeklyEndTime" v-model="formData.endTime" type="time" step="60" placeholder="Optional - minutes default to 00" @blur="normalizeTimeField('endTime')">
                     </div>
                   </div>
                   <div class="form-group">
@@ -378,7 +387,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { doc, getDoc, getFirestore, updateDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -386,6 +395,14 @@ import { useUserStore } from '../stores/user';
 import { useEventStore } from '../stores/event';
 import type { Event as SocialEvent } from '../types/event';
 import { RecurrenceType } from '../types/event';
+import {
+  createDateInTimeZone,
+  DEFAULT_TIME_ZONE,
+  normalizeTimeInput,
+  TIME_ZONE_OPTIONS,
+  toDateInputInTimeZone,
+  toTimeInputInTimeZone,
+} from '../utils/timeZone';
 import '@/assets/eventform.css';
 
 const route = useRoute();
@@ -408,6 +425,7 @@ const formData = ref({
   startTime: '',
   endDate: '',
   endTime: '',
+  timeZone: DEFAULT_TIME_ZONE,
   location: '',
   category: '',
   maxParticipants: null as number | null,
@@ -431,6 +449,20 @@ const formData = ref({
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const tagsInputValue = ref('');
+
+watch(
+  [() => formData.value.recurrenceType, () => formData.value.startDate],
+  ([recurrenceType, startDate]) => {
+    if (recurrenceType === RecurrenceType.ONE_TIME) {
+      formData.value.endDate = startDate;
+    }
+  },
+  { immediate: true }
+);
+
+function normalizeTimeField(field: 'startTime' | 'endTime') {
+  formData.value[field] = normalizeTimeInput(formData.value[field]);
+}
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
@@ -476,22 +508,20 @@ function toDate(value: any): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function toDateInput(value: any): string {
+function toDateInput(value: any, timeZone = formData.value.timeZone): string {
   const date = toDate(value);
   if (!date) return '';
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+  return toDateInputInTimeZone(date, timeZone);
 }
 
-function toTimeInput(value: any, hasTime?: boolean): string {
+function toTimeInput(value: any, hasTime?: boolean, timeZone = formData.value.timeZone): string {
   if (hasTime === false) return '';
   const date = toDate(value);
   if (!date) return '';
-  const hours = `${date.getHours()}`.padStart(2, '0');
-  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  const time = toTimeInputInTimeZone(date, timeZone);
 
-  if (hasTime === undefined && hours === '00' && minutes === '00') return '';
-  return `${hours}:${minutes}`;
+  if (hasTime === undefined && time === '00:00') return '';
+  return time;
 }
 
 function parseTagsFromInput(value: string) {
@@ -544,6 +574,7 @@ function formatPreviewDescription() {
 
 function hydrateFormFromEvent(event: SocialEvent) {
   const schedule = event.schedule;
+  formData.value.timeZone = schedule?.timeZone || event.timeZone || DEFAULT_TIME_ZONE;
 
   formData.value.title = event.title || '';
   formData.value.description = event.description || '';
@@ -574,7 +605,7 @@ function hydrateFormFromEvent(event: SocialEvent) {
 
     formData.value.recurrenceType = RecurrenceType.ONE_TIME;
     formData.value.startDate = toDateInput(startValue);
-    formData.value.endDate = toDateInput(endValue);
+    formData.value.endDate = formData.value.startDate;
     formData.value.startTime = toTimeInput(startValue, event._hasStartTime);
     formData.value.endTime = toTimeInput(endValue, event._hasEndTime);
     formData.value.daysOfWeek = [];
@@ -648,27 +679,31 @@ async function handleSubmit() {
   isSubmitting.value = true;
 
   try {
+    normalizeTimeField('startTime');
+    normalizeTimeField('endTime');
+
     const reviewSentence = formData.value.reviewSentence.trim();
 
     let schedule;
     const recurrenceType = formData.value.recurrenceType;
 
     if (recurrenceType === RecurrenceType.ONE_TIME) {
+      if (!formData.value.startDate) {
+        alert('Please fill in the start date.');
+        isSubmitting.value = false;
+        return;
+      }
+
+      formData.value.endDate = formData.value.startDate;
       const startTime = formData.value.startTime || null;
       const endTime = formData.value.endTime || null;
 
       const start = startTime
-        ? new Date(`${formData.value.startDate}T${startTime}`)
-        : new Date(`${formData.value.startDate}T00:00:00`);
+        ? createDateInTimeZone(formData.value.startDate, startTime, formData.value.timeZone)
+        : createDateInTimeZone(formData.value.startDate, '00:00', formData.value.timeZone);
       const end = endTime
-        ? new Date(`${formData.value.endDate}T${endTime}`)
-        : new Date(`${formData.value.endDate}T23:59:59`);
-
-      if (start.toDateString() !== end.toDateString()) {
-        alert('Start and end must be on the same day for a one-time event.');
-        isSubmitting.value = false;
-        return;
-      }
+        ? createDateInTimeZone(formData.value.startDate, endTime, formData.value.timeZone)
+        : createDateInTimeZone(formData.value.startDate, '23:59', formData.value.timeZone, 59, 999);
 
       if (startTime && endTime && start >= end) {
         alert('End time must be after start time.');
@@ -680,6 +715,7 @@ async function handleSubmit() {
         type: RecurrenceType.ONE_TIME as const,
         startDatetime: start,
         endDatetime: end,
+        timeZone: formData.value.timeZone,
       };
     } else if (recurrenceType === RecurrenceType.DAILY) {
       if (!formData.value.startDate) {
@@ -694,10 +730,11 @@ async function handleSubmit() {
       }
       schedule = {
         type: RecurrenceType.DAILY as const,
-        startDate: createLocalDateFromInput(formData.value.startDate),
-        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
+        startDate: createDateInTimeZone(formData.value.startDate, '00:00', formData.value.timeZone),
+        endDate: formData.value.endDate ? createDateInTimeZone(formData.value.endDate, '00:00', formData.value.timeZone) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
+        timeZone: formData.value.timeZone,
       };
     } else if (recurrenceType === RecurrenceType.WEEKLY) {
       if (!formData.value.startDate || formData.value.daysOfWeek.length === 0) {
@@ -712,10 +749,11 @@ async function handleSubmit() {
       }
       schedule = {
         type: RecurrenceType.WEEKLY as const,
-        startDate: createLocalDateFromInput(formData.value.startDate),
-        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
+        startDate: createDateInTimeZone(formData.value.startDate, '00:00', formData.value.timeZone),
+        endDate: formData.value.endDate ? createDateInTimeZone(formData.value.endDate, '00:00', formData.value.timeZone) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
+        timeZone: formData.value.timeZone,
         daysOfWeek: formData.value.daysOfWeek.map(Number),
       };
     } else {
@@ -743,10 +781,11 @@ async function handleSubmit() {
 
       schedule = {
         type: RecurrenceType.MONTHLY as const,
-        startDate: createLocalDateFromInput(formData.value.startDate),
-        endDate: formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : undefined,
+        startDate: createDateInTimeZone(formData.value.startDate, '00:00', formData.value.timeZone),
+        endDate: formData.value.endDate ? createDateInTimeZone(formData.value.endDate, '00:00', formData.value.timeZone) : undefined,
         startTimeOfDay: formData.value.startTime || undefined,
         endTimeOfDay: formData.value.endTime || undefined,
+        timeZone: formData.value.timeZone,
         daysOfMonth,
       };
     }
@@ -758,22 +797,18 @@ async function handleSubmit() {
       startTime = schedule.startDatetime;
       endtime = schedule.endDatetime;
     } else {
-      const startDate = createLocalDateFromInput(formData.value.startDate);
-      const endDate = formData.value.endDate ? createLocalDateFromInput(formData.value.endDate) : createLocalDateFromInput('2099-12-31');
-
-      if (formData.value.startTime) {
-        const [hours, minutes] = formData.value.startTime.split(':');
-        startDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-      } else {
-        startDate.setHours(0, 0, 0, 0);
-      }
-
-      if (formData.value.endTime) {
-        const [hours, minutes] = formData.value.endTime.split(':');
-        endDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-      } else {
-        endDate.setHours(23, 59, 59, 999);
-      }
+      const startDate = createDateInTimeZone(
+        formData.value.startDate,
+        formData.value.startTime || '00:00',
+        formData.value.timeZone
+      );
+      const endDate = createDateInTimeZone(
+        formData.value.endDate || '2099-12-31',
+        formData.value.endTime || '23:59',
+        formData.value.timeZone,
+        formData.value.endTime ? 0 : 59,
+        formData.value.endTime ? 0 : 999
+      );
 
       startTime = startDate;
       endtime = endDate;
@@ -813,6 +848,7 @@ async function handleSubmit() {
       endtime,
       _hasStartTime: !!formData.value.startTime,
       _hasEndTime: !!formData.value.endTime,
+      timeZone: formData.value.timeZone,
     });
 
     await eventStore.fetchEvents();
