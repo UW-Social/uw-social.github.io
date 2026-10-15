@@ -70,7 +70,6 @@ import { useUserStore } from '../stores/user';
 import { useRoute, useRouter } from 'vue-router';
 // import { useEventDialogStore } from '../stores/eventDialog';
 import { formatEventCardSchedule, type Event } from '../types/event';
-import '../assets/eventcard.css';
 import { ElButton } from 'element-plus';
 import 'element-plus/es/components/button/style/css';
 
@@ -146,6 +145,8 @@ const toggleSavedEvent = async () => {
   }
 };
 </script>
+
+<style scoped src="../assets/eventcard.css"></style>
 
 <style scoped>
 /* eventcard.css handles all styling including delete button */

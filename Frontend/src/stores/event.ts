@@ -6,10 +6,20 @@ import type { Event } from '../types/event';
 
 export const useEventStore = defineStore('event', () => {
   const events = ref<Event[]>([]);
+  const isLoading = ref(false);
+  const fetchError = ref('');
+  let pendingFetch: Promise<void> | null = null;
   const selectedEvents = ref<Event[]>([]); // 存储选中的事件
 
-  const fetchEvents = async () => {
-    events.value = [];
+  const fetchEvents = (): Promise<void> => {
+    if (pendingFetch) return pendingFetch;
+    pendingFetch = loadEvents().finally(() => { pendingFetch = null; });
+    return pendingFetch;
+  };
+
+  const loadEvents = async () => {
+    isLoading.value = true;
+    fetchError.value = '';
 
     try {
       const eventsCollection = collection(db, 'events');
@@ -30,6 +40,12 @@ export const useEventStore = defineStore('event', () => {
       });
     } catch (error) {
       console.error('Failed to fetch events:', error);
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code)
+        : 'unknown';
+      fetchError.value = `Unable to load events (${code}). Check your internet connection and try again.`;
+    } finally {
+      isLoading.value = false;
     }
   };
 
@@ -43,6 +59,8 @@ export const useEventStore = defineStore('event', () => {
 
   return {
     events,
+    isLoading,
+    fetchError,
     selectedEvents,
     fetchEvents,
     selectEvent,

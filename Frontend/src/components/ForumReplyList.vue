@@ -215,5 +215,11 @@ const getInitials = (value: string) => {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .reply-list.comment-style .reply-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
 }
 </style>

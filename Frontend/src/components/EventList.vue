@@ -1,6 +1,11 @@
 <template>
   <div class="event-list">
-    <div v-if="isLoading" class="loading">Loading events...</div>
+    <div v-if="eventStore.isLoading || isLoading" class="loading" role="status">Loading events...</div>
+
+    <div v-else-if="eventStore.fetchError" class="events-error" role="alert">
+      <p>{{ eventStore.fetchError }}</p>
+      <button type="button" @click="eventStore.fetchEvents()">Try again</button>
+    </div>
 
     <div v-else-if="filteredEvents.length === 0" class="no-events">
       No events found.
@@ -337,3 +342,22 @@ onMounted(async () => {
   await refresh();
 });
 </script>
+
+<style scoped>
+.events-error {
+  padding: 24px;
+  border: 1px solid #e8eaf0;
+  border-radius: 20px;
+  background: #fff;
+  color: #475467;
+}
+
+.events-error button {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #6c48d1;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+</style>
