@@ -71,9 +71,7 @@ const selectedCategories = ref<string[]>([]);
 // Load events from Firebase
 onMounted(async () => {
   try {
-    if (eventStore.events.length === 0) {
-      await eventStore.fetchEvents();
-    }
+    await eventStore.fetchEvents();
     
     // Filter to only show upcoming events
     const now = new Date();

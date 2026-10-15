@@ -30,6 +30,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/mailbox',
+    name: 'Mailbox',
+    component: isMobile()
+      ? () => import('@/views/Profile.vue')
+      : () => import('@/views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/onboarding',
     name: 'Onboarding',
     component: () => import('@/views/Onboarding.vue'),
@@ -60,6 +68,11 @@ const routes = [
     path: '/score-framework',
     name: 'ScoreFramework',
     component: () => import('@/views/ScoreFramework.vue')
+  },
+  {
+    path: '/ai-consultant',
+    name: 'AIConsultant',
+    component: () => import('@/views/AIConsultant.vue')
   },
   {
     path: '/events/:id/edit',

@@ -22,7 +22,7 @@
     "@types/google.maps": "^3.58.1",
     "@types/node": "^20.10.5",
     "@vitejs/plugin-vue": "^4.6.2",
-    "typescript": "^5.2.2",
+    "typescript": "5.2.2",
     "vite": "^5.4.19",
     "vue-tsc": "^3.3.2"
   },

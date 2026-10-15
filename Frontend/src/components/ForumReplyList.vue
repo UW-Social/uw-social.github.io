@@ -203,7 +203,7 @@ const getInitials = (value: string) => {
 }
 
 .reply-like-dot.active {
-  background: #6c63ff;
+  background: #5b61f6;
 }
 
 @media (max-width: 768px) {

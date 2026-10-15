@@ -32,6 +32,7 @@ const props = defineProps<{
   sort?: 'newest' | 'oldest';
   recommendationMode?: 'personalized' | 'latest' | 'trending';
   limit?: number;
+  excludeEventId?: string;
 }>();
 
 defineEmits<{
@@ -53,6 +54,7 @@ const TRENDING_POP_WEIGHT = 0.4;
 
 const VALID_CATEGORIES = new Set([
   'ACADEMIC',
+  'CAREER',
   'CLUB',
   'SPORTS',
   'GAMES',
@@ -67,17 +69,49 @@ function normalizeCategory(cat?: string | null) {
   return VALID_CATEGORIES.has(c) ? c : null;
 }
 
-function toDate(val: any): Date {
-  return val?.toDate ? val.toDate() : new Date(val);
+function toDate(val: any): Date | null {
+  if (!val) return null;
+
+  if (typeof val.toDate === 'function') {
+    const date = val.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof val.seconds === 'number') {
+    const date = new Date(val.seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = val instanceof Date ? val : new Date(val);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function isRecurring(event: Event) {
   return !!event.schedule && event.schedule.type !== 'ONE_TIME';
 }
 
+function endOfDay(date: Date): Date {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function getEventEndDate(event: Event): Date | null {
+  const schedule = event.schedule;
+
+  if (schedule && schedule.type !== 'ONE_TIME') {
+    const scheduleEndDate = toDate(schedule.endDate);
+    if (scheduleEndDate) return endOfDay(scheduleEndDate);
+  }
+
+  return toDate(event.endtime);
+}
+
 function calculateRecencyScore(event: Event, now: number): number {
   const msPerDay = 1000 * 60 * 60 * 24;
-  const startMs = toDate(event.startTime).getTime();
+  const startMs = toDate(event.startTime)?.getTime();
+  if (typeof startMs !== 'number') return 0;
+
   const daysUntil = (startMs - now) / msPerDay;
 
   if (isRecurring(event)) return 1;
@@ -94,11 +128,13 @@ interface Candidate {
 /* ---- FILTER ---- */
 
 function filterPast(events: Event[]) {
-  const now = new Date();
+  const now = Date.now();
 
   return events.filter(e => {
-    if (isRecurring(e)) return true;
-    return toDate(e.startTime) >= now;
+    const endDate = getEventEndDate(e);
+
+    if (isRecurring(e) && !endDate) return true;
+    return !!endDate && endDate.getTime() >= now;
   });
 }
 
@@ -130,8 +166,8 @@ function sortEvents(events: Event[]) {
   const recurring = events.filter(isRecurring);
 
   normal.sort((a, b) => {
-    const tA = toDate(a.startTime).getTime();
-    const tB = toDate(b.startTime).getTime();
+    const tA = toDate(a.startTime)?.getTime() ?? 0;
+    const tB = toDate(b.startTime)?.getTime() ?? 0;
     return props.sort === 'oldest' ? tA - tB : tB - tA;
   });
 
@@ -145,6 +181,10 @@ async function refresh() {
 
   let events = [...eventStore.events];
 
+  if (props.excludeEventId) {
+    events = events.filter(event => event.id !== props.excludeEventId);
+  }
+
   events = filterCategory(events);
   events = filterPast(events);
   events = applySearch(events);
@@ -153,13 +193,14 @@ async function refresh() {
   events = sortEvents(events);
 
   if (props.recommendationMode === 'personalized') {
+    const userTags = userStore.userProfile?.tags;
     if (
       userStore.isLoggedIn &&
-      Array.isArray(userStore.userProfile?.tags) &&
-      userStore.userProfile.tags.length > 0
+      Array.isArray(userTags) &&
+      userTags.length > 0
     ) {
       try {
-        const personalized = scoreByPersonalization(events, userStore.userProfile.tags);
+        const personalized = scoreByPersonalization(events, userTags);
         events = personalized;
       } catch (err) {
         // Fall back to date-sorted events on error
@@ -278,15 +319,21 @@ function scoreByTrending(events: Event[]) {
 }
 
 watch(
-  () => [props.category, props.search, props.sort, props.recommendationMode, props.limit, eventStore.events.length],
+  () => [
+    props.category,
+    props.search,
+    props.sort,
+    props.recommendationMode,
+    props.limit,
+    props.excludeEventId,
+    eventStore.events.length,
+  ],
   refresh,
   { immediate: true }
 );
 
 onMounted(async () => {
-  if (eventStore.events.length === 0) {
-    await eventStore.fetchEvents();
-  }
+  await eventStore.fetchEvents();
   await refresh();
 });
 </script>

@@ -109,7 +109,7 @@ watch(() => props.isLoggedIn, (isLoggedIn) => {
 .reply-login-button {
   border: none;
   border-radius: 12px;
-  background: #1f2740;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
   color: #fff;
   padding: 11px 14px;
   font: inherit;

@@ -9,7 +9,7 @@
           :search="searchQuery"
           :sort="sortType"
           :category="categoryFilter"
-          @update:search="searchQuery = $event"
+          @update:search="handleSearchUpdate"
           @update:sort="sortType = $event"
           @update:category="categoryFilter = $event"
         />
@@ -20,6 +20,7 @@
             :category="categoryFilter"
             :search="searchQuery"
             :sort="sortType"
+            :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
             @open-card="handleEventClick"
           />
         </div>
@@ -69,21 +70,46 @@
 </style>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import EventList from '../components/EventList.vue';
 import EventSidebar from '../components/EventSidebar.vue';
 import BackToTop from '../components/BackToTop.vue';
+import { useUserStore } from '../stores/user';
 
 import type { Event } from '../types/event';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 const categoryFilter = ref<string | null>(null);
-const searchQuery = ref('');
+const searchQuery = ref(normalizeQueryParam(route.query.q));
 const sortType = ref<'newest' | 'oldest'>('newest');
+
+function normalizeQueryParam(value: unknown): string {
+  if (Array.isArray(value)) return String(value[0] ?? '').trim();
+  return String(value ?? '').trim();
+}
+
+const handleSearchUpdate = (value: string) => {
+  searchQuery.value = value;
+
+  const nextQuery = { ...route.query };
+  const trimmed = value.trim();
+
+  if (trimmed) {
+    nextQuery.q = trimmed;
+  } else {
+    delete nextQuery.q;
+  }
+
+  router.replace({
+    path: route.path,
+    query: nextQuery,
+  });
+};
 
 const handleEventClick = (event: Event) => {
   router.push({
@@ -91,4 +117,11 @@ const handleEventClick = (event: Event) => {
     query: { returnTo: route.fullPath },
   });
 };
+
+watch(
+  () => route.query.q,
+  (query) => {
+    searchQuery.value = normalizeQueryParam(query);
+  }
+);
 </script>

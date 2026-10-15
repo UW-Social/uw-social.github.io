@@ -174,8 +174,10 @@
                 :post="post"
                 :is-logged-in="userStore.isLoggedIn"
                 :compact="true"
+                :can-delete="post.userId === userStore.userProfile?.uid"
                 :on-login="goToLogin"
                 :on-toggle-like="toggleExperienceLike"
+                :on-delete="deleteExperiencePost"
               />
             </div>
           </div>
@@ -264,15 +266,34 @@
                 tag-label="Comment"
                 :comment-style="true"
                 :highlighted="highlightedPostId === post.id"
+                :can-delete="post.userId === userStore.userProfile?.uid"
                 :on-login="goToLogin"
                 :on-toggle-post-like="togglePostLike"
                 :on-toggle-reply-like="toggleReplyLike"
                 :on-submit-reply="submitReply"
+                :on-delete-post="deleteDiscussionPost"
               />
             </div>
           </div>
         </aside>
       </div>
+
+      <section class="related-events-section">
+        <div class="section-header-row related-events-header">
+          <div>
+            <h2 class="section-title">More Events for You</h2>
+            <p class="section-helper">
+              Personalized using the same tag matching as your home feed.
+            </p>
+          </div>
+        </div>
+        <EventList
+          :exclude-event-id="event.id"
+          :limit="4"
+          :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+          @open-card="goToRelatedEvent"
+        />
+      </section>
 
     </template>
   </div>
@@ -288,11 +309,15 @@ import type { DiscussionPost, ExperiencePost } from '../types/forum';
 import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import ForumPostCard from '../components/ForumPostCard.vue';
 import ReplyInput from '../components/ReplyInput.vue';
+import EventList from '../components/EventList.vue';
 import { loadGoogleMaps } from '../utils/googleMaps';
 import { downloadIcs } from '../utils/icsUtils';
 import { addEventToGoogleCalendar } from '../utils/googleCalendar';
+import { buildEventJsonLd, useJsonLd } from '../utils/structuredData';
 import {
   createDiscussionReply,
+  deleteEventDiscussionPost,
+  deleteEventExperiencePost,
   createEventDiscussionPost,
   subscribeToEventDiscussionPosts,
   subscribeToEventExperiencePosts,
@@ -326,6 +351,9 @@ const highlightedPostId = computed(() => {
   const postId = route.query.postId;
   return typeof postId === 'string' ? postId : '';
 });
+
+const eventJsonLd = computed(() => event.value ? buildEventJsonLd(event.value) : null);
+useJsonLd('event-detail', eventJsonLd);
 
 const currentUserInitials = computed(() => {
   const profile = userStore.userProfile;
@@ -440,6 +468,15 @@ const returnTo = computed(() => {
 const goBack = () => {
   router.push(returnTo.value);
 
+};
+
+const goToRelatedEvent = (relatedEvent: Event) => {
+  router.push({
+    path: `/events/${relatedEvent.id}`,
+    query: {
+      returnTo: route.fullPath,
+    },
+  });
 };
 
 const goToLogin = () => {
@@ -580,6 +617,11 @@ const loadEventData = async () => {
 
   event.value = eventStore.events.find(e => e.id === eventId.value) || null;
 
+  if (!event.value) {
+    await eventStore.fetchEvents();
+    event.value = eventStore.events.find(e => e.id === eventId.value) || null;
+  }
+
   await nextTick();
   initMap();
 };
@@ -669,33 +711,80 @@ const submitReply = async (postId: string, text: string) => {
   }
 };
 
+const getCurrentLikeActor = () => {
+  const profile = userStore.userProfile;
+  if (!profile?.uid) return null;
+
+  return {
+    uid: profile.uid,
+    displayName: profile.displayName,
+    email: profile.email,
+    photoURL: profile.photoURL,
+  };
+};
+
 const togglePostLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleDiscussionPostLike(eventId.value, postId, userStore.userProfile.uid);
+    await toggleDiscussionPostLike(eventId.value, postId, actor);
   } catch (error) {
     console.error('Failed to toggle post like:', error);
   }
 };
 
 const toggleReplyLike = async (postId: string, replyId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleDiscussionReplyLike(eventId.value, postId, replyId, userStore.userProfile.uid);
+    await toggleDiscussionReplyLike(eventId.value, postId, replyId, actor);
   } catch (error) {
     console.error('Failed to toggle reply like:', error);
   }
 };
 
 const toggleExperienceLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid || !eventId.value) return;
+  const actor = getCurrentLikeActor();
+  if (!actor || !eventId.value) return;
 
   try {
-    await toggleExperiencePostLike(eventId.value, postId, userStore.userProfile.uid);
+    await toggleExperiencePostLike(eventId.value, postId, actor);
   } catch (error) {
     console.error('Failed to toggle experience like:', error);
+  }
+};
+
+const deleteDiscussionPost = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  const post = posts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this comment?')) return;
+
+  try {
+    await deleteEventDiscussionPost(eventId.value, postId);
+    posts.value = posts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    postError.value = 'Failed to delete comment. Please try again.';
+  }
+};
+
+const deleteExperiencePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid || !eventId.value) return;
+
+  const post = experiencePosts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this experience post?')) return;
+
+  try {
+    await deleteEventExperiencePost(eventId.value, postId);
+    experiencePosts.value = experiencePosts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete experience post:', error);
+    experienceError.value = 'Failed to delete experience post. Please try again.';
   }
 };
 

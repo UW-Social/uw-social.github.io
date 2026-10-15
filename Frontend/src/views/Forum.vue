@@ -24,13 +24,24 @@
       <div class="toolbar-row">
         <div class="filter-tabs" role="tablist" aria-label="Forum post sorting options">
           <button
-            v-for="tab in sortTabs"
-            :key="tab.value"
             type="button"
-            :class="['filter-tab', { active: activeSort === tab.value }]"
-            @click="activeSort = tab.value"
+            :class="['filter-tab', { active: activeSort === 'recommended' }]"
+            @click="activeSort = 'recommended'"
           >
-            {{ tab.label }}
+            Recommended
+          </button>
+          <button
+            type="button"
+            :class="['sort-icon-button', { active: activeSort !== 'recommended', oldest: activeSort === 'oldest' }]"
+            :aria-label="activeSort === 'oldest' ? 'Sort latest first' : 'Sort oldest first'"
+            :title="activeSort === 'oldest' ? 'Oldest first' : 'Latest first'"
+            @click="toggleChronologicalSort"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14" />
+              <path d="M5 12h10" />
+              <path d="M5 17h6" />
+            </svg>
           </button>
         </div>
 
@@ -68,8 +79,10 @@
           :post="post"
           :is-logged-in="userStore.isLoggedIn"
           :show-event-context="true"
+          :can-delete="post.userId === userStore.userProfile?.uid"
           :on-login="goToLogin"
           :on-toggle-like="togglePostLike"
+          :on-delete="deletePost"
         />
       </div>
     </section>
@@ -81,6 +94,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ExperiencePostCard from '../components/ExperiencePostCard.vue';
 import {
+  deleteEventExperiencePost,
   listAggregatedExperiencePosts,
   toggleExperiencePostLike,
 } from '../api/forums';
@@ -89,12 +103,6 @@ import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 
 type ForumSort = 'recommended' | 'latest' | 'oldest';
-
-const sortTabs: Array<{ label: string; value: ForumSort }> = [
-  { label: 'Recommended', value: 'recommended' },
-  { label: 'Latest', value: 'latest' },
-  { label: 'Oldest', value: 'oldest' },
-];
 
 const route = useRoute();
 const router = useRouter();
@@ -105,6 +113,11 @@ const errorMessage = ref('');
 const allPosts = ref<AggregatedExperiencePost[]>([]);
 const searchQuery = ref('');
 const activeSort = ref<ForumSort>('recommended');
+const pendingLikePostIds = ref(new Set<string>());
+
+const toggleChronologicalSort = () => {
+  activeSort.value = activeSort.value === 'latest' ? 'oldest' : 'latest';
+};
 
 const filteredPosts = computed(() => {
   const normalizedSearch = searchQuery.value.trim().toLowerCase();
@@ -189,16 +202,57 @@ const getTimestampMs = (value: AggregatedExperiencePost['createdAt']) => {
 };
 
 const togglePostLike = async (postId: string) => {
-  if (!userStore.userProfile?.uid) return;
+  const profile = userStore.userProfile;
+  if (!profile?.uid) return;
+  if (pendingLikePostIds.value.has(postId)) return;
 
   const post = allPosts.value.find((item) => item.id === postId);
   if (!post) return;
 
+  const previousHasLiked = Boolean(post.hasLiked);
+  const previousLikeCount = post.likeCount || 0;
+  const nextHasLiked = !previousHasLiked;
+  const nextLikeCount = Math.max(0, previousLikeCount + (nextHasLiked ? 1 : -1));
+
+  pendingLikePostIds.value.add(postId);
+  allPosts.value = allPosts.value.map((item) => (
+    item.id === postId
+      ? { ...item, hasLiked: nextHasLiked, likeCount: nextLikeCount }
+      : item
+  ));
+
   try {
-    await toggleExperiencePostLike(post.eventId, postId, userStore.userProfile.uid);
-    await loadForumPosts();
+    await toggleExperiencePostLike(post.eventId, postId, {
+      uid: profile.uid,
+      displayName: profile.displayName,
+      email: profile.email,
+      photoURL: profile.photoURL,
+    });
   } catch (error) {
     console.error('Failed to toggle post like:', error);
+    allPosts.value = allPosts.value.map((item) => (
+      item.id === postId
+        ? { ...item, hasLiked: previousHasLiked, likeCount: previousLikeCount }
+        : item
+    ));
+  } finally {
+    pendingLikePostIds.value.delete(postId);
+  }
+};
+
+const deletePost = async (postId: string) => {
+  if (!userStore.userProfile?.uid) return;
+
+  const post = allPosts.value.find((item) => item.id === postId);
+  if (!post || post.userId !== userStore.userProfile.uid) return;
+  if (!window.confirm('Delete this forum post?')) return;
+
+  try {
+    await deleteEventExperiencePost(post.eventId, postId);
+    allPosts.value = allPosts.value.filter((item) => item.id !== postId);
+  } catch (error) {
+    console.error('Failed to delete forum post:', error);
+    window.alert('Failed to delete this forum post. Please try again.');
   }
 };
 
@@ -232,10 +286,12 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .toolbar-row {
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 6px;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -246,24 +302,27 @@ watch(() => userStore.userProfile?.uid, () => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 9px 14px;
   text-decoration: none;
   font-weight: 700;
+  font-size: 0.9rem;
 }
 
 .start-discussion-button {
   background: #1f2740;
   color: #fff;
   box-shadow: 0 12px 28px rgba(108, 99, 255, 0.18);
-  margin-left: auto;
+  margin-left: 4px;
 }
 
 .search-field {
   width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.65rem 0.75rem 0.65rem 1.2rem;
+  gap: 0.55rem;
+  padding: 0.42rem 0.55rem 0.42rem 1rem;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 999px;
@@ -286,8 +345,8 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-action {
-  width: 50px;
-  height: 50px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -307,14 +366,15 @@ watch(() => userStore.userProfile?.uid, () => {
 }
 
 .search-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 5px;
+  align-items: center;
 }
 
 .filter-tab {
@@ -322,8 +382,9 @@ watch(() => userStore.userProfile?.uid, () => {
   background: rgba(255, 255, 255, 0.82);
   color: #58627e;
   border-radius: 999px;
-  padding: 10px 16px;
+  padding: 8px 13px;
   font: inherit;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -334,17 +395,63 @@ watch(() => userStore.userProfile?.uid, () => {
   border-color: #1f2740;
 }
 
+.sort-icon-button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #58627e;
+  cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.sort-icon-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sort-icon-button.active {
+  color: #5b61f6;
+}
+
+.sort-icon-button:hover {
+  color: #5b61f6;
+  transform: translateY(-1px);
+}
+
+.sort-icon-button.oldest svg {
+  transform: scaleY(-1);
+}
+
+.sort-icon-button:focus {
+  outline: 3px solid rgba(108, 99, 255, 0.16);
+  outline-offset: 2px;
+}
+
 .forum-content {
   margin-top: 28px;
 }
 
 .post-list {
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .state-card {
+  max-width: 900px;
+  margin: 0 auto;
   border-radius: 24px;
   border: 1px solid rgba(108, 99, 255, 0.08);
   background: rgba(255, 255, 255, 0.88);
@@ -403,7 +510,7 @@ watch(() => userStore.userProfile?.uid, () => {
 
   .search-field {
     gap: 0.5rem;
-    padding: 0.55rem 0.55rem 0.55rem 0.9rem;
+    padding: 0.38rem 0.5rem 0.38rem 0.85rem;
   }
 
   .search-field input {
@@ -411,8 +518,8 @@ watch(() => userStore.userProfile?.uid, () => {
   }
 
   .search-action {
-    width: 44px;
-    height: 44px;
+    width: 34px;
+    height: 34px;
   }
 }
 </style>

@@ -74,7 +74,16 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
   async function sendMessage(input: string, routePath: string): Promise<void> {
     const content = input.trim();
-    if (!content || !isEnabled) return;
+    if (!content) return;
+
+    if (!isEnabled) {
+      messages.value.push(toMessage('user', content));
+      messages.value.push(toMessage(
+        'assistant',
+        'AI Consultant placeholder: the chat backend is currently disabled, but this page is ready to connect when the service is enabled.'
+      ));
+      return;
+    }
 
     if (!canSend.value) {
       if (sentRequestCount.value >= sessionRequestLimit) {

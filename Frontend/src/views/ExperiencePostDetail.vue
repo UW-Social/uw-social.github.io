@@ -11,7 +11,6 @@
     <template v-else-if="post">
       <article class="post-card">
         <header class="post-header">
-          <span class="post-tag">Experience</span>
           <h1>{{ postTitle }}</h1>
           <p v-if="post.subtitle" class="post-subtitle">{{ post.subtitle }}</p>
           <p class="post-meta">
@@ -44,6 +43,14 @@
         <footer class="post-stats">
           <span>{{ post.likeCount }} likes</span>
           <span>{{ replies.length || post.replyCount }} replies</span>
+          <button
+            v-if="post.userId === userStore.userProfile?.uid"
+            class="delete-post-button"
+            type="button"
+            @click="deletePost"
+          >
+            Delete
+          </button>
         </footer>
       </article>
 
@@ -74,6 +81,21 @@
           <span>{{ replies.length }} replies</span>
         </div>
 
+        <ReplyInput
+          :is-logged-in="userStore.isLoggedIn"
+          :loading="isReplySubmitting"
+          :rows="3"
+          placeholder="Write a reply to this post..."
+          submit-label="Reply"
+          login-heading="Join the conversation"
+          login-text="Log in to reply to this forum post."
+          login-button-label="Log in to reply"
+          @submit="submitReply"
+          @login="goToLogin"
+        />
+
+        <p v-if="replyError" class="reply-error">{{ replyError }}</p>
+
         <div v-if="replies.length === 0" class="reply-empty">
           Replies will appear here once people respond to this experience.
         </div>
@@ -96,10 +118,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getEventExperiencePost, listExperiencePostReplies } from '../api/forums';
+import {
+  createEventExperienceReply,
+  deleteEventExperiencePost,
+  getEventExperiencePost,
+  listExperiencePostReplies,
+} from '../api/forums';
+import ReplyInput from '../components/ReplyInput.vue';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
 import { formatEventSchedule } from '../types/event';
+import { buildExperiencePostJsonLd, useJsonLd } from '../utils/structuredData';
 import type { DiscussionReply, ExperiencePost } from '../types/forum';
 
 const route = useRoute();
@@ -110,11 +139,17 @@ const userStore = useUserStore();
 const post = ref<ExperiencePost | null>(null);
 const replies = ref<DiscussionReply[]>([]);
 const isLoading = ref(true);
+const isReplySubmitting = ref(false);
 const errorMessage = ref('');
+const replyError = ref('');
 
 const eventId = computed(() => route.params.eventId as string);
 const postId = computed(() => route.params.postId as string);
 const relatedEvent = computed(() => eventStore.events.find((event) => event.id === eventId.value) ?? null);
+const postJsonLd = computed(() => (
+  post.value ? buildExperiencePostJsonLd(post.value, relatedEvent.value, replies.value) : null
+));
+useJsonLd('experience-post-detail', postJsonLd);
 const eventLink = computed(() => ({
   path: `/events/${eventId.value}`,
   query: { section: 'forum', postId: postId.value },
@@ -132,6 +167,14 @@ const safeBodyHtml = computed(() => {
   return sanitizeHtml(post.value.bodyHtml);
 });
 
+const loadReplies = async () => {
+  replies.value = await listExperiencePostReplies(
+    eventId.value,
+    postId.value,
+    userStore.userProfile?.uid
+  );
+};
+
 const loadPost = async () => {
   if (!eventId.value || !postId.value) return;
 
@@ -143,10 +186,11 @@ const loadPost = async () => {
       await eventStore.fetchEvents();
     }
 
-    const [nextPost, nextReplies] = await Promise.all([
-      getEventExperiencePost(eventId.value, postId.value, userStore.userProfile?.uid),
-      listExperiencePostReplies(eventId.value, postId.value, userStore.userProfile?.uid),
-    ]);
+    const nextPost = await getEventExperiencePost(
+      eventId.value,
+      postId.value,
+      userStore.userProfile?.uid
+    );
 
     if (!nextPost) {
       errorMessage.value = 'Experience post not found.';
@@ -156,7 +200,13 @@ const loadPost = async () => {
     }
 
     post.value = nextPost;
-    replies.value = nextReplies;
+
+    try {
+      await loadReplies();
+    } catch (replyError) {
+      console.warn('Failed to load experience post replies:', replyError);
+      replies.value = [];
+    }
   } catch (error) {
     console.error('Failed to load experience post:', error);
     errorMessage.value = 'Failed to load this experience post.';
@@ -172,6 +222,66 @@ const goBack = () => {
   }
 
   router.push(eventLink.value);
+};
+
+const goToLogin = () => {
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      prompt: 'Please log in to reply to this forum post.',
+    },
+  });
+};
+
+const submitReply = async (text: string) => {
+  if (!userStore.userProfile?.email || !eventId.value || !postId.value) {
+    goToLogin();
+    return;
+  }
+
+  isReplySubmitting.value = true;
+  replyError.value = '';
+
+  try {
+    await createEventExperienceReply(
+      eventId.value,
+      postId.value,
+      {
+        uid: userStore.userProfile.uid,
+        email: userStore.userProfile.email,
+        displayName: userStore.userProfile.displayName,
+      },
+      text
+    );
+
+    await loadReplies();
+
+    if (post.value) {
+      post.value = {
+        ...post.value,
+        replyCount: Math.max(post.value.replyCount || 0, replies.value.length),
+      };
+    }
+  } catch (error) {
+    console.error('Failed to submit experience reply:', error);
+    replyError.value = 'Failed to post reply. Please try again.';
+  } finally {
+    isReplySubmitting.value = false;
+  }
+};
+
+const deletePost = async () => {
+  if (!post.value || post.value.userId !== userStore.userProfile?.uid) return;
+  if (!window.confirm('Delete this experience post?')) return;
+
+  try {
+    await deleteEventExperiencePost(eventId.value, postId.value);
+    router.push(eventLink.value);
+  } catch (error) {
+    console.error('Failed to delete experience post:', error);
+    errorMessage.value = 'Failed to delete this experience post.';
+  }
 };
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url);
@@ -268,18 +378,6 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   padding: 34px;
 }
 
-.post-tag {
-  display: inline-flex;
-  margin-bottom: 14px;
-  padding: 6px 10px;
-  color: #6c48d1;
-  border-radius: 999px;
-  background: rgba(108, 72, 209, 0.1);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .post-header h1 {
   margin: 0;
   color: #101828;
@@ -357,6 +455,20 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   border-top: 1px solid #eef2f6;
 }
 
+.delete-post-button {
+  border: none;
+  background: transparent;
+  color: #b42318;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+
+.delete-post-button:hover {
+  color: #7a271a;
+}
+
 .event-card {
   display: flex;
   align-items: center;
@@ -368,7 +480,7 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 
 .event-label {
   margin: 0 0 4px;
-  color: #6c48d1;
+  color: #5b61f6;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -394,16 +506,16 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
   padding: 0 16px;
   color: #fff;
   border-radius: 999px;
-  background: #6c48d1;
+  background: linear-gradient(135deg, #5b61f6 0%, #7c73ff 100%);
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
 }
 
 .event-link.secondary {
-  color: #6c48d1;
-  border: 1px solid rgba(108, 72, 209, 0.2);
-  background: rgba(108, 72, 209, 0.08);
+  color: #5b61f6;
+  border: 1px solid rgba(91, 97, 246, 0.2);
+  background: rgba(91, 97, 246, 0.08);
 }
 
 .replies-card {
@@ -429,6 +541,18 @@ watch([eventId, postId, () => userStore.userProfile?.uid], () => {
 .reply-empty {
   color: #667085;
   font-size: 13px;
+}
+
+.replies-card :deep(.reply-input),
+.replies-card :deep(.reply-login-prompt) {
+  margin-bottom: 18px;
+}
+
+.reply-error {
+  margin: -6px 0 16px;
+  color: #b42318;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .reply-list {
