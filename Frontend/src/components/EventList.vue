@@ -263,6 +263,14 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   for (const tagRaw of userTags) {
     const tag = (tagRaw || '').toString().trim();
     if (!tag) continue;
+    console.log('[EventList] Fuse ranking search', {
+      userTags,
+      eventTags: candidates.map((candidate) => ({
+        eventId: candidate.id,
+        tags: candidate.event.tags ?? [],
+      })),
+      query: tag,
+    });
     const results = fuse.search(tag, { limit: candidates.length });
     for (const r of results) {
       const id = r.item.id;
