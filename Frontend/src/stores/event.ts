@@ -30,14 +30,6 @@ export const useEventStore = defineStore('event', () => {
         id: doc.id,
         ...doc.data()
       })) as Event[];
-      console.log('[EventStore] fetched events', {
-        count: events.value.length,
-        firstEvents: events.value.slice(0, 5).map(event => ({
-          id: event.id,
-          title: event.title,
-          createdAt: event.createdAt,
-        })),
-      });
     } catch (error) {
       console.error('Failed to fetch events:', error);
       const code = typeof error === 'object' && error !== null && 'code' in error
