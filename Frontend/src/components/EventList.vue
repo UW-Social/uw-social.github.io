@@ -34,7 +34,7 @@ import type { Event } from '../types/event';
 const props = defineProps<{
   category?: string | null;
   search?: string;
-  sort?: 'newest' | 'oldest';
+  sort?: 'soonest' | 'newly-added' | 'online';
   recommendationMode?: 'personalized' | 'latest' | 'trending';
   limit?: number;
   excludeEventId?: string;
@@ -62,10 +62,7 @@ const VALID_CATEGORIES = new Set([
   'CAREER',
   'CLUB',
   'SPORTS',
-  'GAMES',
-  'CULTURE',
   'INTEREST',
-  'HFS',
 ]);
 
 function normalizeCategory(cat?: string | null) {
@@ -166,17 +163,30 @@ function applySearch(events: Event[]) {
 
 /* ---- SORT ---- */
 
+function getEventStartDate(event: Event): Date | null {
+  const schedule = event.schedule;
+  const scheduledStart = schedule?.type === 'ONE_TIME'
+    ? schedule.startDatetime
+    : schedule?.startDate;
+
+  return toDate(scheduledStart) ?? toDate(event.startTime);
+}
+
 function sortEvents(events: Event[]) {
-  const normal = events.filter(e => !isRecurring(e));
-  const recurring = events.filter(isRecurring);
+  return [...events].sort((a, b) => {
+    const newlyAdded = props.sort === 'newly-added';
+    const tA = (newlyAdded ? toDate(a.createdAt) : getEventStartDate(a))?.getTime();
+    const tB = (newlyAdded ? toDate(b.createdAt) : getEventStartDate(b))?.getTime();
 
-  normal.sort((a, b) => {
-    const tA = toDate(a.startTime)?.getTime() ?? 0;
-    const tB = toDate(b.startTime)?.getTime() ?? 0;
-    return props.sort === 'oldest' ? tA - tB : tB - tA;
+    // Keep events without a valid start date last in either direction.
+    if (tA === undefined) return tB === undefined ? 0 : 1;
+    if (tB === undefined) return -1;
+    return props.sort === 'soonest' || props.sort === 'online' ? tA - tB : tB - tA;
   });
+}
 
-  return [...normal, ...recurring];
+function isOnlineEvent(event: Event): boolean {
+  return /\b(online|virtual|zoom|webinar|remote|microsoft teams|google meet)\b|线上|線上/i.test(event.location || '');
 }
 
 /* ---- PIPELINE ---- */
@@ -192,12 +202,15 @@ async function refresh() {
 
   events = filterCategory(events);
   events = filterPast(events);
+  if (props.sort === 'online') {
+    events = events.filter(isOnlineEvent);
+  }
   events = applySearch(events);
 
-  // Base sort by date (newest/oldest)
+  // An explicit date sort takes priority over recommendation ranking.
   events = sortEvents(events);
 
-  if (props.recommendationMode === 'personalized') {
+  if (!props.sort && props.recommendationMode === 'personalized') {
     const userTags = userStore.userProfile?.tags;
     if (
       userStore.isLoggedIn &&
@@ -212,7 +225,7 @@ async function refresh() {
         console.error('Personalized ranking failed, falling back to date sort:', err);
       }
     }
-  } else if (props.recommendationMode === 'trending') {
+  } else if (!props.sort && props.recommendationMode === 'trending') {
     events = scoreByTrending(events);
   }
 

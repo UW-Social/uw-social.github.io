@@ -103,7 +103,7 @@ const filteredEvents = computed(() => {
   // First filter by categories
   if (selectedCategories.value.length > 0) {
     filteredList = filteredList.filter(event => 
-      selectedCategories.value.includes(event.category)
+      selectedCategories.value.includes((event.category || '').toLowerCase())
     );
   }
   

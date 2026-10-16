@@ -281,16 +281,16 @@
       <section class="related-events-section">
         <div class="section-header-row related-events-header">
           <div>
-            <h2 class="section-title">More Events for You</h2>
+            <h2 class="section-title">More Upcoming Events</h2>
             <p class="section-helper">
-              Personalized using the same tag matching as your home feed.
+              Explore more events, ordered by start date.
             </p>
           </div>
         </div>
         <EventList
           :exclude-event-id="event.id"
           :limit="4"
-          :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+          sort="soonest"
           @open-card="goToRelatedEvent"
         />
       </section>

@@ -401,18 +401,29 @@ export function formatEventCardSchedule(event: Event): string {
   }
 
   const startTime = schedule.startTimeOfDay ? formatTimeOfDay(schedule.startTimeOfDay) : '';
+  const endTime = schedule.endTimeOfDay ? formatTimeOfDay(schedule.endTimeOfDay) : '';
+  const timeRange = startTime && endTime
+    ? `${startTime}~${endTime}`
+    : startTime || (endTime ? `until ${endTime}` : '');
   let recurrenceText = '';
 
-  if (schedule.type === RecurrenceType.DAILY) {
-    recurrenceText = 'Everyday';
-  } else if (schedule.type === RecurrenceType.WEEKLY) {
-    const days = Array.isArray(schedule.daysOfWeek) && schedule.daysOfWeek.length > 0
-      ? schedule.daysOfWeek
-          .map((day) => CARD_WEEKDAY_LABELS[Number(day)])
-          .filter(Boolean)
-          .join(', ')
-      : '';
-    recurrenceText = days ? `Every ${days}` : 'Every week';
+  if (schedule.type === RecurrenceType.DAILY || schedule.type === RecurrenceType.WEEKLY) {
+    const timeZone = schedule.timeZone || event.timeZone;
+    const startDate = toDateValue(schedule.startDate);
+    const endDate = toDateValue(schedule.endDate);
+    const startText = startDate ? formatDate(startDate, timeZone) : 'TBD';
+    const endText = endDate ? formatDate(endDate, timeZone) : 'Ongoing';
+    recurrenceText = `${startText} – ${endText}`;
+
+    if (schedule.type === RecurrenceType.WEEKLY) {
+      const days = Array.isArray(schedule.daysOfWeek)
+        ? schedule.daysOfWeek
+            .map((day) => CARD_WEEKDAY_LABELS[Number(day)])
+            .filter(Boolean)
+            .join(', ')
+        : '';
+      recurrenceText = `${startText} ～ ${endText} ${days || 'Days TBD'}`;
+    }
   } else if (schedule.type === RecurrenceType.MONTHLY) {
     const days = Array.isArray(schedule.daysOfMonth) && schedule.daysOfMonth.length > 0
       ? schedule.daysOfMonth
@@ -425,5 +436,5 @@ export function formatEventCardSchedule(event: Event): string {
     recurrenceText = days ? `Monthly on ${days}` : 'Every month';
   }
 
-  return startTime ? `${recurrenceText} ${startTime}` : recurrenceText || 'Schedule TBD';
+  return timeRange ? `${recurrenceText} ${timeRange}` : recurrenceText || 'Schedule TBD';
 }

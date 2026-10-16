@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { EVENT_CATEGORIES } from '../../utils/eventCategories';
 
 interface Category {
   key: string;
@@ -63,15 +64,7 @@ const emit = defineEmits<{
   updateCategories: [categories: string[]];
 }>();
 
-const categories: Category[] = [
-  { key: "academic", label: "Academic" },
-  { key: "club", label: "Club" },
-  { key: "sports", label: "Sports" },
-  { key: "games", label: "Games" },
-  { key: "culture", label: "Culture" },
-  { key: "interest", label: "Interest" },
-  { key: "HFS", label: "HFS" },
-];
+const categories: Category[] = EVENT_CATEGORIES.map(label => ({ key: label.toLowerCase(), label }));
 
 const selectedCategories = ref<string[]>([...props.selectedCategories]);
 
