@@ -430,6 +430,7 @@ import {
   TIME_ZONE_OPTIONS,
 } from '../utils/timeZone';
 import '@/assets/eventform.css';
+import { requestAi } from '../api/ai';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -445,8 +446,6 @@ const pastedEventText = ref('');
 const isParsingPaste = ref(false);
 const pasteImportStatus = ref('');
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 const formData = ref({
   title: '',
@@ -811,7 +810,7 @@ const handlePasteImport = async () => {
   pasteImportStatus.value = '';
 
   try {
-    const data = await parsePastedEventWithGemini(document);
+    const data = await extractEventWithAi(document);
     applyImportedEventData(data);
     logFormSnapshot('AI paste import applied');
     pasteImportStatus.value = 'Form filled from pasted text.';
@@ -836,7 +835,10 @@ const handleImport = async () => {
   try {
     const data = await scraper(importLink.value);
 
-    if (!data || typeof data !== 'object') alert('Failed to import event. (could be scraper or gemini)');
+    if (!data || typeof data !== 'object') {
+      alert('Failed to import event. (could not extract event details)');
+      return;
+    }
     console.log(data);
 
     applyImportedEventData(data);
@@ -914,49 +916,9 @@ const translateKnownHighlights = (value: string) => {
   return parts.map(part => dictionary[part] ?? part).join('; ');
 };
 
-const parsePastedEventWithGemini = async (document: string): Promise<ImportedEventData> => {
-  const prompt = `
-You extract UW event publishing fields from pasted Markdown or plain text.
-
-Return ONLY valid JSON with this schema:
-
-{
-  "title": "",
-  "description": "",
-  "location": "",
-  "category": "",
-  "startDate": "",
-  "startTime": "",
-  "endDate": "",
-  "endTime": "",
-  "link": "",
-  "recurrenceType": "ONE_TIME",
-  "tags": [],
-  "reviewStars": null,
-  "reviewScore": null,
-  "reviewSentence": ""
-}
-
-Rules:
-- Extract the event title.
-- Convert the time/date into English-compatible form fields: startDate/endDate as YYYY-MM-DD and startTime/endTime as 24-hour HH:MM.
-- Extract location, link, rating, score, and tags exactly from the pasted content.
-- Put the English event introduction and the English translation of highlights into "description".
-- Description format: English intro, blank line, then "Highlights: ..." in English.
-- Choose category from "Academic", "Interest", or "Career".
-- Use "ONE_TIME" unless the source explicitly says it repeats.
-- Use "" for missing strings, [] for missing arrays, null for unknown numbers.
-- DO NOT hallucinate facts not present in the source.
-- Output ONLY raw JSON.
-
-PASTED EVENT:
-${document}
-  `.trim();
-
-  return gemini(prompt);
-};
-
-
+const extractEventWithAi = (document: string): Promise<ImportedEventData> => (
+  requestAi('/extract-event', { document })
+);
 
 const scraper = async (url: string) => {
   try {
@@ -970,10 +932,10 @@ const scraper = async (url: string) => {
       return;
     }
 
-    const form = await extractEventFromDocumentWithGemini(html);
+    const form = await extractEventWithAi(html);
 
     if (!form) {
-      alert('Failed to import event (Gemini issue)');
+      alert('Failed to import event (AI extraction issue)');
       return;
     }
 
@@ -983,106 +945,6 @@ const scraper = async (url: string) => {
     alert('Failed to import event (network error)');
   }
 };
-
-const extractEventFromDocumentWithGemini = async (document: string) => {
-  const prompt = `
-You are an information extraction system.
-
-Extract event details from the document.
-
-If there are multiple events choose the first one.
-
-dont touch the title.
-
-Return ONLY valid JSON with this schema:
-
-{
-  "title": "",
-  "description": "",
-  "location": "",
-  "category": "",
-  "startDate": "",
-  "startTime": "",
-  "endDate": "",
-  "endTime": "",
-  "imageUrl": "",
-  "link": "",
-  "recurrenceType": "",
-  "tags": [],
-  "daysOfWeek": [],
-  "daysOfMonthInput": "",
-  "maxParticipants": null
-}
-
-Rules:
-- Use "" for missing strings 
-- Use [] for missing arrays
-- Use null for unknown numbers
-- DO NOT guess
-- DO NOT hallucinate data not explicitly present
-- Output ONLY raw JSON (no markdown, no explanation)
-
-DOCUMENT:
-${document}
-    `.trim();
-
-  return gemini(prompt);
-};
-
-const gemini = async (prompt: string) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY to enable event import.');
-  }
-
-  const response = await fetch(`${GEMINI_ENDPOINT}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: 'application/json',
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    alert(`Gemini request failed (${response.status}): ${errorText}`);
-    throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
-  }
-
-  const data = (await response.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{
-          text?: string;
-        }>;
-      };
-    }>;
-  };
-
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('Gemini response did not include text content.');
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    throw new Error("Gemini returned invalid JSON:\n" + text);
-  }
-};
-
-
 
 const handleSubmit = async () => {
   if (!userStore.userProfile) {

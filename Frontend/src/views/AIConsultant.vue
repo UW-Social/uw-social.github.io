@@ -36,9 +36,9 @@
       </div>
 
       <div class="consultant-note">
-        <strong>MVP Consultant</strong>
+        <strong>Your AI Consultant</strong>
         <p>
-          This page is ready for the AI backend. If Gemini is not configured, messages will show a temporary fallback.
+          Log in to ask about campus life and discover events. AI suggestions may be incomplete; check event details before making plans.
         </p>
       </div>
     </aside>
