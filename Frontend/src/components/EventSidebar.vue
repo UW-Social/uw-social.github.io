@@ -18,15 +18,17 @@
 
     <!-- Sort --->
     <div class="sidebar-sort">
-      <label class="sidebar-label">Sort by</label>
+      <label for="event-sort" class="sidebar-label">Sort by:</label>
 
       <select
+        id="event-sort"
         v-model="localSort"
         class="sidebar-select"
         @change="handleSortChange"
       >
-        <option value="newest">Latest</option>
-        <option value="oldest">Oldest</option>
+        <option value="soonest">Soonest</option>
+        <option value="newly-added">Newly Added</option>
+        <option value="online">Online</option>
       </select>
     </div>
 
@@ -35,14 +37,9 @@
 
       <select v-model="localCategory" class="sidebar-select" @change="handleCategoryChange">
   <option :value="null">All</option>
-  <option value="ACADEMIC">Academic</option>
-  <option value="CAREER">Career</option>
-  <option value="CLUB">Club</option>
-  <option value="SPORTS">Sports</option>
-  <option value="GAMES">Games</option>
-  <option value="CULTURE">Culture</option>
-  <option value="INTEREST">Interest</option>
-  <option value="HFS">HFS</option>
+  <option v-for="category in EVENT_CATEGORIES" :key="category" :value="category.toUpperCase()">
+    {{ category }}
+  </option>
 </select>
     </div>
   </div>
@@ -50,8 +47,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { EVENT_CATEGORIES } from '../utils/eventCategories';
 
-type SortType = 'newest' | 'oldest';
+type SortType = 'soonest' | 'newly-added' | 'online';
 
 const props = defineProps<{
   search?: string;
@@ -68,7 +66,7 @@ const emit = defineEmits<{
 /* ---------------- state ---------------- */
 
 const localSearch = ref(props.search ?? '');
-const localSort = ref<SortType>(props.sort ?? 'newest');
+const localSort = ref<SortType>(props.sort ?? 'soonest');
 const localCategory = ref<string | null>(props.category ?? null);
 
 /* ---------------- sync props ---------------- */
