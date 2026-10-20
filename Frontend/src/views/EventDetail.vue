@@ -300,6 +300,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageSeo } from '../utils/seo';
 import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../stores/event';
@@ -333,6 +334,10 @@ const userStore = useUserStore();
 
 const eventId = computed(() => route.params.id as string);
 const event = ref<Event | null>(null);
+usePageSeo(() => event.value ? {
+  title: `${event.value.title || 'Student Experience'} | UW Social`,
+  description: event.value.description || `Learn more about ${event.value.title || 'this experience'} on UW Social.`,
+} : null);
 const mapContainer = ref<HTMLElement | null>(null);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);

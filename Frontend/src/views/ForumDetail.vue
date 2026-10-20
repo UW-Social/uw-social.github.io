@@ -88,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageSeo } from '../utils/seo';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createForumPost, deleteForumPost, ensureForumForEvent, getForum, subscribeToForumPosts } from '../api/forums';
@@ -124,6 +125,11 @@ const eventDescription = computed(() => {
   const plain = raw.replace(/<br\s*\/?\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').trim();
   return plain || 'No description available.';
 });
+
+usePageSeo(() => forum.value ? {
+  title: `${eventTitle.value} Discussion | UW Social`,
+  description: linkedEvent.value?.description || forum.value.eventSnapshot?.description || `Join the discussion about ${eventTitle.value} on UW Social.`,
+} : null);
 
 const eventLocation = computed(() => {
   return linkedEvent.value?.location || forum.value?.eventSnapshot?.location || 'Location TBD';

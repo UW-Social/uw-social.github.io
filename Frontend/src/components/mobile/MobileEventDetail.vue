@@ -296,6 +296,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageSeo } from '../../utils/seo';
 import { computed, ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../../stores/event';
@@ -327,6 +328,10 @@ const router = useRouter();
 const eventStore = useEventStore();
 const userStore = useUserStore();
 const event = ref<Event | null>(null);
+usePageSeo(() => event.value ? {
+  title: `${event.value.title || 'Student Experience'} | UW Social`,
+  description: event.value.description || `Learn more about ${event.value.title || 'this experience'} on UW Social.`,
+} : null);
 const isLoading = ref(true);
 const commentsSectionRef = ref<HTMLElement | null>(null);
 const experienceSectionRef = ref<HTMLElement | null>(null);

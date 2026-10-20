@@ -157,6 +157,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageSeo } from '../utils/seo';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useClubStore } from '../stores/club';
@@ -171,6 +172,10 @@ const eventStore = useEventStore();
 
 const clubId = computed(() => route.params.id as string);
 const club = ref<Club | null>(null);
+usePageSeo(() => club.value ? {
+  title: `${club.value.name || 'Student Experience'} | UW Social`,
+  description: club.value.description || `Learn more about ${club.value.name || 'this experience'} on UW Social.`,
+} : null);
 const clubEvents = ref<Event[]>([]);
 const relevantClubs = ref<Club[]>([]);
 
