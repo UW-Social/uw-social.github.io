@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { homeSeo, routeSeo, setPageSeo } from '../utils/seo'
 // import { isMobile } from '@/App.vue'
 
 const routes = [
@@ -133,6 +134,10 @@ const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes
 })
+
+router.afterEach((to, _from, failure) => {
+  if (!failure) setPageSeo(routeSeo[String(to.name)] || homeSeo);
+});
 
 export function isMobile() {
   return window.innerWidth <= 576;

@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageSeo } from '../utils/seo';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -137,6 +138,10 @@ const eventStore = useEventStore();
 const userStore = useUserStore();
 
 const post = ref<ExperiencePost | null>(null);
+usePageSeo(() => post.value ? {
+  title: `${post.value.title || 'Student Experience'} | UW Social`,
+  description: post.value.content || `Learn more about ${post.value.title || 'this experience'} on UW Social.`,
+} : null);
 const replies = ref<DiscussionReply[]>([]);
 const isLoading = ref(true);
 const isReplySubmitting = ref(false);
