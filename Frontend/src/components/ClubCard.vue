@@ -57,7 +57,6 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useClubStore } from '../stores/club';
 import { formatClubCategory, type Club } from '../types/club';
-import '../assets/eventcard.css';
 import { ElButton } from 'element-plus';
 import 'element-plus/es/components/button/style/css';
 
@@ -82,6 +81,8 @@ const handleDelete = async () => {
   }
 };
 </script>
+
+<style scoped src="../assets/eventcard.css"></style>
 
 <style scoped>
 /* Club card - tighter spacing for more info to fit */

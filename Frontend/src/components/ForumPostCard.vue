@@ -458,6 +458,14 @@ const formatTimestamp = (value: DiscussionPost['createdAt']) => {
     flex-direction: column;
   }
 
+  .discussion-card.comment-style .discussion-top {
+    flex-direction: row;
+  }
+
+  .discussion-card.comment-style :deep(.reply-input) {
+    width: calc(100% - 50px);
+  }
+
   .event-context {
     min-width: 0;
   }

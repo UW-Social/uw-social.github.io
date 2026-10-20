@@ -281,16 +281,16 @@
       <section class="related-events-section">
         <div class="section-header-row related-events-header">
           <div>
-            <h2 class="section-title">More Events for You</h2>
+            <h2 class="section-title">More Upcoming Events</h2>
             <p class="section-helper">
-              Personalized using the same tag matching as your home feed.
+              Explore more events, ordered by start date.
             </p>
           </div>
         </div>
         <EventList
           :exclude-event-id="event.id"
           :limit="4"
-          :recommendation-mode="userStore.isLoggedIn ? 'personalized' : 'latest'"
+          sort="soonest"
           @open-card="goToRelatedEvent"
         />
       </section>
@@ -1441,6 +1441,7 @@ onBeforeUnmount(() => {
 
 .comment-input-row :deep(.reply-input) {
   display: flex;
+  flex-direction: row;
   align-items: center;
   position: relative;
   width: 100%;
@@ -1840,6 +1841,20 @@ onBeforeUnmount(() => {
     padding: 0;
   }
 
+  .calendar-menu {
+    position: relative;
+    right: auto;
+    bottom: auto;
+  }
+
+  .experience-sharing-header {
+    flex-wrap: wrap;
+  }
+
+  .experience-sharing-card .section-helper {
+    white-space: normal;
+  }
+
   .event-content-layout {
     grid-template-columns: 1fr;
   }
@@ -1851,12 +1866,14 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .event-detail-page {
-    padding: var(--spacing-xl);
-    padding-top: calc(var(--navbar-height) + var(--spacing-lg));
+    padding: 16px 12px 80px;
   }
 
   .back-button {
-    left: var(--spacing-xl);
+    position: relative;
+    top: auto;
+    left: auto;
+    margin-bottom: 16px;
     width: 40px;
     height: 40px;
     font-size: 1.2rem;
@@ -1867,8 +1884,53 @@ onBeforeUnmount(() => {
   }
 
   .event-header-section {
+    gap: 20px;
     padding: 14px;
     border-radius: 20px;
+  }
+
+  .event-image-card {
+    min-height: 0;
+  }
+
+  .event-image {
+    min-height: 0;
+    aspect-ratio: 4 / 3;
+  }
+
+  .event-content-layout,
+  .event-main-column,
+  .event-side-column {
+    gap: 20px;
+  }
+
+  .description-card,
+  .experience-sharing-card,
+  .map-card,
+  .comments-card,
+  .related-events-section {
+    padding: 20px;
+  }
+
+  .section-title {
+    font-size: 20px;
+  }
+
+  .event-title,
+  .event-description,
+  .ratings-review-detail,
+  .forum-list {
+    overflow-wrap: anywhere;
+  }
+
+  .logistic-primary,
+  .logistic-secondary {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .section-header-row {
+    flex-wrap: wrap;
   }
 
   .event-logistics-grid {
@@ -1911,10 +1973,6 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
-  .experience-sharing-card {
-    padding: 28px;
-  }
-
   .experience-sharing-header {
     flex-direction: column;
   }
@@ -1922,6 +1980,14 @@ onBeforeUnmount(() => {
   .experience-sharing-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .experience-sharing-card .forum-empty {
+    font-size: 14px;
+  }
+
+  .related-events-section :deep(.events-grid) {
+    grid-template-columns: 1fr;
   }
 }
 

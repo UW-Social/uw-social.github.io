@@ -83,9 +83,9 @@
                 <div class="form-group">
                   <select id="category" v-model="formData.category" required>
                     <option value="">Select category</option>
-                    <option value="Academic">Academic</option>
-                    <option value="Interest">Interest</option>
-                    <option value="Career">Career</option>
+                    <option v-for="category in EVENT_CATEGORIES" :key="category" :value="category">
+                      {{ category }}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -395,6 +395,7 @@ import { useUserStore } from '../stores/user';
 import { useEventStore } from '../stores/event';
 import type { Event as SocialEvent } from '../types/event';
 import { RecurrenceType } from '../types/event';
+import { EVENT_CATEGORIES, normalizeEventCategory } from '../utils/eventCategories';
 import {
   createDateInTimeZone,
   DEFAULT_TIME_ZONE,
@@ -579,7 +580,7 @@ function hydrateFormFromEvent(event: SocialEvent) {
   formData.value.title = event.title || '';
   formData.value.description = event.description || '';
   formData.value.location = event.location || '';
-  formData.value.category = event.category || '';
+  formData.value.category = normalizeEventCategory(event.category);
   formData.value.maxParticipants = event.maxParticipants ?? null;
   formData.value.tags = Array.isArray(event.tags) ? [...event.tags] : [];
   formData.value.link = event.link || '';
@@ -675,6 +676,14 @@ async function handleSubmit() {
     alert('Please log in to edit an event.');
     return;
   }
+
+  const category = normalizeEventCategory(formData.value.category);
+  if (!category) {
+    currentStep.value = 1;
+    alert('Please select an available category.');
+    return;
+  }
+  formData.value.category = category;
 
   isSubmitting.value = true;
 

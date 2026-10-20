@@ -1,6 +1,11 @@
 <template>
   <div class="event-list">
-    <div v-if="isLoading" class="loading">Loading events...</div>
+    <div v-if="eventStore.isLoading || isLoading" class="loading" role="status">Loading events...</div>
+
+    <div v-else-if="eventStore.fetchError" class="events-error" role="alert">
+      <p>{{ eventStore.fetchError }}</p>
+      <button type="button" @click="eventStore.fetchEvents()">Try again</button>
+    </div>
 
     <div v-else-if="filteredEvents.length === 0" class="no-events">
       No events found.
@@ -29,7 +34,7 @@ import type { Event } from '../types/event';
 const props = defineProps<{
   category?: string | null;
   search?: string;
-  sort?: 'newest' | 'oldest';
+  sort?: 'soonest' | 'newly-added' | 'online';
   recommendationMode?: 'personalized' | 'latest' | 'trending';
   limit?: number;
   excludeEventId?: string;
@@ -57,10 +62,7 @@ const VALID_CATEGORIES = new Set([
   'CAREER',
   'CLUB',
   'SPORTS',
-  'GAMES',
-  'CULTURE',
   'INTEREST',
-  'HFS',
 ]);
 
 function normalizeCategory(cat?: string | null) {
@@ -161,17 +163,30 @@ function applySearch(events: Event[]) {
 
 /* ---- SORT ---- */
 
+function getEventStartDate(event: Event): Date | null {
+  const schedule = event.schedule;
+  const scheduledStart = schedule?.type === 'ONE_TIME'
+    ? schedule.startDatetime
+    : schedule?.startDate;
+
+  return toDate(scheduledStart) ?? toDate(event.startTime);
+}
+
 function sortEvents(events: Event[]) {
-  const normal = events.filter(e => !isRecurring(e));
-  const recurring = events.filter(isRecurring);
+  return [...events].sort((a, b) => {
+    const newlyAdded = props.sort === 'newly-added';
+    const tA = (newlyAdded ? toDate(a.createdAt) : getEventStartDate(a))?.getTime();
+    const tB = (newlyAdded ? toDate(b.createdAt) : getEventStartDate(b))?.getTime();
 
-  normal.sort((a, b) => {
-    const tA = toDate(a.startTime)?.getTime() ?? 0;
-    const tB = toDate(b.startTime)?.getTime() ?? 0;
-    return props.sort === 'oldest' ? tA - tB : tB - tA;
+    // Keep events without a valid start date last in either direction.
+    if (tA === undefined) return tB === undefined ? 0 : 1;
+    if (tB === undefined) return -1;
+    return props.sort === 'soonest' || props.sort === 'online' ? tA - tB : tB - tA;
   });
+}
 
-  return [...normal, ...recurring];
+function isOnlineEvent(event: Event): boolean {
+  return /\b(online|virtual|zoom|webinar|remote|microsoft teams|google meet)\b|线上|線上/i.test(event.location || '');
 }
 
 /* ---- PIPELINE ---- */
@@ -187,12 +202,15 @@ async function refresh() {
 
   events = filterCategory(events);
   events = filterPast(events);
+  if (props.sort === 'online') {
+    events = events.filter(isOnlineEvent);
+  }
   events = applySearch(events);
 
-  // Base sort by date (newest/oldest)
+  // An explicit date sort takes priority over recommendation ranking.
   events = sortEvents(events);
 
-  if (props.recommendationMode === 'personalized') {
+  if (!props.sort && props.recommendationMode === 'personalized') {
     const userTags = userStore.userProfile?.tags;
     if (
       userStore.isLoggedIn &&
@@ -207,7 +225,7 @@ async function refresh() {
         console.error('Personalized ranking failed, falling back to date sort:', err);
       }
     }
-  } else if (props.recommendationMode === 'trending') {
+  } else if (!props.sort && props.recommendationMode === 'trending') {
     events = scoreByTrending(events);
   }
 
@@ -258,6 +276,14 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
   for (const tagRaw of userTags) {
     const tag = (tagRaw || '').toString().trim();
     if (!tag) continue;
+    console.log('[EventList] Fuse ranking search', {
+      userTags,
+      eventTags: candidates.map((candidate) => ({
+        eventId: candidate.id,
+        tags: candidate.event.tags ?? [],
+      })),
+      query: tag,
+    });
     const results = fuse.search(tag, { limit: candidates.length });
     for (const r of results) {
       const id = r.item.id;
@@ -337,3 +363,22 @@ onMounted(async () => {
   await refresh();
 });
 </script>
+
+<style scoped>
+.events-error {
+  padding: 24px;
+  border: 1px solid #e8eaf0;
+  border-radius: 20px;
+  background: #fff;
+  color: #475467;
+}
+
+.events-error button {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #6c48d1;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+</style>

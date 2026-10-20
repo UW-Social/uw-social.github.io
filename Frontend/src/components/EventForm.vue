@@ -109,14 +109,9 @@
               <div class="form-group">
                 <select id="category" v-model="formData.category" required>
                   <option value="">Select category</option>
-                  <option value="Academic">Academic</option>
-                  <option value="Club">Club</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Games">Games</option>
-                  <option value="Culture">Culture</option>
-                  <option value="Interest">Interest</option>
-                  <option value="Career">Career</option>
-                  <option value="HFS">HFS</option>
+                  <option v-for="category in EVENT_CATEGORIES" :key="category" :value="category">
+                    {{ category }}
+                  </option>
                 </select>
               </div>
             </div>
@@ -419,6 +414,7 @@
 </template>
 
 <script setup lang="ts">
+import { EVENT_CATEGORIES, normalizeEventCategory } from '../utils/eventCategories';
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
@@ -653,16 +649,7 @@ const normalizeDateInput = (value: unknown) => {
 };
 
 const normalizeCategoryValue = (value: unknown, tags: string[]) => {
-  const normalized = toText(value).trim().toLowerCase();
-  if (normalized === 'academic') return 'Academic';
-  if (normalized === 'club') return 'Club';
-  if (normalized === 'sports') return 'Sports';
-  if (normalized === 'games') return 'Games';
-  if (normalized === 'culture') return 'Culture';
-  if (normalized === 'interest') return 'Interest';
-  if (normalized === 'career') return 'Career';
-  if (normalized === 'hfs') return 'HFS';
-  return inferCategory(tags);
+  return normalizeEventCategory(value) || inferCategory(tags);
 };
 
 const normalizeRecurrenceType = (value: unknown) => {
