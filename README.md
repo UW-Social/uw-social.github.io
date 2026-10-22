@@ -4,3 +4,8 @@ A website that helps UW students, including transfer students, international stu
 This document contains all necessary information about the technology stack, features, database schema, and implementation details. Future development should reference this document to maintain consistency.
 ### Repository documentation
 See README_technical.md
+
+
+### AI service
+
+AI Consultant and event extraction use Cloudflare Workers + Workers AI. Deployment and free-tier configuration: [Cloudflare/README.md](Cloudflare/README.md). The frontend requires the public `VITE_AI_API_BASE_URL` setting; AI requests require Firebase login.

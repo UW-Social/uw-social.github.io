@@ -95,6 +95,11 @@ export const useChatbotStore = defineStore('chatbot', () => {
       return;
     }
 
+    if (!userStore.isLoggedIn) {
+      lastError.value = 'Please log in to use AI features.';
+      return;
+    }
+
     await ensureEventsLoaded();
 
     const userMessage = toMessage('user', content);
@@ -131,10 +136,10 @@ export const useChatbotStore = defineStore('chatbot', () => {
 
       sentRequestCount.value += 1;
     } catch (error) {
-      const fallback = 'I ran into an issue reaching Gemini. Please try again in a moment.';
+      const fallback = 'I ran into an issue reaching the AI service. Please try again in a moment.';
       const message = error instanceof Error ? error.message : fallback;
       lastError.value = message;
-      messages.value.push(toMessage('assistant', fallback));
+      messages.value.push(toMessage('assistant', message));
     } finally {
       isLoading.value = false;
     }

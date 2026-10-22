@@ -2,7 +2,6 @@
   "name": "uw-social-frontend",
   "version": "0.0.1",
   "dependencies": {
-    "@google/genai": "^2.2.0",
     "@googlemaps/js-api-loader": "^2.0.1",
     "@huggingface/transformers": "^3.7.2",
     "@vueuse/core": "^10.7.0",
