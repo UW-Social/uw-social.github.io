@@ -1,6 +1,6 @@
 import { auth } from '../firebase/config';
 
-export async function requestAi<T>(path: '/chat' | '/extract-event', payload: unknown): Promise<T> {
+export async function requestAi<T>(path: '/chat' | '/extract-event' | '/score-event', payload: unknown): Promise<T> {
   const baseUrl = (import.meta.env.VITE_AI_API_BASE_URL || '').trim().replace(/\/+$/, '');
   if (!baseUrl) throw new Error('AI service is not available yet. Please try again later.');
   await auth.authStateReady();

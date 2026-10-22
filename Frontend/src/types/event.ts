@@ -88,6 +88,13 @@ export interface EventReviewSummary {
   stars: number;
   score: number;
   sentence: string;
+  source?: 'ai';
+  score100?: number;
+  frameworkVersion?: string;
+  model?: string;
+  evaluatedAt?: string;
+  confidence?: 'low' | 'medium' | 'high';
+  dimensions?: Record<'K' | 'N' | 'T' | 'C', { score: number; evidence: string }>;
 }
 
 export interface Event {

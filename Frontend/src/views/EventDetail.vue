@@ -202,15 +202,15 @@
         <aside class="event-side-column">
           <div class="ratings-review-card">
             <div class="ratings-review-header">
-              <h2 class="ratings-review-title">Ratings &amp; Reviews</h2>
+              <h2 class="ratings-review-title">{{ event.review?.source === 'ai' ? 'AI Event Evaluation' : 'Ratings & Reviews' }}</h2>
               <div class="ratings-review-score">
                 <strong>{{ reviewDisplay.starsText }}</strong>
-                <span>/ 5</span>
+                <span>/ {{ reviewDisplay.scale }}</span>
               </div>
             </div>
 
             <div class="ratings-review-summary">
-              <div class="ratings-stars" :aria-label="`${reviewDisplay.starsText} out of 5 stars`">
+              <div class="ratings-stars" :aria-label="`${reviewDisplay.fullStars} out of 5 stars`">
                 <span
                   v-for="star in 5"
                   :key="star"
@@ -220,6 +220,13 @@
             </div>
             <div class="ratings-review-detail">
               <p>{{ reviewDisplay.sentence }}</p>
+              <details v-if="event.review?.dimensions">
+                <summary>Score breakdown</summary>
+                <p v-for="(dimension, code) in event.review.dimensions" :key="code">
+                  <strong>{{ code }}: {{ dimension.score }}/10</strong> — {{ dimension.evidence }}
+                </p>
+                <p>Confidence: {{ event.review.confidence }}</p>
+              </details>
             </div>
             <router-link class="score-framework-link" to="/score-framework">
               How We Assign This Score?
@@ -395,7 +402,8 @@ const reviewDisplay = computed(() => {
   const sentence = review?.sentence?.trim() || 'Review details coming soon';
 
   return {
-    starsText: score > 0 ? score.toFixed(1) : '--',
+    starsText: typeof review?.score100 === 'number' ? review.score100.toFixed(1) : score > 0 ? score.toFixed(1) : '--',
+    scale: typeof review?.score100 === 'number' ? 100 : 5,
     fullStars: stars,
     sentence,
   };

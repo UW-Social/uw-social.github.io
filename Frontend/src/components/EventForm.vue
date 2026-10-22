@@ -1,5 +1,5 @@
 <template>
-  <div class="event-form">
+  <div class="event-form" :inert="isSubmitting">
     <div class="quick-import paste-import">
       <label for="eventPasteText">Paste an event brief for quick input</label>
       <textarea
@@ -46,10 +46,6 @@
         </div>
         <div class="step" :class="{ active: currentStep >= 4 }" @click="currentStep = 4">
           <span class="step-number">4</span>
-          <span class="step-title">Review</span>
-        </div>
-        <div class="step" :class="{ active: currentStep >= 5 }" @click="currentStep = 5">
-          <span class="step-number">5</span>
           <span class="step-title">Preview</span>
         </div>
       </div>
@@ -307,68 +303,12 @@
           
           <div class="step-navigation">
             <button type="button" class="nav-btn prev" @click="currentStep = 2">← Previous</button>
-            <button type="button" class="nav-btn next" @click="currentStep = 4">Review →</button>
+            <button type="button" class="nav-btn next" @click="currentStep = 4">Preview →</button>
           </div>
         </div>
 
-        <!-- Step 4: Review -->
+        <!-- Step 4: Preview & Submit -->
         <div v-show="currentStep === 4" class="step-content">
-          <div class="bento-grid">
-            <div class="bento-card large">
-              <div class="card-header">
-                <h3>Review</h3>
-                <p>Set the rating shown on this event detail page</p>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="reviewStars">Stars</label>
-                  <input
-                    id="reviewStars"
-                    v-model.number="formData.reviewStars"
-                    type="number"
-                    min="1"
-                    max="5"
-                    step="1"
-                    placeholder="e.g., 4"
-                  >
-                </div>
-
-                <div class="form-group">
-                  <label for="reviewScore">Score</label>
-                  <input
-                    id="reviewScore"
-                    v-model.number="formData.reviewScore"
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    placeholder="e.g., 4.8"
-                  >
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="reviewSentence">Short sentence of review</label>
-                <input
-                  id="reviewSentence"
-                  v-model="formData.reviewSentence"
-                  type="text"
-                  maxlength="80"
-                  placeholder="e.g., Helpful for networking"
-                >
-              </div>
-            </div>
-          </div>
-
-          <div class="step-navigation">
-            <button type="button" class="nav-btn prev" @click="currentStep = 3">← Previous</button>
-            <button type="button" class="nav-btn next" @click="currentStep = 5">Preview →</button>
-          </div>
-        </div>
-        
-        <!-- Step 5: Preview & Submit -->
-        <div v-show="currentStep === 5" class="step-content">
           <div class="preview-card">
             <div class="card-header">
               <h3>🎉 Ready to Publish?</h3>
@@ -389,18 +329,12 @@
               <div v-if="formData.tags.length" class="preview-tags">
                 <span v-for="tag in formData.tags" :key="tag" class="tag-chip">#{{ tag }}</span>
               </div>
-              <div class="preview-details">
-                <template v-if="hasReviewInput">
-                  <span class="detail-chip">★ {{ normalizedReviewStars }} / 5</span>
-                  <span class="detail-chip">{{ normalizedReviewScore }} / 5 score</span>
-                  <span v-if="formData.reviewSentence.trim()" class="detail-chip">{{ formData.reviewSentence }}</span>
-                </template>
-              </div>
+              <p>AI evaluates this event automatically when you submit it.</p>
             </div>
           </div>
           
           <div class="step-navigation">
-            <button type="button" class="nav-btn prev" @click="currentStep = 4">← Edit Review</button>
+            <button type="button" class="nav-btn prev" @click="currentStep = 3">← Edit Details</button>
             <button type="submit" class="submit-btn" :disabled="isSubmitting">
               {{ isSubmitting ? 'Publishing...' : '🚀 Publish Event!' }}
             </button>
@@ -431,6 +365,7 @@ import {
 } from '../utils/timeZone';
 import '@/assets/eventform.css';
 import { requestAi } from '../api/ai';
+import { scoreEventForSubmission } from '../api/eventScoring';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -464,9 +399,6 @@ const formData = ref({
   daysOfWeek: [] as number[],
   daysOfMonthInput: '',
   imageUrl: '',
-  reviewStars: null as number | null,
-  reviewScore: null as number | null,
-  reviewSentence: '',
 });
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -493,6 +425,7 @@ type ImportedEventData = Partial<{
   startTime: string;
   endDate: string;
   endTime: string;
+  timeZone: string;
   imageUrl: string;
   link: string;
   recurrenceType: RecurrenceType;
@@ -500,14 +433,7 @@ type ImportedEventData = Partial<{
   daysOfWeek: number[];
   daysOfMonthInput: string;
   maxParticipants: number | null;
-  reviewStars: number | null;
-  reviewScore: number | null;
-  reviewSentence: string;
 }>;
-
-const clampNumber = (value: number, min: number, max: number) => (
-  Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
-);
 
 const formatErrorMessage = (error: unknown) => {
   if (typeof error === 'object' && error && 'code' in error) {
@@ -545,28 +471,8 @@ const logFormSnapshot = (source: string) => {
     category: formData.value.category,
     tags: formData.value.tags,
     link: formData.value.link,
-    reviewStars: formData.value.reviewStars,
-    reviewScore: formData.value.reviewScore,
   });
 };
-
-const normalizedReviewStars = computed(() => (
-  Math.round(clampNumber(Number(formData.value.reviewStars ?? 4), 1, 5))
-));
-
-const normalizedReviewScore = computed(() => (
-  Math.round(clampNumber(Number(formData.value.reviewScore ?? 4.8), 0, 5) * 10) / 10
-));
-
-const hasNumberInput = (value: number | null) => (
-  value !== null && Number.isFinite(Number(value))
-);
-
-const hasReviewInput = computed(() => (
-  formData.value.reviewSentence.trim().length > 0
-  || hasNumberInput(formData.value.reviewStars)
-  || hasNumberInput(formData.value.reviewScore)
-));
 
 // 使用简单的ref来避免computed双向绑定的问题
 const tagsInputValue = ref('');
@@ -688,6 +594,9 @@ const applyImportedEventData = (data: ImportedEventData) => {
   formData.value.startTime = normalizeTime(data.startTime ?? formData.value.startTime);
   formData.value.endDate = endDate;
   formData.value.endTime = normalizeTime(data.endTime ?? formData.value.endTime);
+  if (TIME_ZONE_OPTIONS.some(option => option.value === data.timeZone)) {
+    formData.value.timeZone = data.timeZone!;
+  }
   formData.value.imageUrl = toText(data.imageUrl, formData.value.imageUrl);
 
   formData.value.recurrenceType = normalizeRecurrenceType(data.recurrenceType ?? formData.value.recurrenceType);
@@ -714,19 +623,7 @@ const applyImportedEventData = (data: ImportedEventData) => {
     formData.value.link = toText(data.link);
   }
 
-  const reviewStars = toNullableNumber(data.reviewStars);
-  if (reviewStars !== null) {
-    formData.value.reviewStars = reviewStars;
-  }
 
-  const reviewScore = toNullableNumber(data.reviewScore);
-  if (reviewScore !== null) {
-    formData.value.reviewScore = reviewScore;
-  }
-
-  if (data.reviewSentence != null) {
-    formData.value.reviewSentence = toText(data.reviewSentence);
-  }
 };
 
 const createLocalDateFromInput = (
@@ -817,11 +714,16 @@ const handlePasteImport = async () => {
     currentStep.value = 1;
   } catch (err) {
     console.error(err);
+    const reason = formatErrorMessage(err);
     const fallback = parsePastedEventLocally(document);
-    applyImportedEventData(fallback);
-    logFormSnapshot('Local paste import applied');
-    pasteImportStatus.value = 'Used local parsing because AI parsing was unavailable.';
-    currentStep.value = 1;
+    if (fallback.title?.trim()) {
+      applyImportedEventData(fallback);
+      logFormSnapshot('Local paste import applied');
+      pasteImportStatus.value = `AI parsing failed: ${reason} Used local parsing; please check the filled fields.`;
+      currentStep.value = 1;
+    } else {
+      pasteImportStatus.value = `AI parsing failed: ${reason} Local parsing could not recognize the event format. Your form has not been changed.`;
+    }
   } finally {
     isParsingPaste.value = false;
   }
@@ -858,7 +760,6 @@ const parsePastedEventLocally = (document: string): ImportedEventData => {
   const timeText = document.match(/-\s*\*\*时间[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
   const location = document.match(/-\s*\*\*地点[:：]\*\*\s*([^\n]+)/)?.[1]?.replace(/\u00a0/g, ' ').trim() ?? '';
   const link = document.match(/-\s*\*\*链接[:：]\*\*\s*\[[^\]]+\]\(([^)]+)\)/)?.[1]?.trim() ?? '';
-  const ratingText = document.match(/-\s*\*\*评分[:：]\*\*\s*([^\n]+)/)?.[1] ?? '';
   const tagLine = document.match(/-\s*\*\*Tags[:：]\*\*\s*([^\n]+)/i)?.[1] ?? '';
   const english = document.match(/\*\*English:\*\*\\?\s*\n([\s\S]*?)(?=\n\s*\*\*亮点[:：]\*\*)/)?.[1]?.trim() ?? '';
   const highlightsChinese = document.match(/\*\*亮点[:：]\*\*\s*([^\n\\]+)/)?.[1]?.trim() ?? '';
@@ -872,8 +773,6 @@ const parsePastedEventLocally = (document: string): ImportedEventData => {
   const startTime = timeRangeMatch ? normalizeTime(timeRangeMatch[1]) : '';
   const endTime = timeRangeMatch ? normalizeTime(timeRangeMatch[2]) : '';
   const tags = normalizeTagList([...tagLine.matchAll(/`([^`]+)`/g)].map(match => match[1]));
-  const score = Number(ratingText.match(/(\d+(?:\.\d+)?)\s*\/\s*5/)?.[1] ?? NaN);
-  const stars = ratingText.match(/⭐/g)?.length || (Number.isFinite(score) ? Math.round(score) : null);
   const translatedHighlights = translateKnownHighlights(highlightsChinese);
   const description = [
     english,
@@ -892,9 +791,6 @@ const parsePastedEventLocally = (document: string): ImportedEventData => {
     link,
     recurrenceType: RecurrenceType.ONE_TIME,
     tags,
-    reviewStars: stars,
-    reviewScore: Number.isFinite(score) ? score : stars,
-    reviewSentence: Number.isFinite(score) ? `${score}/5` : '',
   };
 };
 
@@ -947,6 +843,7 @@ const scraper = async (url: string) => {
 };
 
 const handleSubmit = async () => {
+  if (isSubmitting.value) return;
   if (!userStore.userProfile) {
     alert('Please log in to publish an event!');
     return;
@@ -958,8 +855,6 @@ const handleSubmit = async () => {
   try {
     normalizeTimeField('startTime');
     normalizeTimeField('endTime');
-
-    const reviewSentence = formData.value.reviewSentence.trim();
 
     let schedule: EventSchedule | null = null;
     const recurrenceType = formData.value.recurrenceType;
@@ -1119,6 +1014,8 @@ const handleSubmit = async () => {
       startTime = startDate;
       endtime = endDate;
     }
+    const review = await runPublishStep('Evaluating event with AI...', () => scoreEventForSubmission(formData.value));
+
     // 上传图片
     if (selectedImageFile.value) {
       const storagePath = `events/${Date.now()}_${selectedImageFile.value.name}`;
@@ -1147,13 +1044,7 @@ const handleSubmit = async () => {
       participants: [],
       link: formData.value.link,
       imageUrl: formData.value.imageUrl,
-      review: hasReviewInput.value
-        ? {
-            stars: normalizedReviewStars.value,
-            score: normalizedReviewScore.value,
-            sentence: reviewSentence,
-          }
-        : null,
+      review,
       startTime: startTime,
       endtime: endtime,
       // Store original time info for display

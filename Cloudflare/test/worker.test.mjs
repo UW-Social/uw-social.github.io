@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { generateKeyPair, SignJWT } from 'jose';
 import { createWorker } from '../src/index.mjs';
 import { verifyFirebaseToken } from '../src/auth.mjs';
@@ -7,7 +8,7 @@ import { verifyFirebaseToken } from '../src/auth.mjs';
 const origin = 'https://uw-social.com';
 const input = { message: 'Find events', history: [], context: { events: [{ id: 'e1', title: 'Workshop' }] } };
 
-function setup({ result = { text: 'Try Workshop', citations: [] }, rejectAuth = false, userLimit = true, appLimit = true } = {}) {
+function setup({ result = { text: 'Try Workshop', citations: [] }, rawResponse = false, rejectAuth = false, userLimit = true, appLimit = true } = {}) {
   let calls = 0;
   const env = {
     ALLOWED_ORIGINS: origin, FIREBASE_PROJECT_ID: 'project',
@@ -15,9 +16,21 @@ function setup({ result = { text: 'Try Workshop', citations: [] }, rejectAuth = 
     APP_RATE_LIMITER: { limit: async () => ({ success: appLimit }) },
     AI: { run: async (model, options) => {
       calls++;
-      assert.equal(model, '@cf/meta/llama-3.1-8b-instruct-fp8');
-      assert.equal(options.response_format.type, 'json_object');
-      return { response: typeof result === 'string' ? result : JSON.stringify(result) };
+      if (options.response_format.type === 'json_schema') {
+        assert.equal(model, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+        if (options.response_format.json_schema.properties.dimensions) {
+          assert.deepEqual(options.response_format.json_schema.properties.dimensions.required, ['K', 'N', 'T', 'C']);
+          assert.equal(options.max_tokens, 1200);
+        } else {
+          assert.equal(options.response_format.json_schema.properties.startDate.type, 'string');
+          assert.ok(options.response_format.json_schema.required.includes('title'));
+          assert.equal(options.max_tokens, 2000);
+        }
+      } else {
+        assert.equal(model, '@cf/meta/llama-3.1-8b-instruct-fp8');
+        assert.equal(options.response_format.type, 'json_object');
+      }
+      return { response: rawResponse || typeof result === 'string' ? result : JSON.stringify(result) };
     } },
   };
   const worker = createWorker(async token => {
@@ -111,6 +124,22 @@ test('provider errors and invalid model output have safe errors', async () => {
   assert.doesNotMatch(await response.text(), /private provider details/);
 });
 
+test('model failures distinguish unsupported schemas and generation errors without claiming quota exhaustion', async () => {
+  for (const [providerMessage, status, expected] of [
+    ["AiError: This model doesn't support JSON Schema. private request id", 503, /does not support/],
+    ["JSON Mode couldn't be met: private provider details", 502, /could not format/],
+    ['private provider details', 503, /model request failed/],
+  ]) {
+    const app = setup();
+    app.env.AI.run = async () => { throw new Error(providerMessage); };
+    const response = await app.send();
+    const body = await response.text();
+    assert.equal(response.status, status);
+    assert.match(body, expected);
+    assert.doesNotMatch(body, /private|allowance|exhausted/);
+  }
+});
+
 test('event extraction returns sanitized form fields', async () => {
   const app = setup({ result: { title: 'Workshop', tags: ['UW', 4], daysOfWeek: [2, 9], reviewStars: 4, secret: 'ignored' } });
   const response = await app.worker.fetch(new Request('https://worker.example/extract-event', {
@@ -121,9 +150,46 @@ test('event extraction returns sanitized form fields', async () => {
   const data = await response.json();
   assert.deepEqual(data.tags, ['UW']);
   assert.deepEqual(data.daysOfWeek, [2]);
-  assert.equal(data.reviewStars, 4);
+  assert.equal(data.reviewStars, undefined);
   assert.equal(data.startDate, '');
   assert.equal(data.secret, undefined);
+});
+
+test('event extraction replaces generated marketing copy with the supplied English sections', async () => {
+  const document = await readFile(new URL('./fixtures/aws-kickoff.md', import.meta.url), 'utf8');
+  const app = setup({ result: {
+    title: 'AWS Cloud Club 2026–27 Kickoff', description: 'Come and join us!',
+    reviewSentence: 'x'.repeat(100),
+  } });
+  const response = await app.worker.fetch(new Request('https://worker.example/extract-event', {
+    method: 'POST', headers: { authorization: 'Bearer firebase-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ document }),
+  }), app.env);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.match(data.description, /^This kickoff introduces the AWS Cloud Club/);
+  assert.match(data.description, /The long-term value will depend on the depth and consistency/);
+  assert.match(data.description, /Highlights: Meet the AWS Cloud Club/);
+  assert.doesNotMatch(data.description, /Rating:/);
+  assert.doesNotMatch(data.description, /Come and join|[\u3400-\u9fff]/);
+  assert.equal(data.reviewSentence, undefined);
+});
+
+test('event extraction accepts structured objects and fenced JSON, and rejects incomplete JSON', async () => {
+  for (const [result, status] of [
+    [{ title: 'Workshop', startDate: '2026-10-25', startTime: '18:00' }, 200],
+    ['```json\n{"title":"Workshop","location":"HUB"}\n```', 200],
+    ['{"title":"Workshop","description":"unfinished', 502],
+    [{ title: '' }, 502],
+  ]) {
+    const app = setup({ result, rawResponse: true });
+    const response = await app.worker.fetch(new Request('https://worker.example/extract-event', {
+      method: 'POST', headers: { authorization: 'Bearer firebase-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ document: 'Workshop on October 25, 2026 at 6 PM in HUB' }),
+    }), app.env);
+    assert.equal(response.status, status);
+    if (status === 200) assert.equal((await response.json()).title, 'Workshop');
+  }
 });
 
 test('Firebase verification checks signature, project, expiry, and auth claims', async () => {

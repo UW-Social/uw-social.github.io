@@ -94,56 +94,10 @@
 </template>
 
 <script setup lang="ts">
-const dimensions = [
-  {
-    code: 'K',
-    title: 'Knowledge and Skill Growth',
-    weight: '35%',
-    why: 'The core value of a technical community is skill development.',
-    question: 'Will attendees become meaningfully better builders, engineers, researchers, or thinkers after this?',
-    detailWhy: 'This is the most important dimension for a tech community. Truly valuable events usually provide new mental models, practical lessons, real-world experience, and frontier understanding.',
-    high: ['Deep technical insight', 'Real implementation experience', 'Strong demos', 'Actionable takeaways', 'Frontier thinking'],
-    low: ['Surface-level trends', 'Generic AI hype', 'Marketing disguised as education', 'No practical depth'],
-  },
-  {
-    code: 'N',
-    title: 'Networking Quality',
-    weight: '25%',
-    why: 'High-quality connections matter more than crowd size.',
-    question: 'How likely are attendees to meet capable and aligned people?',
-    detailWhy: 'The core idea is quality over quantity: builders talking to builders.',
-    high: ['Strong attendee quality', 'High interaction probability', 'Technical or build-oriented participants', 'Easy to have meaningful conversations'],
-    low: ['Mostly spectators', 'Weak attendee alignment', 'Hard to interact meaningfully'],
-  },
-  {
-    code: 'T',
-    title: 'Time-to-Value Efficiency',
-    weight: '25%',
-    why: 'This prevents highly popular but low-density events from scoring too high.',
-    question: 'Was the value worth the time and energy invested?',
-    detailWhy: 'Many tech events have very low information density: two hours can sometimes repeat ideas people already saw online. This dimension rewards efficient use of attendee time.',
-    high: ['Efficient format', 'Valuable insights per hour'],
-    low: ['Repetitive', 'Low informational return'],
-  },
-  {
-    code: 'C',
-    title: 'Organizer Credibility',
-    weight: '15%',
-    why: 'Organizer quality influences the overall signal.',
-    question: 'Does the organizer consistently attract high-quality people and content?',
-    detailWhy: 'Strong organizers usually bring better speakers and a stronger ecosystem, but organizer reputation should not outweigh the content itself. That is why this dimension is weighted at 15%.',
-    high: ['Consistent track record', 'Strong speaker or partner quality', 'Clear relevance to the community'],
-    low: ['Unclear organizer quality', 'Weak content signal', 'Mostly promotional programming'],
-  },
-];
+import framework from '../../../shared/event-evaluation.json';
 
-const starRows = [
-  { score: '90–100', rating: '★★★★★' },
-  { score: '75–89', rating: '★★★★' },
-  { score: '60–74', rating: '★★★' },
-  { score: '40–59', rating: '★★' },
-  { score: '< 40', rating: '★' },
-];
+const dimensions = framework.dimensions.map(item => ({ ...item, weight: `${Math.round(item.weight * 100)}%` }));
+const starRows = framework.starThresholds.map(row => ({ score: row.label, rating: '★'.repeat(row.stars) }));
 </script>
 
 <style scoped>
