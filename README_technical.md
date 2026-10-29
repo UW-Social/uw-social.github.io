@@ -16,7 +16,8 @@ Primary architecture characteristics:
 - Uses Pinia for client-side state management.
 - Uses Vue Router with hash history for route compatibility in static hosting.
 - Uses Vite for local development and production builds.
-- Includes optional API integration via Axios (`/api` proxy in dev, production base URL configured in code).
+- Includes an optional Axios API wrapper (`/api` is proxied to `http://localhost:5000` in dev).
+- Uses a Cloudflare Worker with Workers AI for authenticated chat, event extraction, and event scoring.
 
 ## 2. Runtime Flow
 
@@ -49,6 +50,8 @@ Examples:
 - `Frontend/src/stores/event.ts` fetches and sorts events from Firestore.
 - `Frontend/src/stores/user.ts` handles Google sign-in, auth persistence, and user document initialization.
 - `Frontend/src/api/forums.ts` handles forum listing, forum creation per event, and realtime post subscription.
+- `Frontend/src/api/ai.ts` obtains a Firebase ID token and calls the Worker endpoints `/chat`, `/extract-event`, and `/score-event`.
+- `Cloudflare/src/index.mjs` validates Firebase ID tokens, applies CORS and rate limits, and invokes Workers AI.
 
 ## 3. Repository and Directory Structure
 
@@ -68,7 +71,9 @@ Main application (`Frontend/`):
 - `src/views/`: page-level views (Events, Clubs, Forums, Profile, Publish, etc.).
 - `src/components/`: reusable UI components and mobile-specific components.
 - `src/stores/`: Pinia stores for users/events/clubs/tags.
-- `src/api/`: API abstraction modules (forums, optional backend API wrapper).
+- `src/api/`: API abstraction modules (forums, AI, and optional backend API wrapper).
+- `src/api/ai.ts`: authenticated Worker AI client.
+- `src/api/eventScoring.ts`: event scoring client.
 - `src/firebase/`: Firebase initialization and exported service handles.
 - `src/types/`: shared TypeScript interfaces and model helpers.
 - `src/assets/`: CSS files and design system styles.
@@ -77,6 +82,14 @@ Main application (`Frontend/`):
 - `firestore.rules`: Firestore security rules.
 - `firestore.indexes.json`: Firestore indexes config.
 - `vite.config.ts`: Vite config, aliases, proxy, base path, ONNX/WASM MIME support.
+
+Cloudflare Worker (`Cloudflare/`):
+
+- `src/index.mjs`: Worker routes, authentication, CORS, limits, and model calls.
+- `src/event-copy.mjs`: event text extraction and normalization.
+- `src/event-scoring.mjs`: event evaluation using `shared/event-evaluation.json`.
+- `test/`: Node test suite for authentication, extraction, scoring, and request handling.
+- `wrangler.jsonc`: Workers AI binding, Firebase project, allowed origins, and rate-limit configuration.
 
 Public assets and models:
 
@@ -107,6 +120,7 @@ Auxiliary packages present in codebase:
 - Google Calendar REST API integration (via Firebase Auth)
 - Fuse.js
 - Transformer/ONNX-related libraries (`@huggingface/transformers`, `@xenova/transformers`, `onnxruntime-web`, `tokenizers`)
+- Cloudflare Workers AI (`@cf/meta/llama-3.1-8b-instruct-fp8` for chat and `@cf/meta/llama-3.3-70b-instruct-fp8-fast` for extraction)
 
 ## 5. Environment Configuration
 
@@ -124,11 +138,15 @@ Common variables:
 - `VITE_GOOGLE_MAPS_API_KEY`
 - `VITE_BASE_PATH`
 - `VITE_API_BASE_URL` (used in some deployment variants)
+- `VITE_AI_API_BASE_URL` (Cloudflare Worker URL, without an endpoint path)
+- `VITE_CHATBOT_TIMEOUT_MS` (optional AI request timeout; defaults to 30000 ms)
 
 Notes:
 
 - Frontend runtime env is read with `import.meta.env`.
 - `scripts/migrate-forums.mjs` expects env vars via Node process environment and is designed to run with `.env.local`.
+- AI requests require a logged-in, non-anonymous Firebase user and send a Firebase ID token to the Worker.
+- The production value of `VITE_AI_API_BASE_URL` is provided through the GitHub Actions repository variable of the same name.
 
 ## 6. Local Development Workflow
 
@@ -209,10 +227,22 @@ npm run build
 	 - Clubs flow: list/detail/interactions.
 	 - Forums flow: forum list, detail, posting, realtime update.
 	 - Profile flow: profile load/edit updates.
+	 - AI flow: authenticated chat, event extraction, and event scoring.
 
 3. If deployment-related changes were made:
 	 - Verify base path behavior locally with matching env.
 	 - Validate route refresh and deep-link behavior with hash routing.
+
+Cloudflare Worker checks:
+
+```bash
+cd Cloudflare
+npm ci
+npm test
+npm run check
+```
+
+`npm run check` performs a Wrangler dry-run. `npm run deploy` publishes the Worker after the required Cloudflare account configuration is available.
 
 ## 8. Data Model and Firestore Notes
 
@@ -232,6 +262,13 @@ Security rules:
 - Defined in `Frontend/firestore.rules`.
 - Enforces authenticated writes for protected documents.
 - Restricts updates/deletes to owner IDs where specified.
+
+AI service:
+
+- The Worker exposes `POST /chat`, `POST /extract-event`, and `POST /score-event`.
+- All three routes require a valid Firebase ID token and share per-user and application rate limits.
+- Event scoring uses the criteria and weights in `shared/event-evaluation.json`; scoring failures prevent event publication or edits from being saved.
+- The Worker does not fetch arbitrary URLs or persist request bodies.
 
 ## 9. Deployment Workflow
 
@@ -259,6 +296,8 @@ Deployment is managed by GitHub Actions in `.github/workflows/deploy.yml`.
 	- `main` -> `github-pages`
 	- `alpha` -> `alpha`
 
+The AI Worker is deployed separately from `Cloudflare/` with Wrangler. See [Cloudflare/README.md](Cloudflare/README.md) for first-time deployment, allowed origins, Firebase token validation, and Workers AI quota details.
+
 ## 10. Operational Guidelines for Contributors
 
 - Keep changes targeted; avoid unrelated refactors.
@@ -275,4 +314,3 @@ Deployment is managed by GitHub Actions in `.github/workflows/deploy.yml`.
 - Add linting/formatting scripts and CI checks for consistency.
 - Consolidate Firebase initialization modules (`src/firebase/config.ts` and `src/firebase/index.ts`) to one source of truth.
 - Clarify and standardize API strategy (direct Firestore-first vs optional `/api` backend paths).
-
