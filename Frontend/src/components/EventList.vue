@@ -285,6 +285,14 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
       query: tag,
     });
     const results = fuse.search(tag, { limit: candidates.length });
+    const topMatch = results[0];
+
+    console.log('[EventList] Top Fuse tag fit', {
+      userTag: tag,
+      eventId: topMatch?.item.id ?? null,
+      eventTitle: topMatch?.item.event.title ?? null,
+      fuseScore: topMatch?.score ?? null,
+    });
     for (const r of results) {
       const id = r.item.id;
       const sim = FUSE_WORST_SCORE - (typeof r.score === 'number' ? r.score : FUSE_WORST_SCORE); // Fuse: 0=best, 1=worst; invert so higher is better
@@ -319,6 +327,15 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
 
   // Sort by descending score
   scored.sort((a, b) => b.score - a.score);
+
+      console.log(
+      '[EventList] Top final personalized ranking',
+      scored.slice(0, 5).map(({ event, score }) => ({
+        eventId: event.id,
+        title: event.title,
+        score,
+      })),
+    );
   return scored.map((s) => s.event);
 }
 
