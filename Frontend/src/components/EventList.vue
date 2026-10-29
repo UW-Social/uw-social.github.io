@@ -266,6 +266,7 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
     threshold: 0.4,
     ignoreLocation: true,
     useExtendedSearch: false,
+    includeScore: true,
   });
 
   // Initialize score maps
