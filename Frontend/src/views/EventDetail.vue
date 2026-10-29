@@ -297,7 +297,7 @@
         <EventList
           :exclude-event-id="event.id"
           :limit="4"
-          sort="soonest"
+          recommendation-mode="personalized"
           @open-card="goToRelatedEvent"
         />
       </section>
