@@ -7,8 +7,10 @@
         <!-- LEFT SIDEBAR -->
         <EventSidebar
           :search="searchQuery"
+          :sort="sortType"
           :category="categoryFilter"
           @update:search="handleSearchUpdate"
+          @update:sort="sortType = $event"
           @update:category="categoryFilter = $event"
         />
 
@@ -17,7 +19,7 @@
           <EventList
             :category="categoryFilter"
             :search="searchQuery"
-            recommendation-mode="personalized"
+            :sort="sortType"
             @open-card="handleEventClick"
           />
         </div>
@@ -81,6 +83,7 @@ const router = useRouter();
 
 const categoryFilter = ref<string | null>(null);
 const searchQuery = ref(normalizeQueryParam(route.query.q));
+const sortType = ref<'soonest' | 'newly-added' | 'online'>('soonest');
 
 function normalizeQueryParam(value: unknown): string {
   if (Array.isArray(value)) return String(value[0] ?? '').trim();

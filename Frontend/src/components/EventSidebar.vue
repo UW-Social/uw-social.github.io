@@ -16,6 +16,22 @@
       </svg>
     </div>
 
+    <!-- Sort --->
+    <div class="sidebar-sort">
+      <label for="event-sort" class="sidebar-label">Sort by:</label>
+
+      <select
+        id="event-sort"
+        v-model="localSort"
+        class="sidebar-select"
+        @change="handleSortChange"
+      >
+        <option value="soonest">Soonest</option>
+        <option value="newly-added">Newly Added</option>
+        <option value="online">Online</option>
+      </select>
+    </div>
+
     <div class="sidebar-sort">
       <label class="sidebar-label">Category</label>
 
@@ -33,30 +49,40 @@
 import { ref, watch } from 'vue';
 import { EVENT_CATEGORIES } from '../utils/eventCategories';
 
+type SortType = 'soonest' | 'newly-added' | 'online';
+
 const props = defineProps<{
   search?: string;
+  sort?: SortType;
   category?: string | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:search', value: string): void;
+  (e: 'update:sort', value: SortType): void;
   (e: 'update:category', value: string | null): void;
 }>();
 
 /* ---------------- state ---------------- */
 
 const localSearch = ref(props.search ?? '');
+const localSort = ref<SortType>(props.sort ?? 'soonest');
 const localCategory = ref<string | null>(props.category ?? null);
 
 /* ---------------- sync props ---------------- */
 
 watch(() => props.search, v => (localSearch.value = v ?? ''));
+watch(() => props.sort, v => v && (localSort.value = v));
 watch(() => props.category, v => (localCategory.value = v ?? null));
 
 /* ---------------- handlers ---------------- */
 
 const handleSearchChange = () => {
   emit('update:search', localSearch.value);
+};
+
+const handleSortChange = () => {
+  emit('update:sort', localSort.value);
 };
 
 const handleCategoryChange = () => {
