@@ -207,26 +207,17 @@ async function refresh() {
   }
   events = applySearch(events);
 
-  // An explicit date sort takes priority over recommendation ranking.
-  events = sortEvents(events);
-
   if (!props.sort && props.recommendationMode === 'personalized') {
-    const userTags = userStore.userProfile?.tags;
-    if (
-      userStore.isLoggedIn &&
-      Array.isArray(userTags) &&
-      userTags.length > 0
-    ) {
-      try {
-        const personalized = scoreByPersonalization(events, userTags);
-        events = personalized;
-      } catch (err) {
-        // Fall back to date-sorted events on error
-        console.error('Personalized ranking failed, falling back to date sort:', err);
-      }
+    try {
+      events = scoreByPersonalization(events, userStore.userProfile?.tags ?? []);
+    } catch (err) {
+      console.error('Personalized ranking failed, falling back to date sort:', err);
+      events = sortEvents(events);
     }
   } else if (!props.sort && props.recommendationMode === 'trending') {
     events = scoreByTrending(events);
+  } else {
+    events = sortEvents(events);
   }
 
   // Apply limit if supplied
