@@ -16,6 +16,7 @@ test('weights and server formula produce 60.3/100 and three stars for the suppli
   assert.equal(framework.dimensions.reduce((total, item) => total + item.weight, 0), 1);
   const review = calculateReview(assessment(), '2026-10-22T00:00:00Z');
   assert.equal(review.score100, 60.3);
+  assert.equal(review.score, 3.0);
   assert.equal(review.stars, 3);
   assert.equal(review.source, 'ai');
   assert.equal(review.frameworkVersion, 'tech-event-v1');

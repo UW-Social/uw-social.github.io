@@ -307,6 +307,7 @@
 </template>
 
 <script setup lang="ts">
+import { getReviewScore } from '../utils/reviewScore';
 import { usePageSeo } from '../utils/seo';
 import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -401,14 +402,12 @@ const reviewDisplay = computed(() => {
   const stars = typeof review?.stars === 'number'
     ? Math.min(5, Math.max(0, Math.round(review.stars)))
     : 0;
-  const score = typeof review?.score === 'number'
-    ? Math.min(5, Math.max(0, review.score))
-    : 0;
+  const score = getReviewScore(review);
   const sentence = review?.sentence?.trim() || 'Review details coming soon';
 
   return {
-    starsText: typeof review?.score100 === 'number' ? review.score100.toFixed(1) : score > 0 ? score.toFixed(1) : '--',
-    scale: typeof review?.score100 === 'number' ? 100 : 5,
+    starsText: score !== null ? score.toFixed(1) : '--',
+    scale: '5.0',
     fullStars: stars,
     sentence,
   };

@@ -86,6 +86,7 @@ export type EventSchedule = OneTimeSchedule | DailySchedule | WeeklySchedule | M
 
 export interface EventReviewSummary {
   stars: number;
+  /** Review score on a 0.0–5.0 scale, rounded to one decimal place. */
   score: number;
   sentence: string;
   source?: 'ai';

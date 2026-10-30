@@ -39,6 +39,7 @@ export function scoringMessages(event) {
       'A social kickoff without a technical agenda should not receive a high Knowledge score merely because it mentions AWS or AI.',
       'This is a pre-event assessment of expected time-to-value, not a claim about an event already attended.',
       'Use low confidence when important evidence is missing. The sentence is an English summary of at most 80 characters.',
+      'Do not include numerical ratings in the summary sentence. The public final rating uses a 5.0 scale.',
       'Return dimension scores, evidence, confidence and sentence only. The server calculates the weighted total and stars.',
       JSON.stringify(framework),
     ].join('\n') },
@@ -68,8 +69,8 @@ export function calculateReview(assessment, evaluatedAt = new Date().toISOString
     source: 'ai', frameworkVersion: framework.version, model: SCORING_MODEL, evaluatedAt,
     dimensions, confidence: assessment.confidence, sentence: assessment.sentence.trim(),
     score100,
-    // Retain the legacy five-point score for older consumers; stars use explicit thresholds.
-    score: Math.round(score100 / 20 * 100) / 100,
+    // Public rating uses the five-point scale; score100 retains internal threshold precision.
+    score: Math.round(score100 / 20 * 10) / 10,
     stars: framework.starThresholds.find(({ minimum }) => score100 >= minimum).stars,
   };
 }

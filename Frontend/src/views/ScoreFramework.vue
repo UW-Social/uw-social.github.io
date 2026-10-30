@@ -66,7 +66,7 @@
         <h2>Formula</h2>
       </div>
       <p class="formula">
-        Final Score = (K × 0.35) + (N × 0.25) + (T × 0.25) + (C × 0.15)
+        Final Score = ((K × 0.35) + (N × 0.25) + (T × 0.25) + (C × 0.15)) ÷ 2
       </p>
       <div class="legend-grid">
         <span>K = Knowledge and Skill Growth</span>
@@ -75,7 +75,7 @@
         <span>C = Organizer Credibility</span>
       </div>
       <p class="formula-note">
-        The weighted score is multiplied by 10, then converted into a star rating.
+        Each dimension is scored out of 10. Divide the weighted average by 2 for a final score out of 5.0, displayed to one decimal place.
       </p>
     </section>
 
@@ -97,7 +97,12 @@
 import framework from '../../../shared/event-evaluation.json';
 
 const dimensions = framework.dimensions.map(item => ({ ...item, weight: `${Math.round(item.weight * 100)}%` }));
-const starRows = framework.starThresholds.map(row => ({ score: row.label, rating: '★'.repeat(row.stars) }));
+const starRows = framework.starThresholds.map((row, index, rows) => ({
+  score: index === 0
+    ? `${(row.minimum / 20).toFixed(1)}–5.0`
+    : `${row.minimum / 20}–<${rows[index - 1].minimum / 20}`,
+  rating: '★'.repeat(row.stars),
+}));
 </script>
 
 <style scoped>

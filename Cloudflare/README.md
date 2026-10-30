@@ -2,7 +2,7 @@
 
 网站仍部署到 GitHub Pages，Firebase 继续负责登录和数据库。聊天、活动导入和提交时的自动评分由这个 Worker 调用 Workers AI，不需要 Gemini key，也不需要把 Cloudflare token 放进前端。
 
-评分规则保存在 [shared/event-evaluation.json](../shared/event-evaluation.json)，使用方式见 [EVENT_EVALUATION.md](../shared/EVENT_EVALUATION.md)。`/score-event` 根据最终活动信息返回四项评分依据；后端按 35% / 25% / 25% / 15% 计算百分制总分及星级。发布和编辑时自动评估，评分失败不会保存活动。粘贴文本中的人工评分不作为最终评分导入。未来自动抓取也应复用这个接口。
+评分规则保存在 [shared/event-evaluation.json](../shared/event-evaluation.json)，使用方式见 [EVENT_EVALUATION.md](../shared/EVENT_EVALUATION.md)。`/score-event` 根据最终活动信息返回四项评分依据；后端按 35% / 25% / 25% / 15% 计算总分及星级，对外评分使用 5.0 分制并保留一位小数；内部保留百分制分数用于星级阈值计算。发布和编辑时自动评估，评分失败不会保存活动。粘贴文本中的人工评分不作为最终评分导入。未来自动抓取也应复用这个接口。
 
 ## 首次部署
 

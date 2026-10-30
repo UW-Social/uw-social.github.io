@@ -39,8 +39,10 @@ the form remains available for retry. Old events are not automatically rescored.
 
 Stored `review` fields include `source: "ai"`, `score100`, `stars`, `sentence`,
 the four `dimensions` with evidence, `confidence`, `frameworkVersion`, `model`,
-and `evaluatedAt`. The legacy `score` field remains on a five-point scale for older
-consumers; star counts always come from the thresholds, not from rounding that field.
+and `evaluatedAt`. The public `score` field uses a 0.0–5.0 scale rounded to one decimal place, and
+the event page always displays this five-point scale. `score100` is retained for
+internal precision and compatibility; star counts come from the thresholds, not
+from rounding the public score.
 
 Example request (Firebase login required):
 
