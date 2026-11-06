@@ -84,10 +84,28 @@ export interface MonthlySchedule extends BaseRecurringSchedule {
  */
 export type EventSchedule = OneTimeSchedule | DailySchedule | WeeklySchedule | MonthlySchedule;
 
+export interface EventValueDimension {
+  /** New matrix dimension scores are out of 100; unknown scores are null. */
+  score: number | null;
+  scoreRange?: { lower: number; upper: number };
+  informationCoverage?: number;
+  criteria?: Record<string, { rating: number | null; evidence: string }>;
+  evidence: string;
+}
+
+export interface EventValueAssessment {
+  category: 'growth' | 'social';
+  score100?: number;
+  scoreRange?: { lower: number; upper: number };
+  /** Proportion of total scoring weight supported by known ratings, from 0 to 1. */
+  informationCoverage?: number;
+  dimensions?: Record<string, EventValueDimension>;
+}
+
 export interface EventReviewSummary {
-  stars: number;
+  stars?: number;
   /** Review score on a 0.0–5.0 scale, rounded to one decimal place. */
-  score: number;
+  score?: number;
   sentence: string;
   source?: 'ai';
   score100?: number;
@@ -95,7 +113,17 @@ export interface EventReviewSummary {
   model?: string;
   evaluatedAt?: string;
   confidence?: 'low' | 'medium' | 'high';
-  dimensions?: Record<'K' | 'N' | 'T' | 'C', { score: number; evidence: string }>;
+  dimensions?: Record<string, EventValueDimension>;
+  evaluationCategory?: 'growth' | 'social' | 'hybrid' | 'needs_clarification';
+  classificationReason?: string;
+  scoreRange?: { lower: number; upper: number };
+  informationCoverage?: number;
+  /** Hybrid events carry one assessment per category. */
+  categoryEvaluations?: EventValueAssessment[];
+  confidenceExplanation?: string;
+  bestFor?: string;
+  scoringBasis?: string;
+  limitations?: string;
 }
 
 export interface Event {

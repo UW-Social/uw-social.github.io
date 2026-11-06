@@ -1,110 +1,145 @@
 {
-  "version": "tech-event-v1",
-  "dimensionScale": {
+  "version": "event-value-v2",
+  "source": "docs/UW-Social_Event_Evaluation_Summary_EN.md",
+  "criterionScale": {
     "min": 0,
-    "max": 10
+    "max": 4,
+    "unknown": null
   },
-  "dimensions": [
+  "ratingStandards": [
     {
-      "code": "K",
-      "title": "Knowledge and Skill Growth",
-      "weight": 0.35,
-      "why": "The core value of a technical community is skill development.",
-      "question": "Will attendees become meaningfully better builders, engineers, researchers, or thinkers after this?",
-      "detailWhy": "This is the most important dimension for a tech community. Truly valuable events usually provide new mental models, practical lessons, real-world experience, and frontier understanding.",
-      "high": [
-        "Deep technical insight",
-        "Real implementation experience",
-        "Strong demos",
-        "Actionable takeaways",
-        "Frontier thinking"
-      ],
-      "low": [
-        "Surface-level trends",
-        "Generic AI hype",
-        "Marketing disguised as education",
-        "No practical depth"
-      ]
+      "rating": 0,
+      "meaning": "Evidence confirms the relevant benefit or mechanism is absent."
     },
     {
-      "code": "N",
-      "title": "Networking Quality",
-      "weight": 0.25,
-      "why": "High-quality connections matter more than crowd size.",
-      "question": "How likely are attendees to meet capable and aligned people?",
-      "detailWhy": "The core idea is quality over quantity: builders talking to builders.",
-      "high": [
-        "Strong attendee quality",
-        "High interaction probability",
-        "Technical or build-oriented participants",
-        "Easy to have meaningful conversations"
-      ],
-      "low": [
-        "Mostly spectators",
-        "Weak attendee alignment",
-        "Hard to interact meaningfully"
-      ]
+      "rating": 1,
+      "meaning": "A limited mechanism exists but falls below the basic standard."
     },
     {
-      "code": "T",
-      "title": "Time-to-Value Efficiency",
-      "weight": 0.25,
-      "why": "This prevents highly popular but low-density events from scoring too high.",
-      "question": "Was the value worth the time and energy invested?",
-      "detailWhy": "Many tech events have very low information density: two hours can sometimes repeat ideas people already saw online. This dimension rewards efficient use of attendee time.",
-      "high": [
-        "Efficient format",
-        "Valuable insights per hour"
-      ],
-      "low": [
-        "Repetitive",
-        "Low informational return"
-      ]
+      "rating": 2,
+      "meaning": "Meets a clear, concrete basic standard."
     },
     {
-      "code": "C",
-      "title": "Organizer Credibility",
-      "weight": 0.15,
-      "why": "Organizer quality influences the overall signal.",
-      "question": "Does the organizer consistently attract high-quality people and content?",
-      "detailWhy": "Strong organizers usually bring better speakers and a stronger ecosystem, but organizer reputation should not outweigh the content itself. That is why this dimension is weighted at 15%.",
-      "high": [
-        "Consistent track record",
-        "Strong speaker or partner quality",
-        "Clear relevance to the community"
-      ],
-      "low": [
-        "Unclear organizer quality",
-        "Weak content signal",
-        "Mostly promotional programming"
-      ]
+      "rating": 3,
+      "meaning": "Meets the basic standard and some advanced conditions."
+    },
+    {
+      "rating": 4,
+      "meaning": "Fully meets the criterion’s strongest defined standard."
+    },
+    {
+      "rating": null,
+      "meaning": "Information is missing, contradictory, or too vague to evaluate."
     }
   ],
-  "starThresholds": [
+  "weightNote": "Provisional weights based on seven survey responses.",
+  "categories": [
     {
-      "minimum": 90,
-      "stars": 5,
-      "label": "90–100"
+      "id": "growth",
+      "title": "Learning & Growth",
+      "dimensions": [
+        {
+          "code": "opportunitiesDirection",
+          "title": "Opportunities & Direction",
+          "weight": 0.4,
+          "criteria": [
+            {
+              "id": "opportunitiesDirection1",
+              "description": "Helps attendees explore meaningful career, education, research, or project decisions."
+            },
+            {
+              "id": "opportunitiesDirection2",
+              "description": "Identifies concrete opportunities or pathways."
+            },
+            {
+              "id": "opportunitiesDirection3",
+              "description": "Provides actionable next steps or support."
+            }
+          ]
+        },
+        {
+          "code": "meaningfulConnections",
+          "title": "Meaningful Connections",
+          "weight": 0.33,
+          "criteria": [
+            {
+              "id": "meaningfulConnections1",
+              "description": "Provides access to relevant people."
+            },
+            {
+              "id": "meaningfulConnections2",
+              "description": "Enables meaningful two-way interaction."
+            },
+            {
+              "id": "meaningfulConnections3",
+              "description": "Offers opportunities to maintain connections afterward."
+            }
+          ]
+        },
+        {
+          "code": "knowledgeInsight",
+          "title": "Knowledge & Insight",
+          "weight": 0.27,
+          "criteria": [
+            {
+              "id": "knowledgeInsight1",
+              "description": "Offers specific, credible content."
+            },
+            {
+              "id": "knowledgeInsight2",
+              "description": "Supports deeper understanding and critical thinking."
+            },
+            {
+              "id": "knowledgeInsight3",
+              "description": "Provides transferable knowledge, methods, or perspectives."
+            }
+          ]
+        }
+      ]
     },
     {
-      "minimum": 75,
-      "stars": 4,
-      "label": "75–<90"
-    },
-    {
-      "minimum": 60,
-      "stars": 3,
-      "label": "60–<75"
-    },
-    {
-      "minimum": 40,
-      "stars": 2,
-      "label": "40–<60"
-    },
-    {
-      "minimum": 0,
-      "stars": 1,
-      "label": "<40"
+      "id": "social",
+      "title": "Social & Recreation",
+      "dimensions": [
+        {
+          "code": "socialConnection",
+          "title": "Social Connection",
+          "weight": 0.64,
+          "criteria": [
+            {
+              "id": "socialConnection1",
+              "description": "Creates opportunities to build or strengthen relationships."
+            },
+            {
+              "id": "socialConnection2",
+              "description": "Helps participants feel included and join comfortably."
+            },
+            {
+              "id": "socialConnection3",
+              "description": "Supports continued connections or future gatherings."
+            }
+          ]
+        },
+        {
+          "code": "relaxationWellbeing",
+          "title": "Relaxation & Well-being",
+          "weight": 0.36,
+          "criteria": [
+            {
+              "id": "relaxationWellbeing1",
+              "description": "Provides a clear recreational experience."
+            },
+            {
+              "id": "relaxationWellbeing2",
+              "description": "Respects participants’ comfort and freedom to choose their involvement."
+            },
+            {
+              "id": "relaxationWellbeing3",
+              "description": "Includes practical arrangements that support the experience."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -22,7 +22,7 @@ export const routeSeo: Record<string, PageSeo> = {
   ClubDetail: { title: 'Club Details | UW Social', description: 'Learn about a University of Washington student club, its activities, and ways to get involved on UW Social.' },
   ForumDetail: { title: 'Event Discussion | UW Social', description: 'Read and join a campus event discussion on UW Social.' },
   ExperiencePostDetail: { title: 'Student Experience | UW Social', description: 'Read a student experience and community replies on UW Social.' },
-  ScoreFramework: { title: 'Event Scoring Framework | UW Social', description: 'Learn how UW Social evaluates tech events based on knowledge growth, networking quality, time efficiency, and organizer credibility.' },
+  ScoreFramework: { title: 'Event Scoring Framework | UW Social', description: 'Explore UW Social’s event evaluation scheme: activity categories, scoring dimensions and weights, evidence standards, score ranges, and fair comparisons.' },
   AIConsultant: { title: 'AI Campus Consultant | UW Social', description: 'Explore campus events, student clubs, and opportunities with the UW Social AI consultant.' },
   Login: { title: 'Log In | UW Social', description: 'Log in to your UW Social account to participate in the campus community.' },
   Profile: { title: 'Your Profile | UW Social', description: 'View your UW Social profile and campus activity.' },

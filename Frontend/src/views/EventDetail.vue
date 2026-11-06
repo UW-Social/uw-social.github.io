@@ -200,38 +200,7 @@
         </div>
 
         <aside class="event-side-column">
-          <div class="ratings-review-card">
-            <div class="ratings-review-header">
-              <h2 class="ratings-review-title">{{ event.review?.source === 'ai' ? 'AI Event Evaluation' : 'Ratings & Reviews' }}</h2>
-              <div class="ratings-review-score">
-                <strong>{{ reviewDisplay.starsText }}</strong>
-                <span>/ {{ reviewDisplay.scale }}</span>
-              </div>
-            </div>
-
-            <div class="ratings-review-summary">
-              <div class="ratings-stars" :aria-label="`${reviewDisplay.fullStars} out of 5 stars`">
-                <span
-                  v-for="star in 5"
-                  :key="star"
-                  :class="{ muted: star > reviewDisplay.fullStars }"
-                >★</span>
-              </div>
-            </div>
-            <div class="ratings-review-detail">
-              <p>{{ reviewDisplay.sentence }}</p>
-              <details v-if="event.review?.dimensions">
-                <summary>Score breakdown</summary>
-                <p v-for="(dimension, code) in event.review.dimensions" :key="code">
-                  <strong>{{ code }}: {{ dimension.score }}/10</strong> — {{ dimension.evidence }}
-                </p>
-                <p>Confidence: {{ event.review.confidence }}</p>
-              </details>
-            </div>
-            <router-link class="score-framework-link" to="/score-framework">
-              How We Assign This Score?
-            </router-link>
-          </div>
+          <EventEvaluation :review="event.review" :event-id="event.id" />
 
           <div id="comments-section" ref="commentsSectionRef" class="forum-card comments-card">
             <div class="forum-header">
@@ -307,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { getReviewScore } from '../utils/reviewScore';
+import EventEvaluation from '../components/EventEvaluation.vue';
 import { usePageSeo } from '../utils/seo';
 import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -395,22 +364,6 @@ const primaryBadge = computed(() => event.value?.category?.trim() || 'Academic')
 const secondaryBadge = computed(() => {
   const tags = event.value?.tags ?? [];
   return tags.find(tag => tag && tag.trim())?.trim() || '';
-});
-
-const reviewDisplay = computed(() => {
-  const review = event.value?.review;
-  const stars = typeof review?.stars === 'number'
-    ? Math.min(5, Math.max(0, Math.round(review.stars)))
-    : 0;
-  const score = getReviewScore(review);
-  const sentence = review?.sentence?.trim() || 'Review details coming soon';
-
-  return {
-    starsText: score !== null ? score.toFixed(1) : '--',
-    scale: '5.0',
-    fullStars: stars,
-    sentence,
-  };
 });
 
 const scheduleDetails = computed(() => {
@@ -1665,100 +1618,6 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.ratings-review-card {
-  padding: 20px;
-  color: #fff;
-  background: #6841c9;
-  border-radius: 24px;
-  box-shadow: 0 18px 34px rgba(108, 72, 209, 0.22);
-}
-
-.ratings-review-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 22px;
-}
-
-.ratings-review-title {
-  margin: 0;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: 0;
-}
-
-.ratings-review-score {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  color: rgba(255, 255, 255, 0.58);
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.ratings-review-score strong {
-  color: #fff;
-  font-size: 34px;
-  font-weight: 900;
-  line-height: 0.95;
-}
-
-.ratings-review-score span {
-  font-size: 19px;
-  font-weight: 800;
-}
-
-.ratings-review-summary {
-  display: flex;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.ratings-stars {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #ffd51f;
-  font-size: 23px;
-  line-height: 1;
-}
-
-.ratings-stars .muted {
-  color: #b68f8c;
-}
-
-.ratings-review-detail {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.ratings-review-detail p {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.score-framework-link {
-  min-height: 34px;
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  border-radius: 999px;
-  color: #6c48d1;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: none;
-}
-
 .metric-label {
   color: #6c48d1;
   font-size: var(--font-size-xs);
@@ -1925,7 +1784,6 @@ onBeforeUnmount(() => {
 
   .event-title,
   .event-description,
-  .ratings-review-detail,
   .forum-list {
     overflow-wrap: anywhere;
   }

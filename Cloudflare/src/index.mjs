@@ -222,7 +222,7 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
           result = await env.AI.run(chat ? MODEL : scoring ? SCORING_MODEL : EXTRACTION_MODEL, {
             messages,
             response_format: chat ? { type: 'json_object' } : { type: 'json_schema', json_schema: scoring ? scoringSchema : eventSchema },
-            max_tokens: chat ? 600 : scoring ? 1200 : 2000, temperature: chat ? 0.4 : 0.1,
+            max_tokens: chat ? 600 : scoring ? 5000 : 2000, temperature: chat ? 0.4 : 0.1,
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : '';

@@ -4,9 +4,9 @@ const path = require('node:path');
 const { test } = require('node:test');
 const ts = require('typescript');
 
-const review = { source: 'ai', score100: 60.3, stars: 3, score: 3.02, sentence: 'Community discovery with limited technical depth.', frameworkVersion: 'tech-event-v1' };
+const review = { source: 'ai', evaluationCategory: 'growth', score100: 78, stars: 4, score: 3.9, sentence: 'Useful research direction and interaction.', frameworkVersion: 'event-value-v2', bestFor: 'Undergraduates exploring research directions.', scoringBasis: 'Detailed agenda.', limitations: 'Limited individual discussion time.', confidence: 'high' };
 
-function createSubmission(file, rejectScoring = false) {
+function createSubmission(file, rejectScoring = false, evaluation = review) {
   const source = fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
   const editing = file.includes('EditEvent');
@@ -43,7 +43,7 @@ function createSubmission(file, rejectScoring = false) {
       calls.push('score');
       assert.equal(draft.description, formData.value.description);
       if (rejectScoring) throw new Error('AI evaluation unavailable');
-      return review;
+      return evaluation;
     },
     alert: value => alerts.push(value), console: { log() {}, error() {} },
   };
@@ -60,6 +60,19 @@ for (const file of ['components/EventForm.vue', 'views/EditEvent.vue']) {
     assert.deepEqual(app.writes[0].review, review);
     assert.equal(app.writes[0].description, app.formData.value.description);
     assert.equal(app.state.value, false);
+  });
+
+  test(`${file}: incomplete and Hybrid reviews persist without a fabricated total`, async () => {
+    for (const evaluation of [
+      { ...review, score100: undefined, score: undefined, stars: undefined, scoreRange: { lower: 48, upper: 84 }, informationCoverage: 0.64 },
+      { source: 'ai', frameworkVersion: 'event-value-v2', evaluationCategory: 'hybrid', categoryEvaluations: [{ category: 'growth', score100: 78 }, { category: 'social', score100: 64 }] },
+    ]) {
+      const app = createSubmission(file, false, evaluation);
+      await app.submit();
+      assert.deepEqual(app.calls, ['score', 'save']);
+      assert.deepEqual(app.writes[0].review, evaluation);
+      assert.equal(app.writes[0].review.score100, undefined);
+    }
   });
 
   test(`${file}: evaluation failure keeps the form and prevents a database write`, async () => {
