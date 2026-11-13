@@ -6,6 +6,7 @@
   "workers_dev": true,
   "ai": { "binding": "AI", "remote": true },
   "vars": {
+    "IMPORT_ORGANIZER_UID": "VAjcbE1Yl8OdZ2faQfvKHAYzBuj1",
     "FIREBASE_PROJECT_ID": "uw-social-ae4c7",
     "ALLOWED_ORIGINS": "https://uw-social.com,https://www.uw-social.com,https://uw-social.github.io,http://localhost:5173"
   },

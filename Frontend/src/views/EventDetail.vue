@@ -144,7 +144,7 @@
         <div class="event-main-column">
           <div class="description-card">
             <h2 class="section-title">About this event</h2>
-            <p class="event-description" v-html="formatDescription(event.description || '')"></p>
+            <p class="event-description" style="white-space: pre-wrap">{{ event.description || '' }}</p>
           </div>
 
           <div id="forum-section" ref="experienceSectionRef" class="experience-sharing-card">
@@ -569,11 +569,6 @@ const addToGoogleCalendar = async () => {
 defineExpose({
   addToGoogleCalendar,
 });
-
-const formatDescription = (desc: string) => {
-  if (!desc) return '';
-  return desc.replace(/\n/g, '<br>');
-};
 
 const loadEventData = async () => {
   if (eventStore.events.length === 0) {

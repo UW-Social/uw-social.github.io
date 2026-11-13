@@ -1,4 +1,6 @@
-import { verifyFirebaseToken } from './auth.mjs';
+import { verifyFirebaseToken, verifyFirebaseClaims } from './auth.mjs';
+import { createImportService } from './event-imports.mjs';
+import { ImportError } from './firestore.mjs';
 import { extractProvidedEnglishCopy } from './event-copy.mjs';
 import { calculateReview, SCORING_MODEL, scoringMessages, scoringSchema } from './event-scoring.mjs';
 import {
@@ -231,7 +233,7 @@ function scoringInput(data) {
   return scoringMessages(clean);
 }
 
-export function createWorker(verifyIdentity = verifyFirebaseToken) {
+export function createWorker(verifyIdentity = verifyFirebaseToken, verifyAdminIdentity = verifyFirebaseClaims, importsFactory = createImportService) {
   return {
     async fetch(request, env) {
       const origin = request.headers.get('origin');
@@ -247,13 +249,26 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
         } });
       }
       const path = new URL(request.url).pathname;
-      if (!['/chat', '/extract-event', '/score-event', '/recommend-events'].includes(path)) {
+      const admin = ['/admin/imports/list', '/admin/imports/crawl', '/admin/imports/review'].includes(path);
+      if (!admin && !['/chat', '/extract-event', '/score-event', '/recommend-events'].includes(path)) {
         return reply({ error: 'Not found.' }, 404);
       }
       if (request.method !== 'POST') return reply({ error: 'Use POST.' }, 405);
       try {
         const bearer = request.headers.get('authorization')?.match(/^Bearer (\S+)$/i)?.[1];
         if (!bearer) throw new HttpError(401, 'Please log in to use AI features.');
+        if (admin) {
+          let identity;
+          try { identity = await verifyAdminIdentity(bearer, env.FIREBASE_PROJECT_ID); }
+          catch { throw new HttpError(401, 'Your login has expired. Please log in again.'); }
+          if (identity.admin !== true) throw new HttpError(403, 'Administrator access is required. Sign out and sign in after your admin role is configured.');
+          const data = await readBody(request);
+          if (!(await env.USER_RATE_LIMITER.limit({ key: identity.sub })).success) throw new HttpError(429, 'Too many requests. Wait a minute.');
+          const imports = importsFactory(env);
+          if (path.endsWith('/list')) return reply(await imports.list(text(data.pageToken, 4000)));
+          if (path.endsWith('/crawl')) return reply(await imports.crawl(text(data.sourceId, 50, true), identity.sub));
+          return reply(await imports.review(data.id, data.version, data.action, data.event, identity.sub));
+        }
         let uid;
         try { uid = await verifyIdentity(bearer, env.FIREBASE_PROJECT_ID); }
         catch { throw new HttpError(401, 'Your login has expired. Please log in again.'); }
@@ -315,7 +330,7 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
         }
         return reply(chat ? chatOutput(result, chat.events) : eventOutput(result, data.document));
       } catch (error) {
-        const status = error instanceof HttpError ? error.status : 500;
+        const status = error instanceof HttpError || error instanceof ImportError ? error.status : 500;
         if (status === 429) headers['Retry-After'] = '60';
         return reply({ error: status === 500 ? 'AI service is not configured correctly.' : error.message }, status);
       }

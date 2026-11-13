@@ -30,6 +30,7 @@ function createList(props) {
     vue: { ref: value => ({ value }), watch() {}, onMounted() {} },
     'fuse.js': { default: require('fuse.js') },
     './EventCard.vue': {},
+    '../api/ai': { requestAi: async () => ({ recommendedEventIds: ['christmas', 'micron'] }) },
     '../stores/event': { useEventStore: () => ({ events }) },
     '../stores/user': {
       useUserStore: () => ({ isLoggedIn: true, userProfile: { tags: ['festival'] } }),

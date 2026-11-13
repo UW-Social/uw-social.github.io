@@ -5,6 +5,12 @@ import { homeSeo, routeSeo, setPageSeo } from '../utils/seo'
 
 const routes = [
   {
+    path: '/admin/imports',
+    name: 'ImportReview',
+    component: () => import('@/views/ImportReview.vue'),
+    meta: { requiresAuth: true, authPrompt: 'Sign in with your administrator account to review activities.' }
+  },
+  {
     path: '/',
     name: 'Home',
     component: () => import('@/views/Home.vue')
