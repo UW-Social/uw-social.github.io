@@ -180,14 +180,32 @@ export function buildReviewPatch(item, restore = false) {
   url.searchParams.set('currentDocument.updateTime', expectedTime);
   return { url, body: { fields: value ? { review: value } : {} } };
 }
+// Public installed-app OAuth client identifiers used by firebase-tools:
+// https://github.com/firebase/firebase-tools/blob/master/src/api.ts
+export async function firebaseAccessToken(config, fetchToken = fetch) {
+  if (config.tokens?.access_token && config.tokens.expires_at > Date.now() + 60000) return config.tokens.access_token;
+  if (!config.tokens?.refresh_token) throw new Error('Refresh the local Firebase CLI login before updating event reviews.');
+  const response = await fetchToken('https://oauth2.googleapis.com/token', {
+    method: 'POST', signal: AbortSignal.timeout(30000),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token', refresh_token: config.tokens.refresh_token,
+      client_id: '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com',
+      client_secret: 'j9iVZfS8kkCEFUPaAeJV0sAi',
+    }),
+  });
+  const refreshed = await response.json();
+  if (!response.ok || typeof refreshed.access_token !== 'string' || !refreshed.access_token) {
+    throw new Error('Firebase login could not be refreshed. Sign in again before updating event reviews.');
+  }
+  // Keep refreshed credentials in memory; never add them to backups or logs.
+  return refreshed.access_token;
+}
 async function firestoreToken() {
   if (process.env.FIRESTORE_ACCESS_TOKEN) return process.env.FIRESTORE_ACCESS_TOKEN;
   const file = process.env.FIREBASE_CLI_CONFIG_FILE || resolve(homedir(), '.config/configstore/firebase-tools.json');
   const config = JSON.parse(await readFile(file, 'utf8'));
-  if (!config.tokens?.access_token || config.tokens.expires_at < Date.now() + 60000) {
-    throw new Error('Complete or refresh the local Firebase CLI login before updating event reviews.');
-  }
-  return config.tokens.access_token;
+  return firebaseAccessToken(config);
 }
 async function checkAccess(project) {
   const token = await firestoreToken();

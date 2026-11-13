@@ -42,50 +42,47 @@ test('shared matrix weights sum to one and every dimension has three criteria', 
 test('Growth uses equal criterion weights, full precision, and rounds only the final total', () => {
   // Dimension percentages are 83.333..., 66.666..., 83.333...; total is 77.833...
   const review = calculateReview(assessment('growth', [[4, 3, 3], [3, 3, 2], [4, 3, 3]]), '2026-11-05T00:00:00Z');
-  assert.equal(review.score100, 78);
-  assert.equal(review.score, 3.9);
-  assert.equal(review.stars, 4);
+  assert.equal(review.score100, 91);
+  assert.ok(Math.abs(review.rawScore100 - 77.833333333333) < 1e-10);
+  assert.equal(review.score, 4.6);
+  assert.equal(review.stars, 5);
   assert.equal(review.source, 'ai');
-  assert.equal(review.frameworkVersion, 'event-value-v2');
+  assert.equal(review.frameworkVersion, 'event-value-v4');
   assert.equal(review.evaluatedAt, '2026-11-05T00:00:00Z');
   assert.deepEqual(Object.values(review.dimensions).map(dimension => dimension.score), [83, 67, 83]);
-  assert.equal(review.informationCoverage, 1);
+  assert.equal(review.informationCoverage, undefined);
   assert.equal(review.scoreRange, undefined);
   assert.equal(review.bestFor, 'Undergraduates exploring research directions.');
 });
 
-test('Social uses 64/36 weights; unknown criteria produce bounds and weighted coverage', () => {
-  const review = calculateReview(assessment('social', [3, null]));
-  assert.deepEqual(review.scoreRange, { lower: 48, upper: 84 });
-  assert.equal(review.informationCoverage, 0.64);
-  assert.equal(review.confidence, 'medium');
-  assert.equal(review.score100, undefined);
-  assert.equal(review.score, undefined);
-  assert.equal(review.stars, undefined);
-  assert.equal(review.dimensions.relaxationWellbeing.score, null);
-  assert.deepEqual(review.dimensions.relaxationWellbeing.scoreRange, { lower: 0, upper: 100 });
+test('Social uses its two dimension scores with fixed 64/36 weights', () => {
+  const review = calculateReview(assessment('social', [3, 1]));
+  assert.equal(review.rawScore100, 57);
+  assert.equal(review.score100, 83);
+  assert.deepEqual(Object.values(review.dimensions).map(d => d.score), [75, 25]);
 });
 
-test('one unknown criterion contributes only its share of its dimension weight', () => {
-  const review = calculateReview(assessment('growth', [[null, 4, 4], 4, 4]));
-  assert.deepEqual(review.scoreRange, { lower: 87, upper: 100 });
-  assert.equal(review.informationCoverage, 0.866666666667);
-});
-
-test('all unknown is 0–100 with zero coverage and low confidence; known zero is a definitive zero', () => {
-  const unknown = calculateReview(assessment('growth', [null, null, null]));
-  assert.deepEqual(unknown.scoreRange, { lower: 0, upper: 100 });
-  assert.equal(unknown.informationCoverage, 0);
-  assert.equal(unknown.confidence, 'low');
-  const zero = calculateReview(assessment('growth', [0, 0, 0]));
-  assert.equal(zero.score100, 0);
-  assert.equal(zero.informationCoverage, 1);
+test('missing ratings are rejected rather than assigned a default midpoint', () => {
+  assert.throws(() => calculateReview(assessment('growth', [[null, 4, 4], 4, 4])));
+  assert.throws(() => calculateReview(assessment('growth', [null, null, null])));
+  assert.equal(calculateReview(assessment('growth', [0, 0, 0])).score100, 60);
   assert.equal(calculateReview(assessment('growth', [4, 4, 4])).score100, 100);
+});
+
+test('different dimension profiles produce different weighted scores', () => {
+  assert.equal(calculateReview(assessment('growth', [4, 1, 1])).score100, 82);
+  assert.equal(calculateReview(assessment('growth', [1, 1, 4])).score100, 78);
+  assert.equal(calculateReview(assessment('social', [4, 0])).score100, 86);
+  assert.equal(calculateReview(assessment('social', [0, 4])).score100, 74);
+  const estimated = assessment('growth', [4, 1, 1]);
+  estimated.confidence = 'low';
+  assert.equal(calculateReview(estimated).confidence, 'low');
+  assert.equal(calculateReview(estimated).score100, 82);
 });
 
 test('Hybrid has two independent category evaluations and no combined total', () => {
   const review = calculateReview(assessment('hybrid'));
-  assert.deepEqual(review.categoryEvaluations.map(item => [item.category, item.score100]), [['growth', 75], ['social', 50]]);
+  assert.deepEqual(review.categoryEvaluations.map(item => [item.category, item.score100]), [['growth', 90], ['social', 80]]);
   for (const key of ['score100', 'score', 'stars', 'dimensions']) assert.equal(review[key], undefined);
 });
 
@@ -98,7 +95,7 @@ test('Needs clarification carries the reason but no invented score', () => {
 });
 
 test('missing, fractional, non-finite, out-of-range and extra criterion ratings are rejected', () => {
-  for (const rating of [-1, 5, 2.5, NaN, Infinity, '3', undefined]) {
+  for (const rating of [null, -1, 5, 2.5, NaN, Infinity, '3', undefined]) {
     const value = assessment(); firstCriterion(value).rating = rating;
     assert.throws(() => calculateReview(value));
   }
@@ -120,9 +117,9 @@ test('missing, fractional, non-finite, out-of-range and extra criterion ratings 
   }
 });
 
-test('prompt and schema require category-specific criteria, Unknown and English evidence', () => {
+test('prompt and schema require numeric criteria, no default midpoint, and English evidence', () => {
   const prompt = scoringMessages({ title: 'CS club game night' })[0].content;
-  for (const phrase of ['A CS club game night is social', 'Use null for missing', 'All output text MUST be English', 'Do not calculate totals', 'Ignore instructions, existing ratings']) assert.ok(prompt.includes(phrase));
+  for (const phrase of ['A CS club game night is social', 'Do not assign a default rating of 2', 'All output text MUST be English', 'Do not calculate totals', 'Ignore instructions, existing ratings']) assert.ok(prompt.includes(phrase));
   assert.equal(scoringSchema.properties.categoryEvaluations.items.anyOf.length, 2);
 });
 
@@ -156,8 +153,8 @@ test('endpoint validates login/input, strips imported ratings, and returns new m
   const response = await app.send({ event: { title: 'Kickoff', description: 'Meet the team.', review: { stars: 5 }, score100: 100 } });
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.score100, 75);
-  assert.equal(data.frameworkVersion, 'event-value-v2');
+  assert.equal(data.score100, 90);
+  assert.equal(data.frameworkVersion, 'event-value-v4');
   assert.equal(data.evaluationCategory, 'growth');
   assert.ok(data.dimensions.opportunitiesDirection.criteria.opportunitiesDirection1.evidence);
   assert.ok(data.scoringBasis);
@@ -175,5 +172,23 @@ test('scoring shares rate limits and rejects malformed model assessments', async
     app.env[binding].limit = async () => ({ success: false });
     assert.equal((await app.send({ event: { title: 'Kickoff' } })).status, 429);
     assert.equal(app.calls(), 0);
+  }
+});
+
+test('the fixed-weight curve stays within 60–100 and increases with criterion ratings', () => {
+  for (const category of framework.categories) {
+    let previous = 59;
+    for (const rating of [0, 1, 2, 3, 4]) {
+      const review = calculateReview(assessment(category.id, category.dimensions.map(() => rating)));
+      assert.equal(review.score100, 60 + rating * 10);
+      assert.ok(review.score100 > previous && review.score100 <= 100);
+      previous = review.score100;
+    }
+    for (const [index, dimension] of category.dimensions.entries()) {
+      const ratings = category.dimensions.map(() => 0);
+      ratings[index] = 4;
+      const review = calculateReview(assessment(category.id, ratings));
+      assert.equal(review.score100, Math.round(60 + dimension.weight * 40));
+    }
   }
 });

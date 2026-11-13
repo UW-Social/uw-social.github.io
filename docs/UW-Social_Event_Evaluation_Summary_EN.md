@@ -44,14 +44,13 @@ These initial weights reflect the priorities expressed in the seven survey respo
 | **2** | Meets a clear, concrete basic standard. |
 | **3** | Meets the basic standard and some advanced conditions. |
 | **4** | Fully meets the criterion’s strongest defined standard. |
-| **Unknown** | Information is missing, contradictory, or too vague to evaluate. |
 
 For example, when evaluating meaningful interaction:
 
 - **0:** Explicitly one-way viewing with no interaction.
 - **2:** A scheduled Q&A or discussion.
 - **4:** Structured interaction with sufficient time, facilitation, or group arrangements to support deeper exchanges.
-- **Unknown:** Only a promotional claim such as “excellent networking.”
+- **Limited evidence:** Promotional claims alone do not establish a mechanism. Any estimate must be explained and reflected in lower confidence.
 
 Every rating must include a brief explanation and supporting evidence. This summary describes the framework; consistent operational scoring also requires the criterion-specific anchors in the full matrix.
 
@@ -59,13 +58,19 @@ Every rating must include a brief explanation and supporting evidence. This summ
 
 **Dimension Score = (Average Criterion Rating / 4) × 100**
 
-**Overall Score = Sum of (Dimension Score × Dimension Weight)**
+**Raw Overall Score = Sum of (Dimension Score × Fixed Dimension Weight)**
 
-Use weights as decimals in the formula, such as 0.40 for 40%. Calculate at full precision and round the displayed total to the nearest integer.
+**Curved Total = round(60 + Raw Overall Score × 0.40)**
 
-If any criterion is unknown, display a **possible score range and information coverage**, rather than a definitive total. Missing information must not automatically receive zero.
+**Displayed Score = Curved Total / 20**, rounded to one decimal place on a five-point scale.
 
-The lower bound uses zero for unknown criteria; the upper bound uses four. These are mathematical bounds, not estimates of the missing ratings or a statistical confidence interval. Information coverage is the proportion of total scoring weight supported by known ratings.
+Keep the weights above fixed: Growth 40% / 33% / 27%; Social 64% / 36%. Each dimension's three criteria remain equally weighted. Calculate at full precision and round only the displayed total. The curve maps raw 0 / 50 / 100 to displayed 60 / 80 / 100, preserving ordering. The card displays totals on a 3.0–5.0 scale; dimension scores use the same mapping, (60 + raw dimension score × 0.40) / 20, on a 3.0–5.0 scale. This linear mapping preserves the fixed-weight relationship between dimensions and total before rounding. Stored scoring values and fixed weights remain unchanged.
+
+Rate all applicable criteria individually from the event’s purpose, agenda and format. Explain any inference as an estimate and lower confidence for missing, vague or contradictory information. Never fill missing ratings with a default 2/4, substitute a midpoint, or redistribute weights. If the supplied facts cannot support a meaningful assessment, request clarification instead of inventing ratings.
+
+Confidence (low / medium / high) describes evidence quality and is separate from the weighted score. Returning a numeric estimate does not mean complete evidence. Saved score ranges and incomplete neutral-filled totals require reassessment from event content; do not convert them into a single score.
+
+For example, Social Connection rated 3 on all three criteria and Relaxation & Well-being rated 1 on all three gives raw (75 × 0.64) + (25 × 0.36) = 57, then curved **83/100**, displayed as **4.2/5**. Swapping the dimension ratings changes the result because the weights remain fixed.
 
 ## 6. Keep Comparisons Fair
 

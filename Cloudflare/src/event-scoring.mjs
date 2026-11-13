@@ -6,7 +6,7 @@ export const SCORING_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const textSchema = (maxLength) => ({ type: 'string', minLength: 1, maxLength });
 const criterionSchema = {
   type: 'object',
-  properties: { rating: { type: ['integer', 'null'], minimum: 0, maximum: 4 }, evidence: textSchema(300) },
+  properties: { rating: { type: 'integer', minimum: 0, maximum: 4 }, evidence: textSchema(300) },
   required: ['rating', 'evidence'], additionalProperties: false,
 };
 // Each category has an exact schema, so the model cannot silently omit a criterion.
@@ -58,19 +58,18 @@ export function scoringMessages(event) {
       'A CS club game night is social. Hybrid requires substantial, distinct programs in BOTH categories; casual Q&A or a short social break alone is not hybrid.',
       'Do not infer Hybrid from a list of mixed formats. Networking that supports a talk, a relaxed venue, prizes or an incidental costume contest do not establish an equally substantial distinct recreational program. Choose the primary evidenced purpose unless the supplied agenda establishes both.',
       'For growth or social return exactly that one category evaluation. For hybrid return both, separately. For needs_clarification return an empty categoryEvaluations array and explain what is missing.',
-      'For every criterion in each applicable category, return an integer rating 0–4 or null (Unknown), with a concise English explanation citing supplied facts.',
-      'Use null for missing, contradictory or vague information. Zero requires evidence of absence. Never treat missing information as zero or assign a conservative guessed score.',
-      'Evaluate each criterion independently; do not repeat a rating pattern across dimensions. Before choosing a number, identify the concrete mechanism that directly satisfies THIS criterion. If you cannot identify one, use null.',
-      'A non-null rating and its evidence must agree. An explanation saying it is unclear whether the benefit exists cannot support a numeric rating. General claims that something can, could, or may help are not evidence of a mechanism.',
-      'Examples: a broad topic such as space and AI does not identify concrete opportunities or pathways (null); a named internship, research project opening, or application route does. A speaker title does not prove advanced content. A costume contest does not establish inclusion or freedom to opt out (null unless described).',
-      'A description that says networking or connect with enthusiasts without a specified interaction format is vague: use null for meaningful two-way interaction. A scheduled Q&A or small-group discussion is a concrete basic mechanism (2); advanced conditions require additional explicit evidence.',
+      'For every criterion in each applicable category, return an integer rating 0–4 with a concise English explanation tied to supplied facts. Do not return null.',
+      'Assess the expected contribution to THIS criterion independently, based on the described purpose, agenda and format. Any inference must be explicitly labelled as an estimate in its evidence explanation; never invent event details.',
+      'Do not assign a default rating of 2 to missing information or repeat a rating pattern. Distinguish weak, basic and strong expected contributions using the supplied standards. Information gaps lower confidence, not a server-side default score.',
+      'If the supplied facts do not support a meaningful assessment of all applicable criteria, classify as needs_clarification and return no numeric assessment rather than fabricate ratings.',
+      'Examples: a named internship or application route supports concrete opportunities; a scheduled Q&A supports basic two-way interaction. A broad topic or promotional networking claim alone does not establish those mechanisms.',
       'Do not award 3 merely for expert hosts, an interesting subject, or a pleasant venue. Do not award 4 from superlatives or promotional claims. Advanced conditions must be named in the evidence.',
       'Use the supplied rating standards. A concrete basic mechanism earns 2; 1 is limited and below basic, 3 adds supported advanced conditions, and 4 requires strong evidence fully supporting the criterion.',
-      'Example for meaningful interaction: explicitly one-way viewing = 0; scheduled Q&A = 2; structured, adequately timed and facilitated deeper exchange = 4; promotional “excellent networking” alone = null.',
+      'Example for meaningful interaction: explicitly one-way viewing = 0; scheduled Q&A = 2; structured, adequately timed and facilitated deeper exchange = 4; promotional “excellent networking” alone does not establish a basic mechanism.',
       'Apply equal criteria and weights across subjects. No points for prestige, celebrity, popularity, technical difficulty, price or size alone. Diversity matters only where it supports perspectives, interaction or inclusion.',
       'Keep personal relevance, cost, travel, schedule and eligibility outside the score. Identify the intended audience in bestFor using supplied facts.',
       'All output text MUST be English. bestFor describes who benefits; scoringBasis cites specific mechanisms from the agenda, not merely “event description”; limitations states supported limitations or explicitly says they are unknown.',
-      'Confidence describes whether enough evidence supports this assessment; explain it in confidenceExplanation. Missing evidence lowers confidence.',
+      'Confidence describes evidence quality, not the score. Use low when key criteria rely on assumptions or the description is vague, medium for some reasonable inferences, and high only when concrete supplied facts directly support all criterion ratings. Explain missing information and estimates in confidenceExplanation.',
       'The sentence is a summary of at most 80 characters with no numerical rating. Return JSON matching the schema.',
       'Do not calculate totals, percentages, stars, or coverage. The server calculates these from criterion ratings and weights.',
       JSON.stringify(framework),
@@ -99,39 +98,31 @@ function calculateCategory(input) {
   if (!category) throw new Error('Invalid AI scoring category.');
   exactKeys(input.dimensions, category.dimensions.map(dimension => dimension.code));
   const dimensions = {};
-  let lower = 0, upper = 0, coverage = 0;
+  let rawScore = 0;
   for (const dimension of category.dimensions) {
     const supplied = input.dimensions[dimension.code];
     exactKeys(supplied?.criteria, dimension.criteria.map(criterion => criterion.id));
     const criteria = {};
-    let sum = 0, known = 0;
+    let sum = 0;
     for (const criterion of dimension.criteria) {
       const value = supplied.criteria[criterion.id];
-      if (!value || (value.rating !== null && (!Number.isInteger(value.rating) || value.rating < 0 || value.rating > 4))) {
+      if (!value || (!Number.isInteger(value.rating) || value.rating < 0 || value.rating > 4)) {
         throw new Error('Invalid AI criterion rating.');
       }
       criteria[criterion.id] = { rating: value.rating, evidence: text(value.evidence, 300) };
-      if (value.rating !== null) { known++; sum += value.rating; }
+      sum += value.rating;
     }
     const count = dimension.criteria.length;
-    const dimensionLower = sum / (count * 4) * 100;
-    const dimensionUpper = (sum + (count - known) * 4) / (count * 4) * 100;
-    const dimensionCoverage = known / count;
+    const dimensionScore = sum / (count * 4) * 100;
     dimensions[dimension.code] = {
-      score: known === count ? round(dimensionLower) : null,
-      ...(known < count ? { scoreRange: { lower: round(dimensionLower), upper: round(dimensionUpper) } } : {}),
-      informationCoverage: cleanPrecision(dimensionCoverage),
+      score: round(dimensionScore),
       criteria, evidence: Object.values(criteria).map(criterion => criterion.evidence).join(' '),
     };
-    lower += dimensionLower * dimension.weight;
-    upper += dimensionUpper * dimension.weight;
-    coverage += dimensionCoverage * dimension.weight;
+    rawScore += dimensionScore * dimension.weight;
   }
-  const informationCoverage = cleanPrecision(coverage);
   return {
-    category: category.id, dimensions, informationCoverage,
-    ...(informationCoverage === 1 ? { score100: round(lower) }
-      : { scoreRange: { lower: round(lower), upper: round(upper) } }),
+    category: category.id, dimensions,
+    rawScore100: cleanPrecision(rawScore), score100: round(60 + rawScore * 0.4),
   };
 }
 
@@ -144,9 +135,7 @@ export function calculateReview(assessment, evaluatedAt = new Date().toISOString
   }
   if (!['low', 'medium', 'high'].includes(assessment.confidence)) throw new Error('Invalid AI scoring confidence.');
   const categoryEvaluations = expected.map(category => calculateCategory(assessment.categoryEvaluations.find(item => item.category === category)));
-  const minimumCoverage = categoryEvaluations.length ? Math.min(...categoryEvaluations.map(item => item.informationCoverage)) : 0;
-  const confidence = minimumCoverage < 0.5 ? 'low'
-    : minimumCoverage < 1 && assessment.confidence === 'high' ? 'medium' : assessment.confidence;
+  const confidence = categoryEvaluations.length ? assessment.confidence : 'low';
   const result = {
     source: 'ai', frameworkVersion: framework.version, model: SCORING_MODEL, evaluatedAt,
     evaluationCategory: assessment.evaluationCategory,
@@ -156,8 +145,7 @@ export function calculateReview(assessment, evaluatedAt = new Date().toISOString
     bestFor: text(assessment.bestFor, 400), scoringBasis: text(assessment.scoringBasis, 600),
     limitations: text(assessment.limitations, 600),
   };
-  // Preserve compatibility for consumers of single-category reviews. Never invent a
-  // combined Hybrid score or a definitive score for an incomplete evaluation.
+  // Compatibility fields use the curved total. Hybrid keeps independent totals.
   if (categoryEvaluations.length === 1) {
     const { category, ...single } = categoryEvaluations[0];
     Object.assign(result, single);

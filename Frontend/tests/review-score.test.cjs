@@ -43,3 +43,11 @@ test('AI and legacy reviews display out of five, including zero and missing rati
   assert.equal(getReviewScore(null), null);
   assert.equal(getReviewScore({ score: NaN }), null);
 });
+
+test('ranges are excluded from ranking; complete totals curve only once', () => {
+  const { getReviewScore, getReviewScore100 } = mod.exports;
+  assert.equal(getReviewScore({ frameworkVersion: 'event-value-v2', score100: 0 }), 3);
+  assert.equal(getReviewScore({ frameworkVersion: 'event-value-v2', scoreRange: { lower: 19, upper: 81 }, informationCoverage: 0.38 }), null);
+  assert.equal(getReviewScore100({ frameworkVersion: 'event-value-v4', score100: 86 }), 86);
+  assert.equal(getReviewScore({ scoreRange: { lower: 0, upper: 100 }, informationCoverage: 0 }), null);
+});

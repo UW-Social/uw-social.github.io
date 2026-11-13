@@ -1,5 +1,5 @@
 import type { EventReviewSummary, EventValueAssessment } from '../types/event';
-import { getReviewScore } from './reviewScore';
+import { getReviewScore100, normalizeReviewScore } from './reviewScore';
 
 const dimensionLabels: Record<string, string> = {
   opportunitiesDirection: 'Opportunities & Direction',
@@ -14,6 +14,8 @@ const dimensionLabels: Record<string, string> = {
 const finiteScore = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const percentage = (value: number) => String(Math.round(Math.max(0, Math.min(100, value))));
 
+const fivePointScore = (value: number) => `${normalizeReviewScore(value, 100).toFixed(1)}/5`;
+
 export function getEventValueDisplay(review?: EventReviewSummary | null) {
   const assessments: Array<Partial<EventValueAssessment>> = review?.categoryEvaluations?.length
     ? review.categoryEvaluations
@@ -26,21 +28,23 @@ export function getEventValueDisplay(review?: EventReviewSummary | null) {
       dimensions: review?.dimensions,
     }];
   const isLegacy = review?.frameworkVersion === 'tech-event-v1';
-  const legacyScore = getReviewScore(review);
+  const legacyScore = getReviewScore100(review);
 
   return {
     assessments: assessments.map(assessment => ({
       category: assessment.category === 'growth' ? 'Growth' : assessment.category === 'social' ? 'Social' : review?.evaluationCategory === 'needs_clarification' ? 'Needs clarification' : 'Category pending',
-      score: assessment.scoreRange
-        ? `${percentage(assessment.scoreRange.lower)}–${percentage(assessment.scoreRange.upper)}/100`
-        : Object.values(assessment.dimensions ?? {}).some(dimension => !finiteScore(dimension.score)) ? 'Score pending'
-          : finiteScore(assessment.score100) ? `${percentage(assessment.score100)}/100`
-          : !review?.scoreRange && assessments.length === 1 && legacyScore !== null ? `${percentage(legacyScore * 20)}/100` : 'Score pending',
+      score: (() => {
+        const score = getReviewScore100({ ...assessment, frameworkVersion: review?.frameworkVersion });
+        if (score !== null) return fivePointScore(score);
+        return assessments.length === 1 && !assessment.category && legacyScore !== null
+          ? fivePointScore(legacyScore) : 'Score pending';
+      })(),
       coverage: finiteScore(assessment.informationCoverage) ? `${percentage(assessment.informationCoverage * 100)}% information coverage` : '',
       dimensions: Object.entries(assessment.dimensions ?? {}).map(([code, dimension]) => ({
         label: dimensionLabels[code] ?? code,
-        score: dimension.scoreRange ? `${percentage(dimension.scoreRange.lower)}–${percentage(dimension.scoreRange.upper)}`
-          : finiteScore(dimension.score) ? percentage(dimension.score * (isLegacy ? 10 : 1)) : 'Unknown',
+        score: dimension.informationCoverage === 0 || dimension.scoreRange
+          || (review?.frameworkVersion === 'event-value-v3' && dimension.informationCoverage !== 1) ? 'Needs reassessment'
+          : finiteScore(dimension.score) ? fivePointScore(isLegacy ? dimension.score * 10 : 60 + dimension.score * 0.4) : 'Unknown',
       })),
     })),
     classificationReason: review?.classificationReason?.trim() || '',

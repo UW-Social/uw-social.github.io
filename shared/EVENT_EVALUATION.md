@@ -1,7 +1,7 @@
 # Event evaluation framework
 
 The canonical, machine-readable matrix is [event-evaluation.json](event-evaluation.json),
-version `event-value-v2`. Both the public Evaluation Scheme page and the Cloudflare
+version `event-value-v4`. Both the public Evaluation Scheme page and the Cloudflare
 scorer load it. It is derived from the supplied
 [English summary](../docs/UW-Social_Event_Evaluation_Summary_EN.md).
 
@@ -20,35 +20,34 @@ The model classifies the event by its purpose and agenda:
 - `hybrid`: substantial, distinct programs in both categories; evaluate each independently.
 - `needs_clarification`: insufficient information to classify; explain what is missing without assigning a score.
 
-Each dimension has three equally weighted criteria. The model returns an integer
-rating of 0–4 or `null` (Unknown), plus an English evidence explanation for every
-criterion. Zero means evidence confirms absence; unknown information must never be
-replaced with zero or a guessed rating. All criteria are required even when unknown.
-The summary supplies general rating standards and an interaction example, but not
-the full criterion-specific anchor matrix; no additional full-matrix anchors are
-claimed here. Add those anchors to the canonical JSON when available and version
-any rubric changes.
+Each dimension has three equally weighted criteria. Every applicable criterion must
+have an integer rating of 0–4 and an explanation based on event facts. Explain any
+inference as an estimate and lower confidence for incomplete evidence. Never assign
+a default midpoint to missing ratings. If the event cannot meaningfully be assessed,
+return needs_clarification instead of inventing ratings. The summary does not supply
+a full criterion-specific anchor matrix.
 
 ## Server calculation
 
 The model does not choose aggregate scores. The server validates the category,
 all expected dimensions, all criterion IDs, integer ratings, and evidence fields.
 
-- Dimension score = (sum of three criterion ratings / 12) × 100.
-- Overall score = sum of (unrounded dimension score × dimension weight).
-- Display scores are rounded to the nearest integer only after calculation.
-- Unknown criteria use 0 for the lower bound and 4 for the upper bound.
-- Information coverage is the sum of each known criterion’s weight (dimension weight / 3).
+- Raw dimension score = (sum of three criterion ratings / 12) × 100.
+- Growth raw overall = Opportunities & Direction × 0.40 + Meaningful Connections × 0.33 + Knowledge & Insight × 0.27.
+- Social raw overall = Social Connection × 0.64 + Relaxation & Well-being × 0.36.
+- Displayed total `score100` = round(60 + raw overall score × 0.4), within 60–100.
+- `rawScore100` retains the unrounded raw total; calculate from unrounded dimension scores.
+- Null, missing, fractional or out-of-range ratings are rejected, never imputed.
 
-An incomplete assessment returns `scoreRange` and `informationCoverage`, with no
-`score100`, `score`, or `stars`. These bounds are mathematical possibilities, not
-confidence intervals. Hybrid events return independent category assessments, with
-no combined total or star rating. Needs-clarification events have no numeric rating.
+Hybrid keeps independent totals; needs_clarification has no numeric total. Confidence
+is assessed separately from evidence quality, never inferred from the presence of
+numeric ratings. Compatibility fields `score` and `stars` use the curved total.
 
-For a complete single-category assessment, the legacy compatibility fields `score`
-(out of five) and `stars` are retained; the event detail card displays `score100`.
-Star thresholds remain 90 / 75 / 60 / 40. They are compatibility conversions and do
-not affect the criterion ratings or percentage score.
+Saved ranges cannot supply an individual estimate and are displayed as pending.
+Incomplete v3 neutral-filled scores also require reassessment. Complete v2 totals
+can still use the curve; complete v3 and v4 totals are already curved. Older imported
+pre-matrix review scales retain their meanings. There are no automatic database
+writes or AI calls when reading old reviews.
 
 ## Response and display contract
 
@@ -56,15 +55,12 @@ Every response includes `source: "ai"`, `frameworkVersion`, `model`, `evaluatedA
 `evaluationCategory`, `classificationReason`, `categoryEvaluations`, `sentence`,
 `confidence`, `confidenceExplanation`, `bestFor`, `scoringBasis`, and `limitations`.
 The latter text fields are English and must cite supplied facts or acknowledge
-missing information. Confidence is capped at medium when any criteria are unknown
-and at low when less than half the relevant scoring weight is known.
+missing information. Confidence explains evidence quality and any assumptions or missing details.
 
-Each category evaluation contains `category`, `dimensions`, `informationCoverage`,
-and either `score100` or `scoreRange: { lower, upper }`. Dimensions retain their
-criterion ratings and evidence, and include a percentage score or range. A
-single-category review also exposes these fields at the top level for compatibility.
-The public card shows Expected Event Value, category and percentage/range, dimension
-scores, Confidence, Best for, Scoring basis, and Main limitations.
+Each category evaluation contains `category`, `dimensions`, `rawScore100` and curved `score100`. Dimensions
+retain criterion ratings and evidence plus raw scores. Single-category reviews expose
+these fields at the top level for compatibility. The public card shows both totals and dimensions on the same curved 3.0–5.0 scale, with one decimal place. Totals divide the already-curved score by 20; raw dimensions first apply (60 + raw score × 0.4), then divide by 20. The linear mapping preserves the fixed-weight relationship before rounding. Stored percentage scores are unchanged. The card shows a single total,
+curved dimension scores, Confidence, Best for, Scoring basis, and Main limitations.
 
 Future scrapers should extract facts and call this endpoint rather than accept a
 rating on a source page or implement a separate rubric. Compare scores only within
@@ -107,7 +103,7 @@ Applying scores uses the local Firebase CLI login, or `FIRESTORE_ACCESS_TOKEN`
 (an OAuth access token for a Google Cloud identity with Firestore write permission
 in this Firebase project). Run `--check-access` to verify read/list/update IAM
 permissions without writing data. `FIREBASE_CLI_CONFIG_FILE` overrides the default
-macOS/Linux CLI configuration path. Refresh the CLI login if its access token expires.
+macOS/Linux CLI configuration path. Expired access tokens are refreshed in memory using the existing CLI refresh token. Sign in again if refresh is rejected; credentials are never saved in scoring checkpoints.
 A public Firebase API key or Cloudflare token cannot grant database write access.
 Keep the access token in the local process environment, never in chat or source files.
 

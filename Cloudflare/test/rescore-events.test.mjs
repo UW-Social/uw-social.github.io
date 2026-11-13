@@ -78,3 +78,16 @@ test('batch scope matches visible upcoming events and keeps recurring events thr
   assert.equal(isVisibleUpcoming(document({ schedule: { type: 'WEEKLY', endDate: '2026-11-04T08:00:00Z' } }), now), false);
   assert.equal(isVisibleUpcoming(document({ schedule: { type: 'ONE_TIME', endDatetime: '2027-01-01T00:00:00Z' }, endtime: '2026-11-04T00:00:00Z' }), now), false);
 });
+
+test('expired Firebase sessions refresh in memory; failed refreshes disclose no credentials', async () => {
+  const { firebaseAccessToken } = await import('../scripts/rescore-events.mjs');
+  const config = { tokens: { access_token: 'old-test-token', expires_at: 0, refresh_token: 'test-refresh-token' } };
+  assert.equal(await firebaseAccessToken(config, async (url, options) => {
+    assert.equal(url, 'https://oauth2.googleapis.com/token');
+    assert.equal(options.body.get('refresh_token'), 'test-refresh-token');
+    return new Response(JSON.stringify({ access_token: 'new-test-token' }));
+  }), 'new-test-token');
+  assert.equal(config.tokens.access_token, 'old-test-token');
+  await assert.rejects(firebaseAccessToken(config, async () => new Response(JSON.stringify({ error: 'test-refresh-token' }), { status: 400 })), /Firebase login could not be refreshed/);
+  assert.equal(await firebaseAccessToken({ tokens: { access_token: 'valid-test-token', expires_at: Date.now() + 120000 } }, async () => { throw new Error('Should not refresh a valid token'); }), 'valid-test-token');
+});

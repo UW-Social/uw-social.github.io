@@ -1,10 +1,9 @@
 {
-  "version": "event-value-v2",
+  "version": "event-value-v4",
   "source": "docs/UW-Social_Event_Evaluation_Summary_EN.md",
   "criterionScale": {
     "min": 0,
-    "max": 4,
-    "unknown": null
+    "max": 4
   },
   "ratingStandards": [
     {
@@ -26,10 +25,6 @@
     {
       "rating": 4,
       "meaning": "Fully meets the criterion’s strongest defined standard."
-    },
-    {
-      "rating": null,
-      "meaning": "Information is missing, contradictory, or too vague to evaluate."
     }
   ],
   "weightNote": "Provisional weights based on seven survey responses.",

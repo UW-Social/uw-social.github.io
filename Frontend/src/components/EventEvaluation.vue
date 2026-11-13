@@ -3,14 +3,13 @@
     <h2 id="event-value-title">Expected Event Value</h2>
     <div v-for="assessment in display.assessments" :key="assessment.category" class="assessment">
       <p class="value-score">{{ assessment.category }} · {{ assessment.score }}</p>
-      <ul v-if="assessment.dimensions.length" class="dimension-scores" aria-label="Dimension scores out of 100">
+      <ul v-if="assessment.dimensions.length" class="dimension-scores" aria-label="Dimension scores out of 5">
         <li v-for="dimension in assessment.dimensions" :key="dimension.label">
           {{ dimension.label }} <strong>{{ dimension.score }}</strong>
         </li>
       </ul>
       <p v-if="assessment.coverage" class="coverage">{{ assessment.coverage }}</p>
     </div>
-    <p v-if="display.classificationReason" class="classification-reason">{{ display.classificationReason }}</p>
     <dl>
       <div>
         <dt>Confidence</dt>
@@ -50,7 +49,6 @@ h2 { margin: 0 0 20px; color: inherit; font-size: 20px; font-weight: 800; line-h
 .dimension-scores li { padding-right: 10px; }
 .dimension-scores li + li { padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, 0.35); }
 .dimension-scores strong { white-space: nowrap; }
-.classification-reason { margin: 14px 0 0; font-size: 13px; line-height: 1.6; }
 .coverage { margin: 10px 0 0; font-size: 13px; }
 dl { margin: 20px 0 0; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.22); font-size: 14px; line-height: 1.65; }
 dl > div + div { margin-top: 14px; }

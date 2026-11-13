@@ -85,7 +85,7 @@ export interface MonthlySchedule extends BaseRecurringSchedule {
 export type EventSchedule = OneTimeSchedule | DailySchedule | WeeklySchedule | MonthlySchedule;
 
 export interface EventValueDimension {
-  /** New matrix dimension scores are out of 100; unknown scores are null. */
+  /** Raw dimension scores are out of 100; entirely unknown dimensions are null. */
   score: number | null;
   scoreRange?: { lower: number; upper: number };
   informationCoverage?: number;
@@ -95,7 +95,9 @@ export interface EventValueDimension {
 
 export interface EventValueAssessment {
   category: 'growth' | 'social';
+  /** Curved total (60–100) in event-value-v4 (and v3). */
   score100?: number;
+  rawScore100?: number;
   scoreRange?: { lower: number; upper: number };
   /** Proportion of total scoring weight supported by known ratings, from 0 to 1. */
   informationCoverage?: number;
@@ -108,7 +110,9 @@ export interface EventReviewSummary {
   score?: number;
   sentence: string;
   source?: 'ai';
+  /** Curved total (60–100) in event-value-v4 (and v3). */
   score100?: number;
+  rawScore100?: number;
   frameworkVersion?: string;
   model?: string;
   evaluatedAt?: string;

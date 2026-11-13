@@ -40,7 +40,7 @@
     </section>
 
     <section id="evidence" class="framework-card">
-      <div class="section-header"><h2>3. Rate each criterion with evidence</h2><span>0–4 or Unknown</span></div>
+      <div class="section-header"><h2>3. Rate each criterion with evidence</h2><span>0–4</span></div>
       <p class="section-intro">Every rating needs a brief explanation and supporting evidence.</p>
       <div class="rating-list">
         <div v-for="rating in ratings" :key="rating.value" class="rating-row"><strong>{{ rating.value }}</strong><p>{{ rating.meaning }}</p></div>
@@ -51,34 +51,30 @@
           <li><strong>0:</strong> Explicitly one-way viewing with no interaction.</li>
           <li><strong>2:</strong> A scheduled Q&amp;A or discussion.</li>
           <li><strong>4:</strong> Structured interaction with enough time, facilitation, or group arrangements for deeper exchanges.</li>
-          <li><strong>Unknown:</strong> Only a promotional claim such as “excellent networking.”</li>
+          <li><strong>Limited evidence:</strong> A promotional claim alone does not establish a basic interaction mechanism. Explain estimates and lower confidence.</li>
         </ul>
       </details>
       <p class="note">This guide summarizes the framework. Consistent operational scoring also requires the criterion-specific anchors in the full matrix.</p>
     </section>
 
     <section id="calculation" class="framework-card">
-      <div class="section-header"><h2>4. Calculate and read the score</h2><span>Out of 100</span></div>
+      <div class="section-header"><h2>4. Calculate and read the score</h2><span>Out of 5</span></div>
       <p class="formula">Dimension score = (Average criterion rating ÷ 4) × 100</p>
-      <p class="formula">Overall score = Sum of (Dimension score × Dimension weight)</p>
-      <p class="section-intro">Use weights as decimals, such as 0.40 for 40%. Calculate at full precision, then round the displayed total to the nearest integer.</p>
+      <p class="formula">Raw overall score = Sum of (Dimension score × Fixed dimension weight)</p>
+      <p class="formula">Curved total = 60 + (Raw overall score × 0.40)</p>
+      <p class="formula">Displayed score = Curved total ÷ 20 (one decimal place)</p>
+      <p class="section-intro">Use weights as decimals, such as 0.40 for 40%. Calculate at full precision, then round the curved total to the nearest integer, then divide by 20 and display one decimal place. Apply the same curve to each raw dimension score before dividing by 20. Total scores use unrounded weighted inputs; displayed rounding may create small differences.</p>
       <div class="inset-card worked-example">
         <h3>Example · Learning &amp; Growth</h3>
         <p>Dimension scores of 80 for Opportunities &amp; Direction, 60 for Meaningful Connections, and 100 for Knowledge &amp; Insight give:</p>
-        <p class="example-result">(80 × 0.40) + (60 × 0.33) + (100 × 0.27) = 78.8 → <strong>79 / 100</strong></p>
+        <p class="example-result">(80 × 0.40) + (60 × 0.33) + (100 × 0.27) = 78.8; 60 + (78.8 × 0.40) → 92 / 100 → <strong>4.6 / 5</strong></p>
       </div>
       <h3 class="subheading">When information is missing</h3>
-      <p class="section-intro">If any criterion is Unknown, show a <strong>possible score range and information coverage</strong> instead of a definitive total. Missing information must not automatically receive zero.</p>
-      <ul>
-        <li><strong>Lower bound:</strong> use 0 for each unknown criterion.</li>
-        <li><strong>Upper bound:</strong> use 4 for each unknown criterion.</li>
-        <li><strong>Information coverage:</strong> the proportion of total scoring weight supported by known ratings.</li>
-      </ul>
-      <div class="inset-card worked-example">
-        <h3>Example · An incomplete Social evaluation</h3>
-        <p>If all Social Connection criteria score 3 and all Relaxation &amp; Well-being criteria are unknown, show <strong>48–84 / 100 · 64% information coverage</strong>.</p>
-      </div>
-      <p class="note">The range gives mathematical bounds. It is not an estimate of missing ratings or a statistical confidence interval.</p>
+      <p class="section-intro">Rate every criterion from the event’s purpose, agenda and format, explaining any estimates. Never replace missing ratings with a default 2/4 or derive scores from the midpoint of an old range.</p>
+      <p>Growth raw total = Opportunities &amp; Direction × 0.40 + Meaningful Connections × 0.33 + Knowledge &amp; Insight × 0.27.</p>
+      <p>Social raw total = Social Connection × 0.64 + Relaxation &amp; Well-being × 0.36.</p>
+      <p>Each dimension uses three equally weighted criterion ratings. The card shows one total between 3.0 and 5.0 alongside confidence. Each dimension uses the same mapping: (60 + raw dimension score × 0.40) ÷ 20, on a 3.0–5.0 scale. Because the weights sum to one, applying this linear curve to each dimension preserves their weighted relationship with the total.</p>
+      <p>Missing or ambiguous evidence lowers confidence. If a meaningful assessment cannot be made, request clarification. Saved ranges and incomplete scores from the previous method need reassessment before displaying a total.</p>
     </section>
 
     <section id="fairness" class="framework-card">
