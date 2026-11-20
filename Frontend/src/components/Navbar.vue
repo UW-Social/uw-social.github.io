@@ -50,6 +50,7 @@
             </button>
             <div class="avatar-dropdown" role="menu">
               <button type="button" role="menuitem" @click="navigateToProfile">View my homepage</button>
+              <button v-if="isAdmin" type="button" role="menuitem" @click="router.push('/admin/imports')">Review activities</button>
               <button type="button" role="menuitem" @click="handleLogout">Logout</button>
             </div>
           </div>
@@ -67,12 +68,23 @@ import '../assets/navbar.css';
 import { useUserStore } from '../stores/user';
 import { collection, onSnapshot, query, where, type Unsubscribe } from 'firebase/firestore';
 import { onUnmounted, ref, watch } from 'vue';
-import { db } from '../firebase/config';
+import { auth, db } from '../firebase/config';
+import { onIdTokenChanged } from 'firebase/auth';
 
 const userStore = useUserStore();
 const router = useRouter();
 const route = useRoute();
 const unreadMailboxCount = ref(0);
+const isAdmin = ref(false);
+const stopAdminListener = onIdTokenChanged(auth, async user => {
+  isAdmin.value = false;
+  if (!user) return;
+  try {
+    const token = await user.getIdTokenResult();
+    if (auth.currentUser?.uid === user.uid) isAdmin.value = token.claims.admin === true;
+  } catch { isAdmin.value = false; }
+});
+onUnmounted(stopAdminListener);
 let unsubscribeMailboxCount: Unsubscribe | null = null;
 
 const stopMailboxCountSubscription = () => {

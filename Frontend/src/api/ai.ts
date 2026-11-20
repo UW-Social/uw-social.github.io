@@ -1,6 +1,9 @@
 import { auth } from '../firebase/config';
 
-export async function requestAi<T>(path: '/chat' | '/extract-event' | '/score-event', payload: unknown): Promise<T> {
+export async function requestAi<T>(
+  path: '/chat' | '/extract-event' | '/score-event' | '/recommend-events',
+  payload: unknown,
+): Promise<T> {
   const baseUrl = (import.meta.env.VITE_AI_API_BASE_URL || '').trim().replace(/\/+$/, '');
   if (!baseUrl) throw new Error('AI service is not available yet. Please try again later.');
   await auth.authStateReady();
@@ -8,8 +11,12 @@ export async function requestAi<T>(path: '/chat' | '/extract-event' | '/score-ev
   if (!user || user.isAnonymous) throw new Error('Please log in to use AI features.');
   const token = await user.getIdToken();
   const controller = new AbortController();
-  const configuredTimeout = Number(import.meta.env.VITE_CHATBOT_TIMEOUT_MS || '30000');
-  const timeout = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 30000;
+  // A Hybrid assessment includes evidence for 15 criteria, so allow it more time.
+  const defaultTimeout = path === '/score-event' ? 90000 : 30000;
+  const configuredTimeout = Number((path === '/score-event'
+    ? import.meta.env.VITE_EVENT_SCORING_TIMEOUT_MS
+    : import.meta.env.VITE_CHATBOT_TIMEOUT_MS) || defaultTimeout);
+  const timeout = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : defaultTimeout;
   const timeoutId = window.setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch(`${baseUrl}${path}`, {

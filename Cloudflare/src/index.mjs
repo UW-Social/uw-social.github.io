@@ -1,10 +1,19 @@
-import { verifyFirebaseToken } from './auth.mjs';
+import { verifyFirebaseToken, verifyFirebaseClaims } from './auth.mjs';
+import { createImportService } from './event-imports.mjs';
+import { ImportError } from './firestore.mjs';
 import { extractProvidedEnglishCopy } from './event-copy.mjs';
 import { calculateReview, SCORING_MODEL, scoringMessages, scoringSchema } from './event-scoring.mjs';
+import {
+  recommendationMessages,
+  recommendationOutput,
+  RECOMMENDATION_MODEL,
+} from './event-recommendations.mjs';
 
 const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 const EXTRACTION_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const MAX_BODY_BYTES = 64 * 1024;
+const RECOMMENDATION_CACHE_TTL = 15 * 60 * 1000;
+const recommendationMemoryCache = new Map();
 
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -22,6 +31,46 @@ function list(value, max) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > max) throw new HttpError(400, 'Invalid request list.');
   return value;
+}
+
+function recommendationInput(data) {
+  const tags = list(data.tags, 20).map(tag => text(tag, 100));
+  const candidates = list(data.candidates, 50).map(candidate => ({
+    id: text(candidate?.id, 200, true),
+    title: text(candidate?.title, 500),
+    description: text(candidate?.description, 1600),
+    category: text(candidate?.category, 100),
+    location: text(candidate?.location, 500),
+    tags: list(candidate?.tags, 12).map(tag => text(tag, 100)),
+  }));
+  if (!candidates.length) throw new HttpError(400, 'At least one event candidate is required.');
+  return { tags, candidates };
+}
+
+async function recommendationCacheKey(uid, input) {
+  const encoded = new TextEncoder().encode(JSON.stringify({ uid, ...input }));
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function readRecommendationCache(key) {
+  const memory = recommendationMemoryCache.get(key);
+  if (memory && memory.expiresAt > Date.now()) return memory.value;
+  recommendationMemoryCache.delete(key);
+  const cache = globalThis.caches?.default;
+  if (!cache) return null;
+  const response = await cache.match(new Request(`https://uw-social-recommendations.invalid/${key}`));
+  return response ? response.json() : null;
+}
+
+async function writeRecommendationCache(key, value) {
+  recommendationMemoryCache.set(key, { value, expiresAt: Date.now() + RECOMMENDATION_CACHE_TTL });
+  const cache = globalThis.caches?.default;
+  if (!cache) return;
+  await cache.put(
+    new Request(`https://uw-social-recommendations.invalid/${key}`),
+    Response.json(value, { headers: { 'Cache-Control': `public, max-age=${RECOMMENDATION_CACHE_TTL / 1000}` } }),
+  );
 }
 
 // Bound the stream itself; Content-Length is not required or trusted.
@@ -184,7 +233,7 @@ function scoringInput(data) {
   return scoringMessages(clean);
 }
 
-export function createWorker(verifyIdentity = verifyFirebaseToken) {
+export function createWorker(verifyIdentity = verifyFirebaseToken, verifyAdminIdentity = verifyFirebaseClaims, importsFactory = createImportService) {
   return {
     async fetch(request, env) {
       const origin = request.headers.get('origin');
@@ -200,18 +249,45 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
         } });
       }
       const path = new URL(request.url).pathname;
-      if (!['/chat', '/extract-event', '/score-event'].includes(path)) return reply({ error: 'Not found.' }, 404);
+      const admin = ['/admin/imports/list', '/admin/imports/crawl', '/admin/imports/review'].includes(path);
+      if (!admin && !['/chat', '/extract-event', '/score-event', '/recommend-events'].includes(path)) {
+        return reply({ error: 'Not found.' }, 404);
+      }
       if (request.method !== 'POST') return reply({ error: 'Use POST.' }, 405);
       try {
         const bearer = request.headers.get('authorization')?.match(/^Bearer (\S+)$/i)?.[1];
         if (!bearer) throw new HttpError(401, 'Please log in to use AI features.');
+        if (admin) {
+          let identity;
+          try { identity = await verifyAdminIdentity(bearer, env.FIREBASE_PROJECT_ID); }
+          catch { throw new HttpError(401, 'Your login has expired. Please log in again.'); }
+          if (identity.admin !== true) throw new HttpError(403, 'Administrator access is required. Sign out and sign in after your admin role is configured.');
+          const data = await readBody(request);
+          if (!(await env.USER_RATE_LIMITER.limit({ key: identity.sub })).success) throw new HttpError(429, 'Too many requests. Wait a minute.');
+          const imports = importsFactory(env);
+          if (path.endsWith('/list')) return reply(await imports.list(text(data.pageToken, 4000)));
+          if (path.endsWith('/crawl')) return reply(await imports.crawl(text(data.sourceId, 50, true), identity.sub));
+          return reply(await imports.review(data.id, data.version, data.action, data.event, identity.sub));
+        }
         let uid;
         try { uid = await verifyIdentity(bearer, env.FIREBASE_PROJECT_ID); }
         catch { throw new HttpError(401, 'Your login has expired. Please log in again.'); }
         const data = await readBody(request);
         const chat = path === '/chat' ? chatInput(data) : null;
         const scoring = path === '/score-event';
-        const messages = chat ? chat.messages : scoring ? scoringInput(data) : eventInput(data);
+        const recommending = path === '/recommend-events';
+        const recommendations = recommending ? recommendationInput(data) : null;
+        const recommendationKey = recommending
+          ? await recommendationCacheKey(uid, recommendations) : null;
+        if (recommendationKey) {
+          const cached = await readRecommendationCache(recommendationKey);
+          if (cached) return reply(cached);
+        }
+        const messages = chat
+          ? chat.messages
+          : recommending
+            ? recommendationMessages(recommendations.tags, recommendations.candidates)
+            : scoring ? scoringInput(data) : eventInput(data);
         // Both bindings are required: fail closed if deployment configuration is incomplete.
         const userLimit = await env.USER_RATE_LIMITER.limit({ key: uid });
         if (!userLimit.success) throw new HttpError(429, 'Too many AI requests. Please wait a minute.');
@@ -219,11 +295,17 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
         if (!appLimit.success) throw new HttpError(429, 'AI is busy. Please try again in a minute.');
         let result;
         try {
-          result = await env.AI.run(chat ? MODEL : scoring ? SCORING_MODEL : EXTRACTION_MODEL, {
-            messages,
-            response_format: chat ? { type: 'json_object' } : { type: 'json_schema', json_schema: scoring ? scoringSchema : eventSchema },
-            max_tokens: chat ? 600 : scoring ? 1200 : 2000, temperature: chat ? 0.4 : 0.1,
-          });
+          result = await env.AI.run(
+            chat ? MODEL : recommending ? RECOMMENDATION_MODEL : scoring ? SCORING_MODEL : EXTRACTION_MODEL,
+            {
+              messages,
+              response_format: chat || recommending
+                ? { type: 'json_object' }
+                : { type: 'json_schema', json_schema: scoring ? scoringSchema : eventSchema },
+              max_tokens: chat ? 600 : recommending ? 500 : scoring ? 5000 : 2000,
+              temperature: chat ? 0.4 : 0.1,
+            },
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : '';
           if (/JSON Mode couldn't be met/i.test(message)) {
@@ -239,9 +321,16 @@ export function createWorker(verifyIdentity = verifyFirebaseToken) {
           try { return reply(calculateReview(assessment)); }
           catch { throw new HttpError(502, 'AI returned an invalid evaluation. Please try submitting again.'); }
         }
+        if (recommending) {
+          let output;
+          try { output = recommendationOutput(result, recommendations.candidates); }
+          catch { throw new HttpError(502, 'AI returned invalid event recommendations. Please try again.'); }
+          await writeRecommendationCache(recommendationKey, output);
+          return reply(output);
+        }
         return reply(chat ? chatOutput(result, chat.events) : eventOutput(result, data.document));
       } catch (error) {
-        const status = error instanceof HttpError ? error.status : 500;
+        const status = error instanceof HttpError || error instanceof ImportError ? error.status : 500;
         if (status === 429) headers['Retry-After'] = '60';
         return reply({ error: status === 500 ? 'AI service is not configured correctly.' : error.message }, status);
       }

@@ -77,7 +77,7 @@ service cloud.firestore {
     // 活动集合的规则(events)
     match /events/{eventId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && !eventId.matches('import-.*');
       allow update, delete: if request.auth != null &&
         request.auth.uid == resource.data.organizerId;
 
@@ -151,6 +151,12 @@ service cloud.firestore {
         }
       }
     }
+
+    // Import drafts and crawl metadata are served only through the authenticated
+    // admin Worker API. Its service account uses IAM rather than client rules.
+    match /eventCandidates/{document=**} { allow read, write: if false; }
+    match /crawlRuns/{document=**} { allow read, write: if false; }
+    match /crawlSources/{document=**} { allow read, write: if false; }
 
     // Event-linked forum documents and their lightweight posts.
     match /forums/{forumId} {

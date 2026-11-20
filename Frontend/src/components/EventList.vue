@@ -29,6 +29,7 @@ import Fuse from 'fuse.js';
 import EventCard from './EventCard.vue';
 import { useEventStore } from '../stores/event';
 import { useUserStore } from '../stores/user';
+import { requestAi } from '../api/ai';
 import type { Event } from '../types/event';
 
 const props = defineProps<{
@@ -54,6 +55,8 @@ const FUSE_WORST_SCORE = 1;
 const PERSONALIZED_SEMANTIC_WEIGHT = 0.6;
 const PERSONALIZED_RECENCY_WEIGHT = 0.3;
 const PERSONALIZED_POP_WEIGHT = 0.1;
+const AI_RECOMMENDATION_WEIGHT = 0.4;
+const FUSED_PERSONALIZATION_WEIGHT = 0.6;
 const TRENDING_RECENCY_WEIGHT = 0.6;
 const TRENDING_POP_WEIGHT = 0.4;
 
@@ -64,6 +67,7 @@ const VALID_CATEGORIES = new Set([
   'SPORTS',
   'INTEREST',
 ]);
+const recommendationCache = new Map<string, string[]>();
 
 function normalizeCategory(cat?: string | null) {
   if (!cat) return null;
@@ -218,7 +222,7 @@ async function refresh() {
       userTags.length > 0
     ) {
       try {
-        const personalized = scoreByPersonalization(events, userTags);
+        const personalized = await scoreByPersonalization(events, userTags);
         events = personalized;
       } catch (err) {
         // Fall back to date-sorted events on error
@@ -240,13 +244,45 @@ async function refresh() {
 }
 
 /**
- * Score events using Fuse.js fuzzy matching against user tags, then combine
- * with lightweight recency and popularity heuristics.
+ * Ask Workers AI to rank event candidates, then blend that ranking with
+ * Fuse.js relevance and lightweight recency/popularity heuristics.
  */
-function scoreByPersonalization(events: Event[], userTags: string[]) {
+async function getModelRecommendations(events: Event[], userTags: string[]) {
+  const candidates = events.slice(0, 50).map(event => ({
+    id: event.id,
+    title: event.title || '',
+    description: event.description || '',
+    category: event.category || '',
+    location: event.location || '',
+    tags: Array.isArray(event.tags) ? event.tags.slice(0, 12) : [],
+  }));
+  const key = JSON.stringify({
+    tags: userTags.map(tag => tag.trim().toLowerCase()).filter(Boolean).sort(),
+    candidates,
+  });
+  const cached = recommendationCache.get(key);
+  if (cached) return cached;
+
+  const result = await requestAi<{ recommendedEventIds: string[] }>('/recommend-events', {
+    tags: userTags,
+    candidates,
+  });
+  const ids = Array.isArray(result.recommendedEventIds)
+    ? result.recommendedEventIds.filter(id => typeof id === 'string')
+    : [];
+  if (!ids.length) throw new Error('AI returned no event recommendations.');
+  recommendationCache.set(key, ids);
+  return ids;
+}
+
+async function scoreByPersonalization(events: Event[], userTags: string[]) {
   if (!events || events.length === 0) return events;
 
   const now = Date.now();
+  const recommendedIds = await getModelRecommendations(events, userTags);
+  const modelScores = new Map(
+    recommendedIds.map((id, index) => [id, 1 - index / Math.max(recommendedIds.length - 1, 1)]),
+  );
 
   // Build candidate string for each event
   const candidates: Candidate[] = events.map((e) => {
@@ -318,10 +354,13 @@ function scoreByPersonalization(events: Event[], userTags: string[]) {
 
     const pop = maxPop > 0 ? popCounts[e.id] / maxPop : 0;
 
-    const finalScore =
+    const heuristicScore =
       PERSONALIZED_SEMANTIC_WEIGHT * sem +
       PERSONALIZED_RECENCY_WEIGHT * recencyScore +
       PERSONALIZED_POP_WEIGHT * pop;
+    const modelScore = modelScores.get(e.id) ?? 0;
+    const finalScore = AI_RECOMMENDATION_WEIGHT * modelScore
+      + FUSED_PERSONALIZATION_WEIGHT * heuristicScore;
 
     return { event: e, score: finalScore };
   });
@@ -371,6 +410,7 @@ watch(
     props.limit,
     props.excludeEventId,
     eventStore.events.length,
+    userStore.userProfile?.tags?.join('|'),
   ],
   refresh,
   { immediate: true }

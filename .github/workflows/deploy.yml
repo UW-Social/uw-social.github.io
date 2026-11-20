@@ -20,7 +20,7 @@ jobs:
 
       - name: Set up .env file
         env:
-          AI_API_BASE_URL: ${{ vars.VITE_AI_API_BASE_URL }}
+          AI_API_BASE_URL: ${{ vars.VITE_AI_API_BASE_URL || 'https://uw-social-ai.uw-social-yoyo.workers.dev' }}
         run: |
           cd Frontend
           echo VITE_FIREBASE_API_KEY="${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
