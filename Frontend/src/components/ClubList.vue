@@ -7,7 +7,7 @@
         :key="club.id"
         :club="club"
         :currentUserId="userStore.userProfile?.uid"
-        @click="$emit('open-card', club); console.log('[ClubList.vue] open-card emitted with club:', club)"
+        @open-card="$emit('open-card', club)"
       />
     </div>
   </div>

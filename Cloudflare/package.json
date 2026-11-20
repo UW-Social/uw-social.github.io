@@ -6,6 +6,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "check": "wrangler deploy --dry-run",
+    "dev:site": "wrangler dev --config wrangler.site.jsonc",
+    "deploy:site": "wrangler deploy --config wrangler.site.jsonc",
+    "check:site": "wrangler deploy --dry-run --config wrangler.site.jsonc",
     "test": "node --test"
   },
   "dependencies": { "jose": "^6.1.0" },

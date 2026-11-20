@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "uw-social-site-router",
+  "account_id": "1c55a3c78485e800c8ad2dd48c2b339b",
+  "main": "src/site-router.mjs",
+  "compatibility_date": "2026-11-19",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "uw-social.com/*", "zone_name": "uw-social.com" }
+  ]
+}

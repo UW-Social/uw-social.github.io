@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, watch, type ComputedRef, type Ref } from 'vue';
 import { RecurrenceType, type Event } from '../types/event';
 import type { DiscussionPost, DiscussionReply, ExperiencePost, Forum, ForumPost } from '../types/forum';
+import { canonicalUrl } from './siteUrls';
 
 type JsonLdValue =
   | string
@@ -54,7 +55,7 @@ function absoluteUrl(pathOrUrl?: string | null): string | undefined {
 }
 
 function routeUrl(path: string): string {
-  return `${getSiteOrigin()}/#${path.startsWith('/') ? path : `/${path}`}`;
+  return canonicalUrl(path, getSiteOrigin());
 }
 
 function compact(value?: string | null): string {

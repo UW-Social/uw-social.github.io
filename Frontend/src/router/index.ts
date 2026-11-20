@@ -1,6 +1,7 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { homeSeo, routeSeo, setPageSeo } from '../utils/seo'
+import { canonicalUrl, legacyRouteUrl } from '../utils/siteUrls'
 // import { isMobile } from '@/App.vue'
 
 const routes = [
@@ -130,13 +131,33 @@ const routes = [
   },
 ];
 
+const legacyUrl = legacyRouteUrl(window.location.href);
+if (legacyUrl) window.history.replaceState(window.history.state, '', legacyUrl);
+
 const router = createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
 router.afterEach((to, _from, failure) => {
-  if (!failure) setPageSeo(routeSeo[String(to.name)] || homeSeo);
+  if (!failure) {
+    setPageSeo(routeSeo[String(to.name)] || homeSeo);
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl(to.path);
+    let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.name = 'robots';
+      document.head.appendChild(robots);
+    }
+    const privatePage = to.meta.requiresAuth || ['Login', 'ForumNewPost'].includes(String(to.name));
+    robots.content = privatePage ? 'noindex, follow' : 'index, follow';
+  }
 });
 
 export function isMobile() {

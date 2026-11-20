@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useEventStore } from '../../stores/event';
 import Fuse from 'fuse.js';
 import MobileEventCard from './MobileEventCard.vue';
@@ -61,6 +61,7 @@ import type { Event } from '../../types/event';
 
 const eventStore = useEventStore();
 const route = useRoute();
+const router = useRouter();
 
 const searchQuery = ref('');
 const isLoading = ref(true);
@@ -133,7 +134,7 @@ const handleEventClick = (event: Event) => {
   console.log('Event clicked:', event);
   if (event.id) {
     // Navigate to event detail page with event ID
-    window.location.href = `#/events/${event.id}`;
+    router.push(`/events/${encodeURIComponent(event.id)}`);
   }
 };
 

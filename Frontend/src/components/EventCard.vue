@@ -1,7 +1,7 @@
 <template>
   <div class="card event-card" @click="emit('open-card', event)">
     <div class="event-card-image-wrap">
-      <img :src="event.imageUrl || '/images/wavingdog.jpg'" alt="Event Image" />
+      <img :src="event.imageUrl || '/images/wavingdog.jpg'" :alt="event.title" />
       <button
         type="button"
         class="save-icon-button"
@@ -18,7 +18,11 @@
       <!-- 左侧内容 -->
       <div class="event-card-left">
         <div>
-          <h3 class="event-title">{{ event.title }}</h3>
+          <h3 class="event-title">
+            <router-link :to="`/events/${encodeURIComponent(event.id)}`" custom v-slot="{ href }">
+              <a :href="href" class="detail-link" @click="handleDetailLink">{{ event.title }}</a>
+            </router-link>
+          </h3>
           <p class="description">{{ event.description }}</p>
         </div>
 
@@ -89,6 +93,16 @@ const router = useRouter();
 const route = useRoute();
 const isSavingEvent = ref(false);
 
+function handleDetailLink(click: MouseEvent) {
+  click.stopPropagation();
+  // Keep the existing returnTo navigation for normal clicks; let the anchor
+  // handle new-tab/modifier clicks and remain discoverable to crawlers.
+  if (click.button === 0 && !click.ctrlKey && !click.metaKey && !click.shiftKey && !click.altKey) {
+    click.preventDefault();
+    emit('open-card', props.event);
+  }
+}
+
 const isSavedEvent = computed(() => {
   return (userStore.userProfile?.savedEventIds ?? []).includes(props.event.id);
 });
@@ -150,4 +164,6 @@ const toggleSavedEvent = async () => {
 
 <style scoped>
 /* eventcard.css handles all styling including delete button */
+.detail-link { color: inherit; text-decoration: none; }
+.detail-link:hover, .detail-link:focus-visible { text-decoration: underline; }
 </style>

@@ -1,11 +1,13 @@
 <template>
   <div class="card event-card" @click="$emit('open-card', club)">
-    <img :src="club.imageUrl || '/images/wavingdog.jpg'" alt="Club Image" />
+    <img :src="club.imageUrl || '/images/wavingdog.jpg'" :alt="club.name" />
     <div class="event-card-content">
       <!-- 左侧内容 -->
       <div class="event-card-left">
         <div>
-          <h3 class="event-title">{{ club.name }}</h3>
+          <h3 class="event-title">
+            <router-link :to="`/clubs/${encodeURIComponent(club.id)}`" class="detail-link" @click.stop>{{ club.name }}</router-link>
+          </h3>
           <p class="description">{{ club.description }}</p>
         </div>
 
@@ -65,6 +67,8 @@ const props = defineProps<{
   currentUserId?: string | number;
 }>();
 
+defineEmits<{ (event: 'open-card', club: Club): void }>();
+
 const { club } = toRefs(props);
 const clubStore = useClubStore();
 
@@ -86,6 +90,8 @@ const handleDelete = async () => {
 
 <style scoped>
 /* Club card - tighter spacing for more info to fit */
+.detail-link { color: inherit; text-decoration: none; }
+.detail-link:hover, .detail-link:focus-visible { text-decoration: underline; }
 .event-card-right .event-meta {
   gap: var(--spacing-xs);
 }

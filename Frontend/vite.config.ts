@@ -28,7 +28,9 @@ export default defineConfig(({ mode }) => {
         '@svg': path.resolve(__dirname, './public/svg'),
       },
     },
-    base: env.VITE_BASE_PATH || '/',
+    // CI exports its base explicitly; .env.production must not override the
+    // subdirectory deployments configured by the GitHub Pages workflow.
+    base: process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/',
     server: {
       proxy: {
         '/api': {
