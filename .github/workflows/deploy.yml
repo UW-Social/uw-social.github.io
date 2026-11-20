@@ -55,6 +55,9 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
+        env:
+          # The frontend uses browser/WASM inference, not the Node CUDA backend.
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
         run: |
           cd Frontend
           npm install
